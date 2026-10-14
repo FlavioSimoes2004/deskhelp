@@ -284,11 +284,15 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
     patch:
       tags: [Chamados]
-      summary: Alterar chamado (admin)
+      summary: Alterar chamado (admin e suporte)
       description: |
         Envie apenas os campos a alterar. Cada mudança é registrada no histórico.
         Ao mudar para `resolvido` ou `fechado`, as datas de resolução/fechamento são preenchidas;
-        ao reabrir, são limpas. O responsável precisa ser um administrador ativo; envie `null` para remover.
+        ao reabrir, são limpas. O responsável precisa ser um administrador ou suporte ativo; envie `null` para remover.
+
+        Perfil `support`: altera apenas `priority` e `categoryId`, e pode assumir um chamado **sem responsável**
+        enviando o próprio id em `assigneeId` (um chamado `aberto` passa para `em_andamento`). Alterar `status`,
+        `title`, `description` ou um responsável já definido retorna 403.
       operationId: updateTicket
       requestBody:
         required: true
@@ -318,15 +322,6 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-    delete:
-      tags: [Chamados]
-      summary: Excluir chamado (admin)
-      operationId: deleteTicket
-      responses:
-        "204": { description: Chamado excluído }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
 
   /tickets/{id}/comments:
     parameters:
@@ -335,7 +330,8 @@ paths:
       tags: [Chamados]
       summary: Comentar no chamado
       description: |
-        Usuários `comum` só comentam nos próprios chamados e não podem comentar em chamados fechados.
+        Somente quem abriu o chamado e o responsável por ele podem comentar (os demais recebem 403).
+        Exceto administradores, ninguém comenta em chamados fechados.
         Para enviar anexos use `multipart/form-data` com o campo `attachments` (até 5 arquivos de 10 MB;
         imagens, PDF, TXT, LOG, CSV, DOC(X), XLS(X), ODT, ODS ou ZIP). Os arquivos ficam no servidor
         e o banco guarda o caminho de cada um.
@@ -463,6 +459,26 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
+
+  /users/staff:
+    get:
+      tags: [Usuários]
+      summary: Listar administradores e suporte
+      description: Disponível para admin e suporte. Usado para escolher e exibir responsáveis por chamados.
+      operationId: listStaff
+      responses:
+        "200":
+          description: Administradores e suporte, ativos e desativados
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
 
   /users/{id}:
     parameters:
@@ -701,7 +717,7 @@ components:
   schemas:
     Role:
       type: string
-      enum: [admin, comum]
+      enum: [admin, comum, support]
     TicketStatus:
       type: string
       enum: [aberto, em_andamento, aguardando, resolvido, fechado]

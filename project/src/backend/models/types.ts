@@ -1,4 +1,4 @@
-export const ROLES = ["admin", "comum"] as const;
+export const ROLES = ["admin", "comum", "support"] as const;
 export type Role = (typeof ROLES)[number];
 
 export const TICKET_STATUSES = ["aberto", "em_andamento", "aguardando", "resolvido", "fechado"] as const;

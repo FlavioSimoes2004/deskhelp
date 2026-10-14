@@ -53,6 +53,12 @@ export async function listUsers(filters: { search?: string; role?: Role; active?
   return rows.map(toPublic);
 }
 
+/** Administradores e suporte (ativos e desativados), quem pode ser responsável por chamados. */
+export async function listStaff(): Promise<PublicUser[]> {
+  const [rows] = await pool.query<UserRow[]>("SELECT * FROM users WHERE role IN ('admin', 'support') ORDER BY name");
+  return rows.map(toPublic);
+}
+
 export async function insertUser(data: { name: string; email: string; passwordHash: string; role: Role }) {
   const [result] = await pool.execute<ResultSetHeader>(
     "INSERT INTO users (name, email, password_hash, role) VALUES (:name, :email, :passwordHash, :role)",

@@ -24,11 +24,6 @@ export async function update(req: Request, res: Response) {
   res.json({ data: await tickets.updateTicket(currentUser(req), res.locals.params.id, res.locals.body) });
 }
 
-export async function remove(req: Request, res: Response) {
-  await tickets.deleteTicket(currentUser(req), res.locals.params.id);
-  res.status(204).end();
-}
-
 export async function addComment(req: Request, res: Response) {
   const comments = await tickets.addComment(
     currentUser(req),

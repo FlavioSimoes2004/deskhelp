@@ -62,7 +62,6 @@ export const ticketService = {
       assigneeId: number | null;
     }>,
   ) => api.patch<{ data: TicketDetail }>(`/tickets/${id}`, data).then((r) => r.data),
-  remove: (id: number) => api.delete(`/tickets/${id}`),
   comment: (id: number, body: string, files: File[] = []) => {
     if (files.length === 0) {
       return api.post<{ data: TicketComment[] }>(`/tickets/${id}/comments`, { body }).then((r) => r.data);
@@ -81,6 +80,8 @@ export const ticketService = {
 export const userService = {
   list: (filters: { search?: string; role?: Role | ""; active?: "true" | "false" | "" } = {}) =>
     api.get<{ data: User[] }>("/users", filters).then((r) => r.data),
+  /** Administradores e suporte (possíveis responsáveis por chamados). */
+  staff: () => api.get<{ data: User[] }>("/users/staff").then((r) => r.data),
   create: (data: { name: string; email: string; password: string; role: Role }) =>
     api.post<{ data: User }>("/users", data).then((r) => r.data),
   update: (id: number, data: Partial<{ name: string; email: string; role: Role; active: boolean; password: string }>) =>

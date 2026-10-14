@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
   name          VARCHAR(120) NOT NULL,
   email         VARCHAR(190) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  role          ENUM('admin', 'comum') NOT NULL DEFAULT 'comum',
+  role          ENUM('admin', 'comum', 'support') NOT NULL DEFAULT 'comum',
   active        TINYINT(1) NOT NULL DEFAULT 1,
   created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -14,6 +14,9 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE KEY uq_users_email (email),
   KEY idx_users_role_active (role, active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Bancos criados antes do perfil 'support' recebem a nova opção.
+ALTER TABLE users MODIFY role ENUM('admin', 'comum', 'support') NOT NULL DEFAULT 'comum';
 
 CREATE TABLE IF NOT EXISTS categories (
   id   INT UNSIGNED NOT NULL AUTO_INCREMENT,

@@ -11,7 +11,7 @@ import { PRIORITY_LABEL, PRIORITY_ORDER, STATUS_LABEL, STATUS_ORDER } from "../u
 const PAGE_SIZE = 20;
 
 export function TicketsPage() {
-  const { isAdmin } = useAuth();
+  const { isStaff } = useAuth();
   const [params, setParams] = useSearchParams();
   const status = (params.get("status") ?? "") as TicketStatus | "";
   const priority = (params.get("priority") ?? "") as TicketPriority | "";
@@ -31,7 +31,7 @@ export function TicketsPage() {
   }, [searchDraft]);
 
   const categories = useAsync(() => ticketService.categories(), []);
-  const admins = useAsync(() => (isAdmin ? userService.list({ role: "admin" }) : Promise.resolve([])), [isAdmin]);
+  const staff = useAsync(() => (isStaff ? userService.staff() : Promise.resolve([])), [isStaff]);
   const list = useAsync(
     () =>
       ticketService.list({
@@ -63,9 +63,9 @@ export function TicketsPage() {
     <div className="page">
       <div className="page-head">
         <div>
-          <h1>{isAdmin ? "Chamados" : "Meus chamados"}</h1>
+          <h1>{isStaff ? "Chamados" : "Meus chamados"}</h1>
           <p>
-            {isAdmin ? "Todos os chamados abertos na empresa." : "Os chamados que você abriu e o andamento de cada um."}
+            {isStaff ? "Todos os chamados abertos na empresa." : "Os chamados que você abriu e o andamento de cada um."}
           </p>
         </div>
         <Link className="btn btn-primary" to="/chamados/novo">
@@ -128,7 +128,7 @@ export function TicketsPage() {
             ))}
           </select>
         </div>
-        {isAdmin && (
+        {isStaff && (
           <div className="field">
             <label htmlFor="f-assignee">Responsável</label>
             <select
@@ -138,7 +138,7 @@ export function TicketsPage() {
               onChange={(e) => update({ assigneeId: e.target.value })}
             >
               <option value="">Qualquer</option>
-              {admins.data?.map((u) => (
+              {staff.data?.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.name}
                 </option>
@@ -158,7 +158,7 @@ export function TicketsPage() {
         <Loading />
       ) : list.data?.data.length ? (
         <>
-          <TicketTable tickets={list.data.data} showRequester={isAdmin} />
+          <TicketTable tickets={list.data.data} showRequester={isStaff} />
           {pagination && (
             <div className="pager">
               <span>

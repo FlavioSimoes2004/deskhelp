@@ -8,6 +8,8 @@ export interface AuthState {
   /** true enquanto a sessão salva ainda está sendo verificada. */
   loading: boolean;
   isAdmin: boolean;
+  /** Admin ou suporte: veem todos os chamados e atendem. */
+  isStaff: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: { name: string; email: string; password: string }) => Promise<void>;
   logout: () => void;
@@ -44,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       loading,
       isAdmin: user?.role === "admin",
+      isStaff: user?.role === "admin" || user?.role === "support",
       login: async (email, password) => {
         const result = await authService.login(email, password);
         tokenStore.set(result.token);

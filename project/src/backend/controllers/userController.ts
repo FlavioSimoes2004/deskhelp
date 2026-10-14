@@ -6,6 +6,10 @@ export async function list(_req: Request, res: Response) {
   res.json({ data: await users.listUsers(res.locals.query) });
 }
 
+export async function staff(_req: Request, res: Response) {
+  res.json({ data: await users.listStaff() });
+}
+
 export async function create(_req: Request, res: Response) {
   res.status(201).json({ data: await users.createUser(res.locals.body) });
 }

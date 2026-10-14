@@ -12,13 +12,16 @@ Sistema de chamados (help desk): usuários abrem chamados e a equipe de suporte 
 | Perfil | Pode |
 | --- | --- |
 | **Comum** | Abrir chamados, ver e comentar apenas os próprios chamados, editar o próprio perfil e senha |
-| **Admin** | Tudo do comum + ver todos os chamados, alterar status, prioridade, categoria e responsável, assumir e excluir chamados, cadastrar/editar/desativar usuários, ver relatórios e exportar CSV |
+| **Suporte** | Tudo do comum + ver todos os chamados, assumir um chamado sem responsável (status vai para "em andamento" se estava aberto) e alterar prioridade e categoria. Não altera status nem troca um responsável já definido |
+| **Admin** | Tudo do comum + ver todos os chamados, alterar status, prioridade, categoria e responsável, assumir chamados, cadastrar/editar/desativar usuários, ver relatórios e exportar CSV |
 
 Regras importantes:
-- O responsável por um chamado precisa ser um administrador ativo.
+- O responsável por um chamado precisa ser um administrador ou suporte ativo.
+- Somente quem abriu o chamado e o responsável por ele podem comentar (vale também para admin).
+- Chamados não podem ser excluídos.
 - Um admin não pode tirar o próprio perfil de admin nem desativar a própria conta.
 - Conta desativada perde o acesso na hora (o token é revalidado no banco a cada requisição).
-- Chamado fechado não aceita comentários de usuário comum.
+- Chamado fechado só aceita comentários de administrador.
 - Toda alteração de chamado fica registrada no histórico.
 
 ## Páginas
@@ -27,10 +30,10 @@ Regras importantes:
 | --- | --- | --- |
 | `/login` | Entrar | público |
 | `/cadastro` | Criar conta comum (se `ALLOW_SIGNUP=true`) | público |
-| `/` | Início: chamados por status, "com você agora" (admin) e recentes | todos |
+| `/` | Início: chamados por status, "com você agora" (admin e suporte) e recentes | todos |
 | `/chamados` | Lista com busca, filtros e paginação | todos (comum vê só os seus) |
 | `/chamados/novo` | Abrir chamado | todos |
-| `/chamados/:id` | Detalhe, conversa, histórico e painel de atendimento (admin) | dono ou admin |
+| `/chamados/:id` | Detalhe, conversa, histórico e painel de atendimento (admin e suporte) | dono, admin ou suporte |
 | `/perfil` | Nome e troca de senha | todos |
 | `/api-docs` | Documentação da API (Swagger UI) | todos |
 | `/usuarios` | Cadastro e gestão de usuários | admin |

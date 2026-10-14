@@ -1,8 +1,44 @@
-import type { AuthUser, TicketPriority, TicketStatus } from "../models/types.js";
+import type { AuthUser, Role, TicketPriority, TicketStatus } from "../models/types.js";
+import { forbidden } from "../utils/httpError.js";
 
-/** Admin vê todos os chamados; usuário comum vê apenas os que abriu. */
+/** Equipe de atendimento: administradores e suporte. */
+export const isStaff = (role: Role) => role === "admin" || role === "support";
+
+/** Admin e suporte veem todos os chamados; usuário comum vê apenas os que abriu. */
 export function canViewTicket(user: AuthUser, ticket: { requesterId: number }): boolean {
-  return user.role === "admin" || ticket.requesterId === user.id;
+  return isStaff(user.role) || ticket.requesterId === user.id;
+}
+
+/** Somente quem abriu o chamado e o responsável por ele podem comentar. */
+export function canComment(user: AuthUser, ticket: { requesterId: number; assigneeId: number | null }): boolean {
+  return ticket.requesterId === user.id || ticket.assigneeId === user.id;
+}
+
+/**
+ * Regras do perfil suporte ao alterar um chamado:
+ * - altera prioridade e categoria;
+ * - não altera assunto, descrição nem status;
+ * - só assume para si um chamado sem responsável (e não troca o responsável existente).
+ * Ao assumir um chamado "aberto", o status passa para "em_andamento", como no admin.
+ * Devolve o patch a aplicar (com o status, quando for o caso).
+ */
+export function applySupportRules(
+  user: AuthUser,
+  current: { status: TicketStatus; assigneeId: number | null },
+  patch: Partial<TicketEditableFields>,
+): Partial<TicketEditableFields> {
+  if (patch.title !== undefined || patch.description !== undefined) {
+    throw forbidden("O suporte não pode alterar o assunto nem a descrição do chamado");
+  }
+  if (patch.status !== undefined) throw forbidden("O suporte não pode alterar o status do chamado");
+
+  if (patch.assigneeId === undefined || patch.assigneeId === current.assigneeId) {
+    const { assigneeId: _same, ...rest } = patch;
+    return rest;
+  }
+  if (current.assigneeId !== null) throw forbidden("Este chamado já tem um responsável");
+  if (patch.assigneeId !== user.id) throw forbidden("O suporte só pode assumir o chamado para si");
+  return current.status === "aberto" ? { ...patch, status: "em_andamento" } : patch;
 }
 
 /**

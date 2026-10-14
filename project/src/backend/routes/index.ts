@@ -38,6 +38,7 @@ const authLimiter = rateLimit({
 
 const byId = validate(idParamSchema, "params");
 const adminOnly = requireRole("admin");
+const staffOnly = requireRole("admin", "support");
 
 export const apiRouter = Router();
 
@@ -64,9 +65,11 @@ apiRouter.post("/tickets/:id/comments", byId, parseMultipart, validate(commentSc
 apiRouter.post("/tickets/:id/resolve", requireRole("comum"), byId, ticketCtrl.resolve);
 apiRouter.get("/attachments/:id", byId, ticketCtrl.downloadAttachment);
 
+// Administradores e suporte (o suporte tem regras próprias no ticketService)
+apiRouter.patch("/tickets/:id", staffOnly, byId, validate(updateTicketSchema), ticketCtrl.update);
+apiRouter.get("/users/staff", staffOnly, userCtrl.staff);
+
 // Somente administradores
-apiRouter.patch("/tickets/:id", adminOnly, byId, validate(updateTicketSchema), ticketCtrl.update);
-apiRouter.delete("/tickets/:id", adminOnly, byId, ticketCtrl.remove);
 
 apiRouter.get("/users", adminOnly, validate(userQuerySchema, "query"), userCtrl.list);
 apiRouter.post("/users", adminOnly, validate(createUserSchema), userCtrl.create);

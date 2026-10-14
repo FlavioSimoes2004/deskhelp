@@ -5,6 +5,7 @@ import { hashPassword } from "../utils/password.js";
 import { assertCanUpdateUser } from "./userRules.js";
 
 export const listUsers = users.listUsers;
+export const listStaff = users.listStaff;
 
 export async function createUser(data: { name: string; email: string; password: string; role: Role }) {
   if (await users.findUserByEmail(data.email)) {

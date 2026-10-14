@@ -6,9 +6,7 @@ import { useAuth } from "../hooks/useAuth";
 import { ApiError } from "../services/api";
 import { userService } from "../services/deskhelp";
 import type { Role, User } from "../services/types";
-import { formatDateTime } from "../utils/format";
-
-const ROLE_LABEL: Record<Role, string> = { admin: "Administrador", comum: "Comum" };
+import { formatDateTime, ROLE_LABEL } from "../utils/format";
 
 export function UsersPage() {
   const { user: me } = useAuth();
@@ -77,6 +75,7 @@ export function UsersPage() {
           <select id="u-role" className="select" value={role} onChange={(e) => setRole(e.target.value as Role | "")}>
             <option value="">Todos</option>
             <option value="admin">Administrador</option>
+            <option value="support">Suporte</option>
             <option value="comum">Comum</option>
           </select>
         </div>
@@ -231,6 +230,7 @@ function UserForm({
             onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
           >
             <option value="comum">Comum: abre e acompanha os próprios chamados</option>
+            <option value="support">Suporte: assume chamados sem responsável e ajusta prioridade e categoria</option>
             <option value="admin">Administrador: atende chamados e gerencia o sistema</option>
           </select>
         </Field>

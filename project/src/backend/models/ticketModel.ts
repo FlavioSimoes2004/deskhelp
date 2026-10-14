@@ -177,10 +177,6 @@ export async function updateTicket(
   }
 }
 
-export async function deleteTicket(id: number): Promise<void> {
-  await pool.execute("DELETE FROM tickets WHERE id = ?", [id]);
-}
-
 export async function listComments(ticketId: number): Promise<TicketComment[]> {
   const [rows] = await pool.execute<RowDataPacket[]>(
     `SELECT cm.id, cm.ticket_id, cm.user_id, u.name AS user_name, cm.body, cm.created_at

@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { useAuth } from "../hooks/useAuth";
-import { initials } from "../utils/format";
+import { initials, ROLE_LABEL } from "../utils/format";
 import { LogoMark } from "./Logo";
 
 const navClass = ({ isActive }: { isActive: boolean }) => `nav-link${isActive ? " active" : ""}`;
 
 export function Layout() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, isStaff, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const location = useLocation();
 
@@ -38,7 +38,7 @@ export function Layout() {
             Início
           </NavLink>
           <NavLink to="/chamados" end className={navClass}>
-            {isAdmin ? "Chamados" : "Meus chamados"}
+            {isStaff ? "Chamados" : "Meus chamados"}
           </NavLink>
           <NavLink to="/chamados/novo" className={navClass}>
             Abrir chamado
@@ -69,7 +69,7 @@ export function Layout() {
           </span>
           <div className="who">
             <strong>{user.name}</strong>
-            <span>{isAdmin ? "Administrador" : "Usuário"}</span>
+            <span>{user.role === "comum" ? "Usuário" : ROLE_LABEL[user.role]}</span>
           </div>
           <NavLink to="/perfil" className={navClass} style={{ gridColumn: "1 / -1" }}>
             Meu perfil

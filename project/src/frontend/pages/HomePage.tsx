@@ -14,12 +14,12 @@ function greeting() {
 }
 
 export function HomePage() {
-  const { user, isAdmin } = useAuth();
+  const { user, isStaff } = useAuth();
   const overview = useAsync(() => ticketService.overview(), []);
   const recent = useAsync(() => ticketService.list({ pageSize: 6 }), []);
   const mine = useAsync(
-    () => (isAdmin && user ? ticketService.list({ assigneeId: user.id, pageSize: 6 }) : Promise.resolve(null)),
-    [isAdmin, user?.id],
+    () => (isStaff && user ? ticketService.list({ assigneeId: user.id, pageSize: 6 }) : Promise.resolve(null)),
+    [isStaff, user?.id],
   );
 
   const firstName = user?.name.split(" ")[0] ?? "";
@@ -33,7 +33,7 @@ export function HomePage() {
             {greeting()}, {firstName}
           </h1>
           <p>
-            {isAdmin
+            {isStaff
               ? "Esta é a situação de todos os chamados da equipe."
               : "Acompanhe aqui os chamados que você abriu."}
           </p>
@@ -45,13 +45,13 @@ export function HomePage() {
 
       <section className="panel" aria-labelledby="dist-title">
         <div className="panel-head">
-          <h2 id="dist-title">{isAdmin ? "Todos os chamados por status" : "Seus chamados por status"}</h2>
+          <h2 id="dist-title">{isStaff ? "Todos os chamados por status" : "Seus chamados por status"}</h2>
         </div>
         <ErrorAlert error={overview.error} onRetry={overview.reload} />
         {overview.data ? <StatusStrip counts={overview.data.byStatus} linkPrefix="/chamados?" /> : !overview.error && <Loading />}
       </section>
 
-      {isAdmin && (
+      {isStaff && (
         <section className="panel" aria-labelledby="mine-title">
           <div className="panel-head">
             <h2 id="mine-title">Com você agora</h2>
@@ -79,7 +79,7 @@ export function HomePage() {
         {recent.loading ? (
           <Loading />
         ) : recent.data?.data.length ? (
-          <TicketTable tickets={recent.data.data} showRequester={isAdmin} />
+          <TicketTable tickets={recent.data.data} showRequester={isStaff} />
         ) : (
           <EmptyState
             title="Nenhum chamado ainda"

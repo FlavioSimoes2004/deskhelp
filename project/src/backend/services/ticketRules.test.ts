@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { canViewTicket, diffTicket, statusTimestamps } from "./ticketRules.js";
+import { applySupportRules, canComment, canViewTicket, diffTicket, statusTimestamps } from "./ticketRules.js";
 
 const admin = { id: 1, role: "admin" as const };
 const comum = { id: 2, role: "comum" as const };
+const support = { id: 7, role: "support" as const };
 const now = new Date("2026-10-13T12:00:00Z");
 const earlier = new Date("2026-10-10T09:00:00Z");
 
@@ -17,6 +18,59 @@ describe("canViewTicket", () => {
 
   it("denies a common user access to someone else's ticket", () => {
     expect(canViewTicket(comum, { requesterId: 3 })).toBe(false);
+  });
+
+  it("allows support to view any ticket", () => {
+    expect(canViewTicket(support, { requesterId: 99 })).toBe(true);
+  });
+});
+
+describe("canComment", () => {
+  it("allows the requester and the assignee", () => {
+    expect(canComment(comum, { requesterId: 2, assigneeId: 7 })).toBe(true);
+    expect(canComment(support, { requesterId: 2, assigneeId: 7 })).toBe(true);
+  });
+
+  it("denies anyone else, including admins", () => {
+    expect(canComment(admin, { requesterId: 2, assigneeId: 7 })).toBe(false);
+    expect(canComment(support, { requesterId: 2, assigneeId: null })).toBe(false);
+  });
+});
+
+describe("applySupportRules", () => {
+  const open = { status: "aberto" as const, assigneeId: null };
+
+  it("lets support assume an unassigned ticket and moves it to in progress", () => {
+    expect(applySupportRules(support, open, { assigneeId: 7 })).toEqual({ assigneeId: 7, status: "em_andamento" });
+  });
+
+  it("keeps the status when the assumed ticket is not open", () => {
+    expect(applySupportRules(support, { status: "aguardando", assigneeId: null }, { assigneeId: 7 })).toEqual({
+      assigneeId: 7,
+    });
+  });
+
+  it("denies assigning the ticket to someone else", () => {
+    expect(() => applySupportRules(support, open, { assigneeId: 8 })).toThrow(/para si/);
+  });
+
+  it("denies changing an existing assignee", () => {
+    const assigned = { status: "em_andamento" as const, assigneeId: 8 };
+    expect(() => applySupportRules(support, assigned, { assigneeId: 7 })).toThrow(/já tem um responsável/);
+    expect(() => applySupportRules(support, assigned, { assigneeId: null })).toThrow(/já tem um responsável/);
+  });
+
+  it("denies changing the status, title or description", () => {
+    expect(() => applySupportRules(support, open, { status: "resolvido" })).toThrow(/status/);
+    expect(() => applySupportRules(support, open, { title: "Novo assunto" })).toThrow(/assunto/);
+  });
+
+  it("allows priority and category, ignoring an unchanged assignee", () => {
+    const assigned = { status: "em_andamento" as const, assigneeId: 8 };
+    expect(applySupportRules(support, assigned, { priority: "alta", categoryId: 3, assigneeId: 8 })).toEqual({
+      priority: "alta",
+      categoryId: 3,
+    });
   });
 });
 

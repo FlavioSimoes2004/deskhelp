@@ -1,4 +1,4 @@
-import type { TicketPriority, TicketStatus } from "../services/types";
+import type { Role, TicketPriority, TicketStatus } from "../services/types";
 
 export const STATUS_LABEL: Record<TicketStatus, string> = {
   aberto: "Aberto",
@@ -20,6 +20,8 @@ export const PRIORITY_LABEL: Record<TicketPriority, string> = {
 export const PRIORITY_ORDER: TicketPriority[] = ["baixa", "media", "alta", "critica"];
 
 /** #42 → "0042": o número do chamado com largura fixa. */
+export const ROLE_LABEL: Record<Role, string> = { admin: "Administrador", support: "Suporte", comum: "Comum" };
+
 export const ticketNumber = (id: number) => String(id).padStart(4, "0");
 
 const dateTime = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });

@@ -4,9 +4,10 @@ import { Field } from "../components/Field";
 import { useAuth } from "../hooks/useAuth";
 import { ApiError } from "../services/api";
 import { authService } from "../services/deskhelp";
+import { ROLE_LABEL } from "../utils/format";
 
 export function ProfilePage() {
-  const { user, setUser, isAdmin } = useAuth();
+  const { user, setUser } = useAuth();
   const [name, setName] = useState(user?.name ?? "");
   const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" });
   const [error, setError] = useState<ApiError | null>(null);
@@ -45,7 +46,7 @@ export function ProfilePage() {
         <div>
           <h1>Meu perfil</h1>
           <p>
-            {user.email}, perfil {isAdmin ? "administrador" : "comum"}.
+            {user.email}, perfil {ROLE_LABEL[user.role].toLowerCase()}.
           </p>
         </div>
       </div>

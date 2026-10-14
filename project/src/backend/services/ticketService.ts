@@ -6,7 +6,15 @@ import type { TicketQuery } from "../middlewares/schemas.js";
 import type { UploadedFile } from "../middlewares/upload.js";
 import { removeStored, resolveStored, saveFile } from "../utils/fileStorage.js";
 import { forbidden, HttpError, notFound } from "../utils/httpError.js";
-import { canViewTicket, diffTicket, statusTimestamps, type TicketEditableFields } from "./ticketRules.js";
+import {
+  applySupportRules,
+  canComment,
+  canViewTicket,
+  diffTicket,
+  isStaff,
+  statusTimestamps,
+  type TicketEditableFields,
+} from "./ticketRules.js";
 
 async function getVisibleTicket(user: AuthUser, id: number): Promise<Ticket> {
   const ticket = await tickets.findTicketById(id);
@@ -25,7 +33,7 @@ async function assertCategory(categoryId: number) {
 
 export async function listTickets(user: AuthUser, query: TicketQuery) {
   const { page, pageSize, ...filters } = query;
-  const scoped = user.role === "admin" ? filters : { ...filters, requesterId: user.id };
+  const scoped = isStaff(user.role) ? filters : { ...filters, requesterId: user.id };
   const { items, total } = await tickets.listTickets(scoped, page, pageSize);
   return { data: items, pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) } };
 }
@@ -45,14 +53,15 @@ export async function createTicket(
   return getVisibleTicket(user, id);
 }
 
-export async function updateTicket(user: AuthUser, id: number, patch: Partial<TicketEditableFields>) {
+export async function updateTicket(user: AuthUser, id: number, requested: Partial<TicketEditableFields>) {
   const current = await getVisibleTicket(user, id);
+  const patch = user.role === "support" ? applySupportRules(user, current, requested) : requested;
   if (patch.categoryId !== undefined) await assertCategory(patch.categoryId);
   if (patch.assigneeId != null) {
     const assignee = await findUserById(patch.assigneeId);
-    if (!assignee || assignee.role !== "admin" || !assignee.active) {
-      throw new HttpError(400, "VALIDATION_ERROR", "O responsável precisa ser um administrador ativo", [
-        { field: "assigneeId", message: "O responsável precisa ser um administrador ativo" },
+    if (!assignee || !isStaff(assignee.role) || !assignee.active) {
+      throw new HttpError(400, "VALIDATION_ERROR", "O responsável precisa ser um administrador ou suporte ativo", [
+        { field: "assigneeId", message: "O responsável precisa ser um administrador ou suporte ativo" },
       ]);
     }
   }
@@ -64,13 +73,6 @@ export async function updateTicket(user: AuthUser, id: number, patch: Partial<Ti
   const timestamps = statusChanged && patch.status ? statusTimestamps(current, patch.status, new Date()) : {};
   await tickets.updateTicket(id, user.id, { ...patch, ...timestamps }, changes);
   return getTicketDetail(user, id);
-}
-
-export async function deleteTicket(user: AuthUser, id: number) {
-  await getVisibleTicket(user, id);
-  await tickets.deleteTicket(id);
-  // Os registros dos anexos saem em cascata; os arquivos ficam na pasta do chamado.
-  await removeStored(attachmentFolder(id)).catch((error) => console.error(error));
 }
 
 /** Usuário comum marca o próprio chamado como resolvido. */
@@ -92,6 +94,9 @@ const attachmentFolder = (ticketId: number) => `tickets/${ticketId}`;
 
 export async function addComment(user: AuthUser, id: number, body: string, files: UploadedFile[] = []) {
   const ticket = await getVisibleTicket(user, id);
+  if (!canComment(user, ticket)) {
+    throw forbidden("Somente quem abriu o chamado e o responsável por ele podem comentar");
+  }
   if (user.role !== "admin" && ticket.status === "fechado") {
     throw new HttpError(409, "TICKET_CLOSED", "Este chamado está fechado e não aceita novos comentários");
   }
@@ -118,9 +123,9 @@ export async function getAttachmentFile(user: AuthUser, attachmentId: number) {
   return { path: resolveStored(attachment.filePath), name: attachment.originalName };
 }
 
-/** Resumo para a página inicial: admin vê o geral e o que está com ele; comum vê os próprios. */
+/** Resumo para a página inicial: admin e suporte veem o geral e o que está com eles; comum vê os próprios. */
 export async function getOverview(user: AuthUser) {
-  if (user.role === "admin") {
+  if (isStaff(user.role)) {
     const [all, assignedToMe] = await Promise.all([
       tickets.countByStatus({}),
       tickets.countByStatus({ assigneeId: user.id }),

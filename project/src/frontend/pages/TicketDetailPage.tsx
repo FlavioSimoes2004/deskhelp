@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useParams } from "react-router";
 import { PriorityTag, StatusBadge } from "../components/Badges";
 import { EmptyState, ErrorAlert, Loading } from "../components/Feedback";
 import { Field } from "../components/Field";
@@ -50,13 +50,12 @@ function describeChange(entry: TicketHistoryEntry, categories: Category[], users
 
 export function TicketDetailPage() {
   const id = Number(useParams().id);
-  const { user, isAdmin } = useAuth();
-  const navigate = useNavigate();
+  const { user, isAdmin, isStaff } = useAuth();
   const justCreated = Boolean((useLocation().state as { created?: boolean } | null)?.created);
 
   const ticket = useAsync(() => ticketService.get(id), [id]);
   const categories = useAsync(() => ticketService.categories(), []);
-  const admins = useAsync(() => (isAdmin ? userService.list({ role: "admin" }) : Promise.resolve([])), [isAdmin]);
+  const staff = useAsync(() => (isStaff ? userService.staff() : Promise.resolve([])), [isStaff]);
 
   if (ticket.loading && !ticket.data) return <Loading />;
   if (ticket.error?.status === 404 || Number.isNaN(id)) {
@@ -78,6 +77,14 @@ export function TicketDetailPage() {
   if (!ticket.data) return <ErrorAlert error={ticket.error} onRetry={ticket.reload} />;
 
   const t = ticket.data;
+  const isParticipant = user !== null && (t.requesterId === user.id || t.assigneeId === user.id);
+  const commentBlocked = !isParticipant
+    ? isStaff && t.assigneeId === null
+      ? "Assuma o chamado para poder responder."
+      : "Somente quem abriu o chamado e o responsável por ele podem responder."
+    : !isAdmin && t.status === "fechado"
+      ? "Este chamado foi fechado. Se o problema voltou, abra um novo chamado."
+      : null;
   return (
     <div className="page">
       <p style={{ marginBottom: 12 }}>
@@ -110,22 +117,22 @@ export function TicketDetailPage() {
           </section>
           <Conversation
             ticket={t}
-            canComment={isAdmin || t.status !== "fechado"}
+            blockedReason={commentBlocked}
             categories={categories.data ?? []}
-            admins={admins.data ?? []}
+            staff={staff.data ?? []}
             onCommented={(comments) => ticket.setData({ ...t, comments })}
           />
         </div>
 
         <aside>
-          {isAdmin && user ? (
-            <AdminPanel
+          {isStaff && user ? (
+            <ManagePanel
               ticket={t}
+              isAdmin={isAdmin}
               currentUserId={user.id}
               categories={categories.data ?? []}
-              admins={(admins.data ?? []).filter((a) => a.active)}
+              staff={(staff.data ?? []).filter((a) => a.active)}
               onSaved={(updated) => ticket.setData(updated)}
-              onDeleted={() => navigate("/chamados", { replace: true })}
             />
           ) : null}
           {user?.role === "comum" && t.requesterId === user.id && t.status !== "resolvido" && t.status !== "fechado" && (
@@ -164,15 +171,16 @@ export function TicketDetailPage() {
 
 function Conversation({
   ticket,
-  canComment,
+  blockedReason,
   categories,
-  admins,
+  staff,
   onCommented,
 }: {
   ticket: TicketDetail;
-  canComment: boolean;
+  /** Motivo pelo qual o usuário não pode responder; null quando pode. */
+  blockedReason: string | null;
   categories: Category[];
-  admins: User[];
+  staff: User[];
   onCommented: (comments: TicketDetail["comments"]) => void;
 }) {
   const [body, setBody] = useState("");
@@ -242,7 +250,7 @@ function Conversation({
               <li key={item.key}>
                 <span className="event-dot" aria-hidden="true" />
                 <span className="event" title={formatDateTime(item.at)}>
-                  <strong>{item.h.userName}</strong> {describeChange(item.h, categories, admins)}, {timeAgo(item.at)}
+                  <strong>{item.h.userName}</strong> {describeChange(item.h, categories, staff)}, {timeAgo(item.at)}
                 </span>
               </li>
             ),
@@ -250,7 +258,7 @@ function Conversation({
         </ol>
       )}
 
-      {canComment ? (
+      {blockedReason === null ? (
         <form className="form" onSubmit={onSubmit} style={{ marginTop: 20 }}>
           <ErrorAlert error={error} />
           <Field label="Responder">
@@ -280,27 +288,31 @@ function Conversation({
         </form>
       ) : (
         <p className="alert alert-ok" style={{ marginTop: 20 }}>
-          Este chamado foi fechado. Se o problema voltou, abra um novo chamado.
+          {blockedReason}
         </p>
       )}
     </section>
   );
 }
 
-function AdminPanel({
+/**
+ * Atendimento do chamado. Admin altera tudo; suporte só assume chamados sem
+ * responsável e altera prioridade e categoria (as regras valem também na API).
+ */
+function ManagePanel({
   ticket,
+  isAdmin,
   currentUserId,
   categories,
-  admins,
+  staff,
   onSaved,
-  onDeleted,
 }: {
   ticket: TicketDetail;
+  isAdmin: boolean;
   currentUserId: number;
   categories: Category[];
-  admins: User[];
+  staff: User[];
   onSaved: (ticket: TicketDetail) => void;
-  onDeleted: () => void;
 }) {
   const initial = useMemo(
     () => ({
@@ -335,23 +347,16 @@ function AdminPanel({
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    void save({
-      status: form.status,
-      priority: form.priority,
-      categoryId: Number(form.categoryId),
-      assigneeId: form.assigneeId ? Number(form.assigneeId) : null,
-    });
+    const editable = { priority: form.priority, categoryId: Number(form.categoryId) };
+    void save(
+      isAdmin
+        ? { ...editable, status: form.status, assigneeId: form.assigneeId ? Number(form.assigneeId) : null }
+        : editable,
+    );
   }
 
-  async function onDelete() {
-    if (!window.confirm(`Excluir o chamado #${ticket.id}? Comentários e histórico também serão apagados.`)) return;
-    try {
-      await ticketService.remove(ticket.id);
-      onDeleted();
-    } catch (err) {
-      setError(err as ApiError);
-    }
-  }
+  // Suporte só assume chamado sem responsável; a API ajusta o status ao assumir.
+  const canAssume = isAdmin ? ticket.assigneeId !== currentUserId : ticket.assigneeId === null;
 
   return (
     <section className="panel" aria-labelledby="manage-title">
@@ -365,7 +370,7 @@ function AdminPanel({
             Alterações salvas.
           </div>
         )}
-        {ticket.assigneeId !== currentUserId && (
+        {canAssume && (
           <button
             type="button"
             className="btn btn-ghost"
@@ -373,37 +378,41 @@ function AdminPanel({
             onClick={() =>
               save({
                 assigneeId: currentUserId,
-                ...(ticket.status === "aberto" ? { status: "em_andamento" as const } : {}),
+                ...(isAdmin && ticket.status === "aberto" ? { status: "em_andamento" as const } : {}),
               })
             }
           >
             Assumir chamado
           </button>
         )}
-        <Field label="Status">
-          <select
-            className="select"
-            value={form.status}
-            onChange={(e) => setForm({ ...form, status: e.target.value as TicketStatus })}
-          >
-            {STATUS_ORDER.map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABEL[s]}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Responsável">
-          <select className="select" value={form.assigneeId} onChange={(e) => setForm({ ...form, assigneeId: e.target.value })}>
-            <option value="">Sem responsável</option>
-            {admins.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-                {a.id === currentUserId ? " (você)" : ""}
-              </option>
-            ))}
-          </select>
-        </Field>
+        {isAdmin && (
+          <>
+            <Field label="Status">
+              <select
+                className="select"
+                value={form.status}
+                onChange={(e) => setForm({ ...form, status: e.target.value as TicketStatus })}
+              >
+                {STATUS_ORDER.map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_LABEL[s]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Responsável">
+              <select className="select" value={form.assigneeId} onChange={(e) => setForm({ ...form, assigneeId: e.target.value })}>
+                <option value="">Sem responsável</option>
+                {staff.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                    {a.id === currentUserId ? " (você)" : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </>
+        )}
         <Field label="Prioridade">
           <select
             className="select"
@@ -428,9 +437,6 @@ function AdminPanel({
         </Field>
         <button className="btn btn-primary" type="submit" disabled={!dirty || saving}>
           {saving ? "Salvando…" : "Salvar alterações"}
-        </button>
-        <button type="button" className="btn btn-danger" onClick={onDelete}>
-          Excluir chamado
         </button>
       </form>
     </section>
