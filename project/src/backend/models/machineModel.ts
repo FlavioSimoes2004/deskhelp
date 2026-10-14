@@ -1,6 +1,7 @@
-import type { ResultSetHeader, RowDataPacket } from "mysql2";
+import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { pool, type SqlParams } from "../config/database.js";
-import type { Machine } from "./types.js";
+import type { MachineChange } from "../services/machineRules.js";
+import type { Machine, MachineHistoryEntry } from "./types.js";
 
 const SELECT_MACHINE = `
   SELECT m.*, u.name AS user_name
@@ -54,15 +55,59 @@ export async function findMachineByMac(macAddress: string): Promise<Machine | nu
   return rows[0] ? toMachine(rows[0]) : null;
 }
 
-export async function insertMachine(data: MachineFields): Promise<number> {
-  const [result] = await pool.execute<ResultSetHeader>(
-    "INSERT INTO machines (mac_address, ip_address, user_id) VALUES (:macAddress, :ipAddress, :userId)",
-    { ...data },
-  );
-  return result.insertId;
+/** Executa a escrita e grava o histórico na mesma transação. */
+async function withHistory(
+  userId: number,
+  write: (conn: PoolConnection) => Promise<number>,
+  changes: MachineChange[],
+): Promise<number> {
+  const conn: PoolConnection = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const machineId = await write(conn);
+    for (const change of changes) {
+      await conn.execute(
+        `INSERT INTO machine_history (machine_id, user_id, field, old_value, new_value)
+         VALUES (:machineId, :userId, :field, :oldValue, :newValue)`,
+        {
+          machineId,
+          userId,
+          field: change.field,
+          oldValue: change.oldValue?.slice(0, 255) ?? null,
+          newValue: change.newValue?.slice(0, 255) ?? null,
+        },
+      );
+    }
+    await conn.commit();
+    return machineId;
+  } catch (error) {
+    await conn.rollback();
+    throw error;
+  } finally {
+    conn.release();
+  }
 }
 
-export async function updateMachine(id: number, data: Partial<MachineFields>): Promise<void> {
+export async function insertMachine(data: MachineFields, userId: number, changes: MachineChange[]): Promise<number> {
+  return withHistory(
+    userId,
+    async (conn) => {
+      const [result] = await conn.execute<ResultSetHeader>(
+        "INSERT INTO machines (mac_address, ip_address, user_id) VALUES (:macAddress, :ipAddress, :userId)",
+        { ...data },
+      );
+      return result.insertId;
+    },
+    changes,
+  );
+}
+
+export async function updateMachine(
+  id: number,
+  data: Partial<MachineFields>,
+  userId: number,
+  changes: MachineChange[],
+): Promise<void> {
   const columns: Record<keyof MachineFields, string> = {
     macAddress: "mac_address",
     ipAddress: "ip_address",
@@ -76,5 +121,31 @@ export async function updateMachine(id: number, data: Partial<MachineFields>): P
     params[key] = data[key];
   }
   if (sets.length === 0) return;
-  await pool.query(`UPDATE machines SET ${sets.join(", ")} WHERE id = :id`, params);
+  await withHistory(
+    userId,
+    async (conn) => {
+      await conn.query(`UPDATE machines SET ${sets.join(", ")} WHERE id = :id`, params);
+      return id;
+    },
+    changes,
+  );
+}
+
+export async function listMachineHistory(machineId: number): Promise<MachineHistoryEntry[]> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT h.id, h.machine_id, h.user_id, u.name AS user_name, h.field, h.old_value, h.new_value, h.created_at
+     FROM machine_history h JOIN users u ON u.id = h.user_id
+     WHERE h.machine_id = ? ORDER BY h.created_at DESC, h.id DESC`,
+    [machineId],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    machineId: r.machine_id,
+    userId: r.user_id,
+    userName: r.user_name,
+    field: r.field,
+    oldValue: r.old_value,
+    newValue: r.new_value,
+    createdAt: r.created_at,
+  }));
 }

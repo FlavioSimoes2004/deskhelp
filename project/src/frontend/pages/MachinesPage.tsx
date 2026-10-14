@@ -4,14 +4,15 @@ import { Field } from "../components/Field";
 import { useAsync } from "../hooks/useAsync";
 import { ApiError } from "../services/api";
 import { machineService, userService } from "../services/deskhelp";
-import type { Machine, User } from "../services/types";
-import { formatDateTime } from "../utils/format";
+import type { Machine, MachineHistoryEntry, User } from "../services/types";
+import { formatDateTime, timeAgo } from "../utils/format";
 
 export function MachinesPage() {
   const [search, setSearch] = useState("");
   const machines = useAsync(() => machineService.list(search), [search]);
   const users = useAsync(() => userService.list(), []);
   const [editing, setEditing] = useState<Machine | "new" | null>(null);
+  const [historyOf, setHistoryOf] = useState<Machine | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   function onSaved(message: string) {
@@ -32,6 +33,7 @@ export function MachinesPage() {
           className="btn btn-primary"
           onClick={() => {
             setNotice(null);
+            setHistoryOf(null);
             setEditing("new");
           }}
         >
@@ -52,6 +54,15 @@ export function MachinesPage() {
           users={users.data ?? []}
           onCancel={() => setEditing(null)}
           onSaved={onSaved}
+        />
+      )}
+
+      {historyOf && (
+        <MachineHistory
+          key={historyOf.id}
+          machine={historyOf}
+          users={users.data ?? []}
+          onClose={() => setHistoryOf(null)}
         />
       )}
 
@@ -96,16 +107,30 @@ export function MachinesPage() {
                   <td>{m.userName ?? <span className="muted">Sem usuário</span>}</td>
                   <td className="muted">{formatDateTime(m.updatedAt)}</td>
                   <td className="num">
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => {
-                        setNotice(null);
-                        setEditing(m);
-                      }}
-                    >
-                      Editar
-                    </button>
+                    <div style={{ display: "inline-flex", gap: 8 }}>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        aria-pressed={historyOf?.id === m.id}
+                        onClick={() => {
+                          setEditing(null);
+                          setHistoryOf(historyOf?.id === m.id ? null : m);
+                        }}
+                      >
+                        Histórico
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          setNotice(null);
+                          setHistoryOf(null);
+                          setEditing(m);
+                        }}
+                      >
+                        Editar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -212,5 +237,57 @@ function MachineForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function describeMachineChange(entry: MachineHistoryEntry, users: User[]): string {
+  const userName = (id: string) => users.find((u) => String(u.id) === id)?.name ?? `usuário #${id}`;
+  const { oldValue: from, newValue: to } = entry;
+  switch (entry.field) {
+    case "created":
+      return `cadastrou a máquina com o MAC ${to}`;
+    case "macAddress":
+      return `alterou o MAC de ${from} para ${to}`;
+    case "ipAddress":
+      if (!from) return `definiu o IP como ${to}`;
+      if (!to) return `removeu o IP ${from}`;
+      return `alterou o IP de ${from} para ${to}`;
+    case "userId":
+      if (!from) return `entregou a máquina para ${userName(to ?? "")}`;
+      if (!to) return `retirou a máquina de ${userName(from)}`;
+      return `passou a máquina de ${userName(from)} para ${userName(to)}`;
+  }
+}
+
+function MachineHistory({ machine, users, onClose }: { machine: Machine; users: User[]; onClose: () => void }) {
+  const history = useAsync(() => machineService.history(machine.id), [machine.id]);
+
+  return (
+    <section className="panel" aria-labelledby="machine-history-title" style={{ marginBottom: 16 }}>
+      <div className="panel-head">
+        <h2 id="machine-history-title">Histórico de {machine.macAddress}</h2>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
+          Fechar
+        </button>
+      </div>
+      <ErrorAlert error={history.error} onRetry={history.reload} />
+      {history.loading && !history.data ? (
+        <Loading />
+      ) : history.data?.length ? (
+        <ol className="timeline">
+          {history.data.map((h) => (
+            <li key={h.id}>
+              <span className="event-dot" aria-hidden="true" />
+              <span className="event" title={formatDateTime(h.createdAt)}>
+                <strong>{h.userName}</strong> {describeMachineChange(h, users)}, {timeAgo(h.createdAt)} (
+                {formatDateTime(h.createdAt)})
+              </span>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="muted">Nenhuma alteração registrada.</p>
+      )}
+    </section>
   );
 }

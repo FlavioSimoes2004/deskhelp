@@ -85,3 +85,14 @@ export interface Machine {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface MachineHistoryEntry {
+  id: number;
+  machineId: number;
+  userId: number;
+  userName: string;
+  field: string;
+  oldValue: string | null;
+  newValue: string | null;
+  createdAt: Date;
+}

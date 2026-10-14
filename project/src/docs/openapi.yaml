@@ -607,6 +607,32 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /machines/{id}/history:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Máquinas]
+      summary: Histórico da máquina
+      description: |
+        Mais recentes primeiro. O cadastro gera `field: created` (novo valor = MAC) mais uma entrada para o IP
+        e o usuário iniciais; cada edição gera uma entrada por campo que realmente mudou. Em `userId`, os
+        valores são ids de usuário.
+      operationId: getMachineHistory
+      responses:
+        "200":
+          description: Histórico
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/MachineHistoryEntry" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /reports/summary:
     get:
       tags: [Relatórios]
@@ -775,6 +801,17 @@ components:
         userName: { type: [string, "null"] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    MachineHistoryEntry:
+      type: object
+      properties:
+        id: { type: integer }
+        machineId: { type: integer }
+        userId: { type: integer, description: Quem fez a alteração }
+        userName: { type: string }
+        field: { type: string, enum: [created, macAddress, ipAddress, userId] }
+        oldValue: { type: [string, "null"] }
+        newValue: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
     MachineInput:
       type: object
       required: [macAddress]

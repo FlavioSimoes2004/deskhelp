@@ -99,3 +99,14 @@ export interface Machine {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface MachineHistoryEntry {
+  id: number;
+  machineId: number;
+  userId: number;
+  userName: string;
+  field: "created" | "macAddress" | "ipAddress" | "userId";
+  oldValue: string | null;
+  newValue: string | null;
+  createdAt: string;
+}

@@ -2,6 +2,7 @@ import { api } from "./api";
 import type {
   Category,
   Machine,
+  MachineHistoryEntry,
   Pagination,
   ReportSummary,
   Role,
@@ -97,6 +98,8 @@ export const machineService = {
   create: (data: MachineInput) => api.post<{ data: Machine }>("/machines", data).then((r) => r.data),
   update: (id: number, data: Partial<MachineInput>) =>
     api.patch<{ data: Machine }>(`/machines/${id}`, data).then((r) => r.data),
+  history: (id: number) =>
+    api.get<{ data: MachineHistoryEntry[] }>(`/machines/${id}/history`).then((r) => r.data),
 };
 
 export const reportService = {

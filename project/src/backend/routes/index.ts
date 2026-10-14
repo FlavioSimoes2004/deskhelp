@@ -77,6 +77,7 @@ apiRouter.get("/machines", adminOnly, validate(machineQuerySchema, "query"), mac
 apiRouter.post("/machines", adminOnly, validate(createMachineSchema), machineCtrl.create);
 apiRouter.get("/machines/:id", adminOnly, byId, machineCtrl.get);
 apiRouter.patch("/machines/:id", adminOnly, byId, validate(updateMachineSchema), machineCtrl.update);
+apiRouter.get("/machines/:id/history", adminOnly, byId, machineCtrl.history);
 
 apiRouter.get("/reports/summary", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.summary);
 apiRouter.get("/reports/tickets.csv", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.exportCsv);

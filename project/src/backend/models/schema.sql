@@ -88,6 +88,21 @@ CREATE TABLE IF NOT EXISTS machines (
   CONSTRAINT fk_machines_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Histórico das máquinas: cadastro (field = 'created') e cada campo alterado.
+CREATE TABLE IF NOT EXISTS machine_history (
+  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  machine_id INT UNSIGNED NOT NULL,
+  user_id    INT UNSIGNED NOT NULL,
+  field      VARCHAR(40) NOT NULL,
+  old_value  VARCHAR(255) NULL,
+  new_value  VARCHAR(255) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_machine_history_machine (machine_id, created_at),
+  CONSTRAINT fk_machine_history_machine FOREIGN KEY (machine_id) REFERENCES machines (id) ON DELETE CASCADE,
+  CONSTRAINT fk_machine_history_user FOREIGN KEY (user_id) REFERENCES users (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Histórico de alterações (status, prioridade, responsável...) para auditoria.
 CREATE TABLE IF NOT EXISTS ticket_history (
   id         INT UNSIGNED NOT NULL AUTO_INCREMENT,

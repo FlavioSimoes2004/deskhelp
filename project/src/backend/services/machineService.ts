@@ -2,6 +2,7 @@ import * as machines from "../models/machineModel.js";
 import type { Machine } from "../models/types.js";
 import { findUserById } from "../models/userModel.js";
 import { HttpError, notFound } from "../utils/httpError.js";
+import { creationEntries, diffMachine } from "./machineRules.js";
 
 export const listMachines = machines.listMachines;
 
@@ -27,16 +28,23 @@ async function assertUser(userId: number | null | undefined) {
   }
 }
 
-export async function createMachine(data: machines.MachineFields) {
+export async function createMachine(actorId: number, data: machines.MachineFields) {
   await assertMacAvailable(data.macAddress);
   await assertUser(data.userId);
-  return getMachine(await machines.insertMachine(data));
+  return getMachine(await machines.insertMachine(data, actorId, creationEntries(data)));
 }
 
-export async function updateMachine(id: number, data: Partial<machines.MachineFields>) {
-  await getMachine(id);
+export async function updateMachine(actorId: number, id: number, data: Partial<machines.MachineFields>) {
+  const current = await getMachine(id);
   if (data.macAddress) await assertMacAvailable(data.macAddress, id);
   await assertUser(data.userId);
-  await machines.updateMachine(id, data);
+  const changes = diffMachine(current, data);
+  // Sem mudança real não há o que gravar nem registrar.
+  if (changes.length > 0) await machines.updateMachine(id, data, actorId, changes);
   return getMachine(id);
+}
+
+export async function getMachineHistory(id: number) {
+  await getMachine(id);
+  return machines.listMachineHistory(id);
 }
