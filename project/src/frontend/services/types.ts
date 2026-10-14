@@ -89,3 +89,13 @@ export interface ReportSummary {
   byAssignee: CountItem[];
   perDay: { day: string; total: number }[];
 }
+
+export interface Machine {
+  id: number;
+  macAddress: string;
+  ipAddress: string | null;
+  userId: number | null;
+  userName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

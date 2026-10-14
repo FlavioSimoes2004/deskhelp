@@ -41,6 +41,8 @@ tags:
   - name: Chamados
   - name: Usuários
     description: Somente administradores
+  - name: Máquinas
+    description: Somente administradores
   - name: Relatórios
     description: Somente administradores
 security:
@@ -510,6 +512,101 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /machines:
+    get:
+      tags: [Máquinas]
+      summary: Listar máquinas
+      operationId: listMachines
+      parameters:
+        - { name: search, in: query, description: MAC, IP ou nome do usuário, schema: { type: string } }
+      responses:
+        "200":
+          description: Máquinas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Machine" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Máquinas]
+      summary: Cadastrar máquina
+      description: |
+        O MAC aceita `AA:BB:CC:DD:EE:FF`, `AA-BB-...`, `AABB.CCDD.EEFF` ou os 12 dígitos, e é gravado como
+        `AA:BB:CC:DD:EE:FF`. IP vazio vira `null`.
+      operationId: createMachine
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MachineInput" }
+            example: { macAddress: "AA:BB:CC:DD:EE:FF", ipAddress: "192.168.0.10", userId: 2 }
+      responses:
+        "201":
+          description: Máquina cadastrada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Machine" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /machines/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Máquinas]
+      summary: Detalhar máquina
+      operationId: getMachine
+      responses:
+        "200":
+          description: Máquina
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Machine" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Máquinas]
+      summary: Editar máquina
+      description: Envie apenas os campos a alterar; `userId` ou `ipAddress` como `null` removem o valor.
+      operationId: updateMachine
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/MachineInput"
+              required: []
+              minProperties: 1
+      responses:
+        "200":
+          description: Máquina atualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Machine" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /reports/summary:
     get:
       tags: [Relatórios]
@@ -668,6 +765,23 @@ components:
             history:
               type: array
               items: { $ref: "#/components/schemas/HistoryEntry" }
+    Machine:
+      type: object
+      properties:
+        id: { type: integer }
+        macAddress: { type: string, example: "AA:BB:CC:DD:EE:FF" }
+        ipAddress: { type: [string, "null"], example: "192.168.0.10" }
+        userId: { type: [integer, "null"] }
+        userName: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    MachineInput:
+      type: object
+      required: [macAddress]
+      properties:
+        macAddress: { type: string }
+        ipAddress: { type: [string, "null"], description: IPv4 ou IPv6 }
+        userId: { type: [integer, "null"] }
     StatusCounts:
       type: object
       description: Quantidade por status; status sem chamados não aparecem

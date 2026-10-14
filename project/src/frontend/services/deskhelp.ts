@@ -1,6 +1,7 @@
 import { api } from "./api";
 import type {
   Category,
+  Machine,
   Pagination,
   ReportSummary,
   Role,
@@ -83,6 +84,19 @@ export const userService = {
     api.post<{ data: User }>("/users", data).then((r) => r.data),
   update: (id: number, data: Partial<{ name: string; email: string; role: Role; active: boolean; password: string }>) =>
     api.patch<{ data: User }>(`/users/${id}`, data).then((r) => r.data),
+};
+
+export interface MachineInput {
+  macAddress: string;
+  ipAddress: string | null;
+  userId: number | null;
+}
+
+export const machineService = {
+  list: (search = "") => api.get<{ data: Machine[] }>("/machines", { search }).then((r) => r.data),
+  create: (data: MachineInput) => api.post<{ data: Machine }>("/machines", data).then((r) => r.data),
+  update: (id: number, data: Partial<MachineInput>) =>
+    api.patch<{ data: Machine }>(`/machines/${id}`, data).then((r) => r.data),
 };
 
 export const reportService = {

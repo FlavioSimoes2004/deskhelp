@@ -2,19 +2,23 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import * as authCtrl from "../controllers/authController.js";
 import * as docsCtrl from "../controllers/docsController.js";
+import * as machineCtrl from "../controllers/machineController.js";
 import * as reportCtrl from "../controllers/reportController.js";
 import * as ticketCtrl from "../controllers/ticketController.js";
 import * as userCtrl from "../controllers/userController.js";
 import { authenticate, requireRole } from "../middlewares/auth.js";
 import {
   commentSchema,
+  createMachineSchema,
   createTicketSchema,
   createUserSchema,
   idParamSchema,
   loginSchema,
+  machineQuerySchema,
   registerSchema,
   reportQuerySchema,
   ticketQuerySchema,
+  updateMachineSchema,
   updateProfileSchema,
   updateTicketSchema,
   updateUserSchema,
@@ -68,6 +72,11 @@ apiRouter.get("/users", adminOnly, validate(userQuerySchema, "query"), userCtrl.
 apiRouter.post("/users", adminOnly, validate(createUserSchema), userCtrl.create);
 apiRouter.get("/users/:id", adminOnly, byId, userCtrl.get);
 apiRouter.patch("/users/:id", adminOnly, byId, validate(updateUserSchema), userCtrl.update);
+
+apiRouter.get("/machines", adminOnly, validate(machineQuerySchema, "query"), machineCtrl.list);
+apiRouter.post("/machines", adminOnly, validate(createMachineSchema), machineCtrl.create);
+apiRouter.get("/machines/:id", adminOnly, byId, machineCtrl.get);
+apiRouter.patch("/machines/:id", adminOnly, byId, validate(updateMachineSchema), machineCtrl.update);
 
 apiRouter.get("/reports/summary", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.summary);
 apiRouter.get("/reports/tickets.csv", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.exportCsv);

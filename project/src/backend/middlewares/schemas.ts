@@ -1,3 +1,4 @@
+import { isIP } from "node:net";
 import { z } from "zod";
 import { ROLES, TICKET_PRIORITIES, TICKET_STATUSES } from "../models/types.js";
 
@@ -82,6 +83,41 @@ export const ticketQuerySchema = z.object({
     .min(1)
     .default(20)
     .transform((n) => Math.min(n, 100)),
+});
+
+// Aceita AA:BB:CC:DD:EE:FF, AA-BB-..., AABB.CCDD.EEFF ou só os 12 dígitos; grava como AA:BB:CC:DD:EE:FF.
+const macAddress = z
+  .string()
+  .trim()
+  .transform((v) => v.replace(/[\s:.-]/g, "").toUpperCase())
+  .refine((v) => /^[0-9A-F]{12}$/.test(v), "Endereço MAC inválido")
+  .transform((v) => v.match(/.{2}/g)!.join(":"));
+
+// Vazio vira null (máquina sem IP fixo).
+const ipAddress = z
+  .string()
+  .trim()
+  .max(45)
+  .nullable()
+  .transform((v) => v || null)
+  .refine((v) => v === null || isIP(v) !== 0, "Endereço IP inválido");
+
+export const createMachineSchema = z.object({
+  macAddress,
+  ipAddress: ipAddress.default(null),
+  userId: id.nullable().default(null),
+});
+
+export const updateMachineSchema = z
+  .object({
+    macAddress: macAddress.optional(),
+    ipAddress: ipAddress.optional(),
+    userId: id.nullable().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, { message: "Nenhum campo para atualizar" });
+
+export const machineQuerySchema = z.object({
+  search: z.string().trim().max(100).optional(),
 });
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use o formato AAAA-MM-DD");

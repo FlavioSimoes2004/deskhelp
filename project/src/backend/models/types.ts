@@ -75,3 +75,13 @@ export interface TicketHistoryEntry {
   newValue: string | null;
   createdAt: Date;
 }
+
+export interface Machine {
+  id: number;
+  macAddress: string;
+  ipAddress: string | null;
+  userId: number | null;
+  userName: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
