@@ -47,6 +47,22 @@ export interface TicketComment {
   userName: string;
   body: string;
   createdAt: Date;
+  attachments: TicketAttachment[];
+}
+
+export interface TicketAttachment {
+  id: number;
+  commentId: number;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: Date;
+}
+
+/** Anexo com o caminho do arquivo no servidor (uso interno, não vai para a API). */
+export interface StoredAttachment extends TicketAttachment {
+  ticketId: number;
+  filePath: string;
 }
 
 export interface TicketHistoryEntry {

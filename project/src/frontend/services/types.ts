@@ -40,6 +40,16 @@ export interface TicketComment {
   userName: string;
   body: string;
   createdAt: string;
+  attachments: TicketAttachment[];
+}
+
+export interface TicketAttachment {
+  id: number;
+  commentId: number;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
 }
 
 export interface TicketHistoryEntry {

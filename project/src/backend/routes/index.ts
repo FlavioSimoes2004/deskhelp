@@ -20,6 +20,7 @@ import {
   updateUserSchema,
   userQuerySchema,
 } from "../middlewares/schemas.js";
+import { parseMultipart } from "../middlewares/upload.js";
 import { validate } from "../middlewares/validate.js";
 
 // Limita tentativas de login/cadastro por IP para dificultar força bruta.
@@ -55,7 +56,9 @@ apiRouter.get("/tickets/overview", ticketCtrl.overview);
 apiRouter.get("/tickets", validate(ticketQuerySchema, "query"), ticketCtrl.list);
 apiRouter.post("/tickets", validate(createTicketSchema), ticketCtrl.create);
 apiRouter.get("/tickets/:id", byId, ticketCtrl.get);
-apiRouter.post("/tickets/:id/comments", byId, validate(commentSchema), ticketCtrl.addComment);
+apiRouter.post("/tickets/:id/comments", byId, parseMultipart, validate(commentSchema), ticketCtrl.addComment);
+apiRouter.post("/tickets/:id/resolve", requireRole("comum"), byId, ticketCtrl.resolve);
+apiRouter.get("/attachments/:id", byId, ticketCtrl.downloadAttachment);
 
 // Somente administradores
 apiRouter.patch("/tickets/:id", adminOnly, byId, validate(updateTicketSchema), ticketCtrl.update);

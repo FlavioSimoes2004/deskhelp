@@ -1,7 +1,15 @@
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { pool, type SqlParams } from "../config/database.js";
 import type { TicketChange, TicketEditableFields } from "../services/ticketRules.js";
-import type { Ticket, TicketComment, TicketHistoryEntry, TicketPriority, TicketStatus } from "./types.js";
+import type {
+  StoredAttachment,
+  Ticket,
+  TicketAttachment,
+  TicketComment,
+  TicketHistoryEntry,
+  TicketPriority,
+  TicketStatus,
+} from "./types.js";
 
 const SELECT_TICKET = `
   SELECT t.*, c.name AS category_name, r.name AS requester_name, a.name AS assignee_name
@@ -180,6 +188,25 @@ export async function listComments(ticketId: number): Promise<TicketComment[]> {
      WHERE cm.ticket_id = ? ORDER BY cm.created_at, cm.id`,
     [ticketId],
   );
+  const [attachmentRows] = await pool.execute<RowDataPacket[]>(
+    `SELECT a.id, a.comment_id, a.original_name, a.mime_type, a.size_bytes, a.created_at
+     FROM ticket_comment_attachments a JOIN ticket_comments cm ON cm.id = a.comment_id
+     WHERE cm.ticket_id = ? ORDER BY a.id`,
+    [ticketId],
+  );
+  const byComment = new Map<number, TicketAttachment[]>();
+  for (const r of attachmentRows) {
+    const list = byComment.get(r.comment_id) ?? [];
+    list.push({
+      id: r.id,
+      commentId: r.comment_id,
+      originalName: r.original_name,
+      mimeType: r.mime_type,
+      sizeBytes: r.size_bytes,
+      createdAt: r.created_at,
+    });
+    byComment.set(r.comment_id, list);
+  }
   return rows.map((r) => ({
     id: r.id,
     ticketId: r.ticket_id,
@@ -187,17 +214,69 @@ export async function listComments(ticketId: number): Promise<TicketComment[]> {
     userName: r.user_name,
     body: r.body,
     createdAt: r.created_at,
+    attachments: byComment.get(r.id) ?? [],
   }));
 }
 
-export async function insertComment(ticketId: number, userId: number, body: string): Promise<number> {
-  const [result] = await pool.execute<ResultSetHeader>(
-    "INSERT INTO ticket_comments (ticket_id, user_id, body) VALUES (?, ?, ?)",
-    [ticketId, userId, body],
+export interface NewAttachment {
+  originalName: string;
+  filePath: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
+/** Grava o comentário e os anexos (já salvos em disco) na mesma transação. */
+export async function insertComment(
+  ticketId: number,
+  userId: number,
+  body: string,
+  attachments: NewAttachment[] = [],
+): Promise<number> {
+  const conn: PoolConnection = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [result] = await conn.execute<ResultSetHeader>(
+      "INSERT INTO ticket_comments (ticket_id, user_id, body) VALUES (?, ?, ?)",
+      [ticketId, userId, body],
+    );
+    for (const file of attachments) {
+      await conn.execute(
+        `INSERT INTO ticket_comment_attachments (comment_id, original_name, file_path, mime_type, size_bytes)
+         VALUES (?, ?, ?, ?, ?)`,
+        [result.insertId, file.originalName, file.filePath, file.mimeType, file.sizeBytes],
+      );
+    }
+    // Comentar também conta como atividade no chamado.
+    await conn.execute("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [ticketId]);
+    await conn.commit();
+    return result.insertId;
+  } catch (error) {
+    await conn.rollback();
+    throw error;
+  } finally {
+    conn.release();
+  }
+}
+
+export async function findAttachmentById(id: number): Promise<StoredAttachment | null> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT a.id, a.comment_id, cm.ticket_id, a.original_name, a.file_path, a.mime_type, a.size_bytes, a.created_at
+     FROM ticket_comment_attachments a JOIN ticket_comments cm ON cm.id = a.comment_id
+     WHERE a.id = ?`,
+    [id],
   );
-  // Comentar também conta como atividade no chamado.
-  await pool.execute("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [ticketId]);
-  return result.insertId;
+  const r = rows[0];
+  if (!r) return null;
+  return {
+    id: r.id,
+    commentId: r.comment_id,
+    ticketId: r.ticket_id,
+    originalName: r.original_name,
+    filePath: r.file_path,
+    mimeType: r.mime_type,
+    sizeBytes: r.size_bytes,
+    createdAt: r.created_at,
+  };
 }
 
 export async function listHistory(ticketId: number): Promise<TicketHistoryEntry[]> {

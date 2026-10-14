@@ -6,6 +6,7 @@ import type {
   Role,
   StatusCounts,
   Ticket,
+  TicketAttachment,
   TicketComment,
   TicketDetail,
   TicketPriority,
@@ -60,8 +61,18 @@ export const ticketService = {
     }>,
   ) => api.patch<{ data: TicketDetail }>(`/tickets/${id}`, data).then((r) => r.data),
   remove: (id: number) => api.delete(`/tickets/${id}`),
-  comment: (id: number, body: string) =>
-    api.post<{ data: TicketComment[] }>(`/tickets/${id}/comments`, { body }).then((r) => r.data),
+  comment: (id: number, body: string, files: File[] = []) => {
+    if (files.length === 0) {
+      return api.post<{ data: TicketComment[] }>(`/tickets/${id}/comments`, { body }).then((r) => r.data);
+    }
+    const form = new FormData();
+    form.append("body", body);
+    for (const file of files) form.append("attachments", file);
+    return api.postForm<{ data: TicketComment[] }>(`/tickets/${id}/comments`, form).then((r) => r.data);
+  },
+  resolve: (id: number) => api.post<{ data: TicketDetail }>(`/tickets/${id}/resolve`).then((r) => r.data),
+  downloadAttachment: (attachment: TicketAttachment) =>
+    api.download(`/attachments/${attachment.id}`, {}, attachment.originalName),
   categories: () => api.get<{ data: Category[] }>("/categories").then((r) => r.data),
 };
 

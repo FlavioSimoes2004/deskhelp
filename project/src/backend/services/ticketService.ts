@@ -3,7 +3,9 @@ import * as tickets from "../models/ticketModel.js";
 import type { AuthUser, Ticket, TicketPriority } from "../models/types.js";
 import { findUserById } from "../models/userModel.js";
 import type { TicketQuery } from "../middlewares/schemas.js";
-import { HttpError, notFound } from "../utils/httpError.js";
+import type { UploadedFile } from "../middlewares/upload.js";
+import { removeStored, resolveStored, saveFile } from "../utils/fileStorage.js";
+import { forbidden, HttpError, notFound } from "../utils/httpError.js";
 import { canViewTicket, diffTicket, statusTimestamps, type TicketEditableFields } from "./ticketRules.js";
 
 async function getVisibleTicket(user: AuthUser, id: number): Promise<Ticket> {
@@ -67,15 +69,53 @@ export async function updateTicket(user: AuthUser, id: number, patch: Partial<Ti
 export async function deleteTicket(user: AuthUser, id: number) {
   await getVisibleTicket(user, id);
   await tickets.deleteTicket(id);
+  // Os registros dos anexos saem em cascata; os arquivos ficam na pasta do chamado.
+  await removeStored(attachmentFolder(id)).catch((error) => console.error(error));
 }
 
-export async function addComment(user: AuthUser, id: number, body: string) {
+/** Usuário comum marca o próprio chamado como resolvido. */
+export async function resolveOwnTicket(user: AuthUser, id: number) {
+  const current = await getVisibleTicket(user, id);
+  if (user.role !== "comum" || current.requesterId !== user.id) {
+    throw forbidden("Somente quem abriu o chamado pode marcá-lo como resolvido");
+  }
+  if (current.status === "resolvido" || current.status === "fechado") {
+    throw new HttpError(409, "TICKET_ALREADY_RESOLVED", "Este chamado já está resolvido ou fechado");
+  }
+  const patch = { status: "resolvido" as const };
+  const timestamps = statusTimestamps(current, patch.status, new Date());
+  await tickets.updateTicket(id, user.id, { ...patch, ...timestamps }, diffTicket(current, patch));
+  return getTicketDetail(user, id);
+}
+
+const attachmentFolder = (ticketId: number) => `tickets/${ticketId}`;
+
+export async function addComment(user: AuthUser, id: number, body: string, files: UploadedFile[] = []) {
   const ticket = await getVisibleTicket(user, id);
   if (user.role !== "admin" && ticket.status === "fechado") {
     throw new HttpError(409, "TICKET_CLOSED", "Este chamado está fechado e não aceita novos comentários");
   }
-  await tickets.insertComment(id, user.id, body);
+  const saved: tickets.NewAttachment[] = [];
+  try {
+    for (const file of files) {
+      const filePath = await saveFile(attachmentFolder(id), file.extension, file.data);
+      saved.push({ originalName: file.originalName, filePath, mimeType: file.mimeType, sizeBytes: file.sizeBytes });
+    }
+    await tickets.insertComment(id, user.id, body, saved);
+  } catch (error) {
+    // Não deixa arquivos órfãos se a gravação no banco falhar.
+    await Promise.all(saved.map((f) => removeStored(f.filePath).catch(() => undefined)));
+    throw error;
+  }
   return tickets.listComments(id);
+}
+
+/** Localiza o arquivo de um anexo, respeitando quem pode ver o chamado. */
+export async function getAttachmentFile(user: AuthUser, attachmentId: number) {
+  const attachment = await tickets.findAttachmentById(attachmentId);
+  if (!attachment) throw notFound("Anexo não encontrado");
+  await getVisibleTicket(user, attachment.ticketId);
+  return { path: resolveStored(attachment.filePath), name: attachment.originalName };
 }
 
 /** Resumo para a página inicial: admin vê o geral e o que está com ele; comum vê os próprios. */

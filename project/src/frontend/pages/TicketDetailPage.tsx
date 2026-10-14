@@ -8,8 +8,17 @@ import { useAsync } from "../hooks/useAsync";
 import { useAuth } from "../hooks/useAuth";
 import { ApiError } from "../services/api";
 import { ticketService, userService } from "../services/deskhelp";
-import type { Category, TicketDetail, TicketHistoryEntry, TicketPriority, TicketStatus, User } from "../services/types";
+import type {
+  Category,
+  TicketAttachment,
+  TicketDetail,
+  TicketHistoryEntry,
+  TicketPriority,
+  TicketStatus,
+  User,
+} from "../services/types";
 import {
+  formatBytes,
   formatDateTime,
   initials,
   PRIORITY_LABEL,
@@ -119,6 +128,9 @@ export function TicketDetailPage() {
               onDeleted={() => navigate("/chamados", { replace: true })}
             />
           ) : null}
+          {user?.role === "comum" && t.requesterId === user.id && t.status !== "resolvido" && t.status !== "fechado" && (
+            <ResolvePanel ticketId={t.id} onResolved={(updated) => ticket.setData(updated)} />
+          )}
           <section className="panel" aria-labelledby="info-title">
             <div className="panel-head">
               <h2 id="info-title">Informações</h2>
@@ -164,6 +176,8 @@ function Conversation({
   onCommented: (comments: TicketDetail["comments"]) => void;
 }) {
   const [body, setBody] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [fileInputKey, setFileInputKey] = useState(0);
   const [error, setError] = useState<ApiError | null>(null);
   const [sending, setSending] = useState(false);
 
@@ -179,8 +193,10 @@ function Conversation({
     setSending(true);
     setError(null);
     try {
-      onCommented(await ticketService.comment(ticket.id, body));
+      onCommented(await ticketService.comment(ticket.id, body, files));
       setBody("");
+      setFiles([]);
+      setFileInputKey((k) => k + 1);
     } catch (err) {
       setError(err as ApiError);
     } finally {
@@ -211,6 +227,15 @@ function Conversation({
                     {timeAgo(item.at)}
                   </span>
                   <div className="comment-body">{item.c.body}</div>
+                  {item.c.attachments.length > 0 && (
+                    <ul className="attachments">
+                      {item.c.attachments.map((a) => (
+                        <li key={a.id}>
+                          <AttachmentLink attachment={a} onError={setError} />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </li>
             ) : (
@@ -235,6 +260,16 @@ function Conversation({
               value={body}
               onChange={(e) => setBody(e.target.value)}
               placeholder="Escreva uma atualização ou pergunta"
+            />
+          </Field>
+          <Field label="Anexos" hint="Até 5 arquivos de 10 MB: imagens, PDF, texto, planilhas, documentos ou ZIP.">
+            <input
+              key={fileInputKey}
+              className="input"
+              type="file"
+              multiple
+              accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.log,.csv,.doc,.docx,.xls,.xlsx,.odt,.ods,.zip"
+              onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
             />
           </Field>
           <div className="form-actions">
@@ -398,6 +433,60 @@ function AdminPanel({
           Excluir chamado
         </button>
       </form>
+    </section>
+  );
+}
+
+function AttachmentLink({ attachment, onError }: { attachment: TicketAttachment; onError: (error: ApiError) => void }) {
+  const [downloading, setDownloading] = useState(false);
+
+  async function onClick() {
+    setDownloading(true);
+    try {
+      await ticketService.downloadAttachment(attachment);
+    } catch (err) {
+      onError(err as ApiError);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <button type="button" className="attachment" onClick={onClick} disabled={downloading}>
+      <span aria-hidden="true">📎</span> {attachment.originalName}{" "}
+      <span className="attachment-size">({formatBytes(attachment.sizeBytes)})</span>
+    </button>
+  );
+}
+
+function ResolvePanel({ ticketId, onResolved }: { ticketId: number; onResolved: (ticket: TicketDetail) => void }) {
+  const [error, setError] = useState<ApiError | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function onResolve() {
+    if (!window.confirm("Marcar este chamado como resolvido?")) return;
+    setSaving(true);
+    setError(null);
+    try {
+      onResolved(await ticketService.resolve(ticketId));
+    } catch (err) {
+      setError(err as ApiError);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="panel" aria-labelledby="resolve-title">
+      <div className="panel-head">
+        <h2 id="resolve-title">Problema resolvido?</h2>
+      </div>
+      <div className="form">
+        <ErrorAlert error={error} />
+        <button type="button" className="btn btn-primary" onClick={onResolve} disabled={saving}>
+          {saving ? "Salvando…" : "Marcar como resolvido"}
+        </button>
+      </div>
     </section>
   );
 }

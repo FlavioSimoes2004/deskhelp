@@ -332,7 +332,11 @@ paths:
     post:
       tags: [Chamados]
       summary: Comentar no chamado
-      description: Usuários `comum` só comentam nos próprios chamados e não podem comentar em chamados fechados.
+      description: |
+        Usuários `comum` só comentam nos próprios chamados e não podem comentar em chamados fechados.
+        Para enviar anexos use `multipart/form-data` com o campo `attachments` (até 5 arquivos de 10 MB;
+        imagens, PDF, TXT, LOG, CSV, DOC(X), XLS(X), ODT, ODS ou ZIP). Os arquivos ficam no servidor
+        e o banco guarda o caminho de cada um.
       operationId: addTicketComment
       requestBody:
         required: true
@@ -343,6 +347,16 @@ paths:
               required: [body]
               properties:
                 body: { type: string, minLength: 1, maxLength: 5000 }
+          multipart/form-data:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 5000 }
+                attachments:
+                  type: array
+                  maxItems: 5
+                  items: { type: string, format: binary }
       responses:
         "201":
           description: Lista atualizada de comentários
@@ -358,6 +372,46 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "413": { description: Anexo maior que o limite }
+
+  /tickets/{id}/resolve:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Chamados]
+      summary: Marcar o próprio chamado como resolvido (comum)
+      description: Somente usuários `comum`, no chamado que eles abriram. A mudança é registrada no histórico.
+      operationId: resolveOwnTicket
+      responses:
+        "200":
+          description: Chamado resolvido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/TicketDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /attachments/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Chamados]
+      summary: Baixar anexo de comentário
+      description: Disponível para quem pode ver o chamado do comentário.
+      operationId: downloadAttachment
+      responses:
+        "200":
+          description: Arquivo do anexo
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /users:
     get:
@@ -581,6 +635,18 @@ components:
         userId: { type: integer }
         userName: { type: string }
         body: { type: string }
+        createdAt: { type: string, format: date-time }
+        attachments:
+          type: array
+          items: { $ref: "#/components/schemas/Attachment" }
+    Attachment:
+      type: object
+      properties:
+        id: { type: integer }
+        commentId: { type: integer }
+        originalName: { type: string }
+        mimeType: { type: string }
+        sizeBytes: { type: integer }
         createdAt: { type: string, format: date-time }
     HistoryEntry:
       type: object

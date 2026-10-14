@@ -58,14 +58,16 @@ async function request<T>(method: string, path: string, options: { body?: unknow
   const headers: Record<string, string> = { Accept: "application/json" };
   const token = tokenStore.get();
   if (token) headers.Authorization = `Bearer ${token}`;
-  if (options.body !== undefined) headers["Content-Type"] = "application/json";
+  // FormData define o próprio Content-Type (multipart com boundary).
+  const isForm = options.body instanceof FormData;
+  if (options.body !== undefined && !isForm) headers["Content-Type"] = "application/json";
 
   let response: Response;
   try {
     response = await fetch(buildUrl(path, options.query), {
       method,
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: options.body === undefined ? undefined : isForm ? (options.body as FormData) : JSON.stringify(options.body),
     });
   } catch {
     throw new ApiError(0, "NETWORK_ERROR", "Sem conexão com o servidor. Verifique se a API está rodando.");
@@ -90,6 +92,8 @@ export const api = {
   get: <T>(path: string, query?: Query) => request<T>("GET", path, { query }),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, { body }),
   patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, { body }),
+  /** Envia multipart/form-data (ex. comentário com anexos). */
+  postForm: <T>(path: string, form: FormData) => request<T>("POST", path, { body: form }),
   delete: (path: string) => request<void>("DELETE", path),
   /** Baixa um arquivo autenticado (ex. CSV) e dispara o download no navegador. */
   async download(path: string, query: Query, fallbackName: string) {
@@ -101,7 +105,12 @@ export const api = {
       const payload = await response.json().catch(() => null);
       throw new ApiError(response.status, payload?.error?.code ?? "HTTP_ERROR", payload?.error?.message ?? "Falha no download");
     }
-    const name = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") ?? "")?.[1] ?? fallbackName;
+    const disposition = response.headers.get("Content-Disposition") ?? "";
+    // Prefere filename* (UTF-8), que preserva acentos no nome do arquivo.
+    const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1];
+    const name = encoded
+      ? decodeURIComponent(encoded)
+      : (/filename="([^"]+)"/.exec(disposition)?.[1] ?? fallbackName);
     const url = URL.createObjectURL(await response.blob());
     const link = Object.assign(document.createElement("a"), { href: url, download: name });
     link.click();

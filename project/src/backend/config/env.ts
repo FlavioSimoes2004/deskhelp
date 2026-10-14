@@ -19,6 +19,7 @@ const schema = z.object({
   ADMIN_NAME: z.string().default("Administrador"),
   ADMIN_EMAIL: z.string().default("admin@deskhelp.local"),
   ADMIN_PASSWORD: z.string().optional(),
+  UPLOAD_DIR: z.string().min(1).default("uploads"),
 });
 
 const parsed = schema.safeParse(process.env);

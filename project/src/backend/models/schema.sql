@@ -58,6 +58,36 @@ CREATE TABLE IF NOT EXISTS ticket_comments (
   CONSTRAINT fk_comments_user FOREIGN KEY (user_id) REFERENCES users (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Anexos dos comentários. O arquivo fica no servidor (pasta UPLOAD_DIR);
+-- file_path guarda o caminho dele relativo a essa pasta.
+CREATE TABLE IF NOT EXISTS ticket_comment_attachments (
+  id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  comment_id    INT UNSIGNED NOT NULL,
+  original_name VARCHAR(255) NOT NULL,
+  file_path     VARCHAR(255) NOT NULL,
+  mime_type     VARCHAR(120) NOT NULL,
+  size_bytes    INT UNSIGNED NOT NULL,
+  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_attachments_path (file_path),
+  KEY idx_attachments_comment (comment_id),
+  CONSTRAINT fk_attachments_comment FOREIGN KEY (comment_id) REFERENCES ticket_comments (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Máquinas (endereço MAC, IP e o usuário que está com ela).
+CREATE TABLE IF NOT EXISTS machines (
+  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  mac_address CHAR(17) NOT NULL,
+  ip_address  VARCHAR(45) NULL,
+  user_id     INT UNSIGNED NULL,
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_machines_mac (mac_address),
+  KEY idx_machines_user (user_id),
+  CONSTRAINT fk_machines_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Histórico de alterações (status, prioridade, responsável...) para auditoria.
 CREATE TABLE IF NOT EXISTS ticket_history (
   id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
