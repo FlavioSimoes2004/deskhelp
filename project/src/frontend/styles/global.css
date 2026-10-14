@@ -947,6 +947,12 @@ table.table {
   gap: 6px;
 }
 
+/* Os itens de anexo não usam a grade (avatar + conteúdo) dos itens da linha do tempo. */
+.timeline .attachments li {
+  display: block;
+  min-width: 0;
+}
+
 .timeline .attachment {
   font: inherit;
   font-size: var(--step--1);
