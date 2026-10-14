@@ -1,0 +1,230 @@
+import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import { pool, type SqlParams } from "../config/database.js";
+import type { TicketChange, TicketEditableFields } from "../services/ticketRules.js";
+import type { Ticket, TicketComment, TicketHistoryEntry, TicketPriority, TicketStatus } from "./types.js";
+
+const SELECT_TICKET = `
+  SELECT t.*, c.name AS category_name, r.name AS requester_name, a.name AS assignee_name
+  FROM tickets t
+  JOIN categories c ON c.id = t.category_id
+  JOIN users r ON r.id = t.requester_id
+  LEFT JOIN users a ON a.id = t.assignee_id`;
+
+interface TicketRow extends RowDataPacket {
+  id: number;
+  title: string;
+  description: string;
+  status: TicketStatus;
+  priority: TicketPriority;
+  category_id: number;
+  category_name: string;
+  requester_id: number;
+  requester_name: string;
+  assignee_id: number | null;
+  assignee_name: string | null;
+  created_at: Date;
+  updated_at: Date;
+  resolved_at: Date | null;
+  closed_at: Date | null;
+}
+
+const toTicket = (row: TicketRow): Ticket => ({
+  id: row.id,
+  title: row.title,
+  description: row.description,
+  status: row.status,
+  priority: row.priority,
+  categoryId: row.category_id,
+  categoryName: row.category_name,
+  requesterId: row.requester_id,
+  requesterName: row.requester_name,
+  assigneeId: row.assignee_id,
+  assigneeName: row.assignee_name,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+  resolvedAt: row.resolved_at,
+  closedAt: row.closed_at,
+});
+
+export interface TicketFilters {
+  status?: TicketStatus;
+  priority?: TicketPriority;
+  categoryId?: number;
+  assigneeId?: number;
+  requesterId?: number;
+  search?: string;
+}
+
+function buildWhere(filters: TicketFilters) {
+  const where: string[] = [];
+  const params: SqlParams = {};
+  const exact: [keyof TicketFilters, string][] = [
+    ["status", "t.status"],
+    ["priority", "t.priority"],
+    ["categoryId", "t.category_id"],
+    ["assigneeId", "t.assignee_id"],
+    ["requesterId", "t.requester_id"],
+  ];
+  for (const [key, column] of exact) {
+    if (filters[key] === undefined) continue;
+    where.push(`${column} = :${key}`);
+    params[key] = filters[key];
+  }
+  if (filters.search) {
+    const asId = Number(filters.search.replace(/^#/, ""));
+    where.push(`(t.title LIKE :search OR t.description LIKE :search${Number.isInteger(asId) && asId > 0 ? " OR t.id = :searchId" : ""})`);
+    params.search = `%${filters.search}%`;
+    params.searchId = asId;
+  }
+  return { sql: where.length ? `WHERE ${where.join(" AND ")}` : "", params };
+}
+
+export async function listTickets(filters: TicketFilters, page: number, pageSize: number) {
+  const { sql, params } = buildWhere(filters);
+  const offset = (page - 1) * pageSize;
+  const [rows] = await pool.query<TicketRow[]>(
+    `${SELECT_TICKET} ${sql} ORDER BY t.created_at DESC, t.id DESC LIMIT ${pageSize} OFFSET ${offset}`,
+    params,
+  );
+  const [count] = await pool.query<RowDataPacket[]>(`SELECT COUNT(*) AS total FROM tickets t ${sql}`, params);
+  return { items: rows.map(toTicket), total: Number(count[0]?.total ?? 0) };
+}
+
+export async function findTicketById(id: number): Promise<Ticket | null> {
+  const [rows] = await pool.query<TicketRow[]>(`${SELECT_TICKET} WHERE t.id = :id`, { id });
+  return rows[0] ? toTicket(rows[0]) : null;
+}
+
+export async function insertTicket(data: {
+  title: string;
+  description: string;
+  priority: TicketPriority;
+  categoryId: number;
+  requesterId: number;
+}): Promise<number> {
+  const [result] = await pool.execute<ResultSetHeader>(
+    `INSERT INTO tickets (title, description, priority, category_id, requester_id)
+     VALUES (:title, :description, :priority, :categoryId, :requesterId)`,
+    data,
+  );
+  return result.insertId;
+}
+
+const COLUMN: Record<keyof TicketEditableFields, string> = {
+  title: "title",
+  description: "description",
+  status: "status",
+  priority: "priority",
+  categoryId: "category_id",
+  assigneeId: "assignee_id",
+};
+
+/** Atualiza o chamado e grava o histórico na mesma transação. */
+export async function updateTicket(
+  id: number,
+  userId: number,
+  patch: Partial<TicketEditableFields> & { resolvedAt?: Date | null; closedAt?: Date | null },
+  changes: TicketChange[],
+): Promise<void> {
+  const sets: string[] = [];
+  const params: SqlParams = { id };
+  for (const key of Object.keys(COLUMN) as (keyof TicketEditableFields)[]) {
+    if (patch[key] === undefined) continue;
+    sets.push(`${COLUMN[key]} = :${key}`);
+    params[key] = patch[key];
+  }
+  if (patch.resolvedAt !== undefined) {
+    sets.push("resolved_at = :resolvedAt");
+    params.resolvedAt = patch.resolvedAt;
+  }
+  if (patch.closedAt !== undefined) {
+    sets.push("closed_at = :closedAt");
+    params.closedAt = patch.closedAt;
+  }
+  if (sets.length === 0) return;
+
+  const conn: PoolConnection = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query(`UPDATE tickets SET ${sets.join(", ")} WHERE id = :id`, params);
+    for (const change of changes) {
+      await conn.execute(
+        `INSERT INTO ticket_history (ticket_id, user_id, field, old_value, new_value)
+         VALUES (:ticketId, :userId, :field, :oldValue, :newValue)`,
+        {
+          ticketId: id,
+          userId,
+          field: change.field,
+          oldValue: change.oldValue?.slice(0, 255) ?? null,
+          newValue: change.newValue?.slice(0, 255) ?? null,
+        },
+      );
+    }
+    await conn.commit();
+  } catch (error) {
+    await conn.rollback();
+    throw error;
+  } finally {
+    conn.release();
+  }
+}
+
+export async function deleteTicket(id: number): Promise<void> {
+  await pool.execute("DELETE FROM tickets WHERE id = ?", [id]);
+}
+
+export async function listComments(ticketId: number): Promise<TicketComment[]> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT cm.id, cm.ticket_id, cm.user_id, u.name AS user_name, cm.body, cm.created_at
+     FROM ticket_comments cm JOIN users u ON u.id = cm.user_id
+     WHERE cm.ticket_id = ? ORDER BY cm.created_at, cm.id`,
+    [ticketId],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    ticketId: r.ticket_id,
+    userId: r.user_id,
+    userName: r.user_name,
+    body: r.body,
+    createdAt: r.created_at,
+  }));
+}
+
+export async function insertComment(ticketId: number, userId: number, body: string): Promise<number> {
+  const [result] = await pool.execute<ResultSetHeader>(
+    "INSERT INTO ticket_comments (ticket_id, user_id, body) VALUES (?, ?, ?)",
+    [ticketId, userId, body],
+  );
+  // Comentar também conta como atividade no chamado.
+  await pool.execute("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [ticketId]);
+  return result.insertId;
+}
+
+export async function listHistory(ticketId: number): Promise<TicketHistoryEntry[]> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT h.id, h.ticket_id, h.user_id, u.name AS user_name, h.field, h.old_value, h.new_value, h.created_at
+     FROM ticket_history h JOIN users u ON u.id = h.user_id
+     WHERE h.ticket_id = ? ORDER BY h.created_at, h.id`,
+    [ticketId],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    ticketId: r.ticket_id,
+    userId: r.user_id,
+    userName: r.user_name,
+    field: r.field,
+    oldValue: r.old_value,
+    newValue: r.new_value,
+    createdAt: r.created_at,
+  }));
+}
+
+/** Contagem por status, opcionalmente restrita a quem abriu ou a quem é responsável. */
+export async function countByStatus(scope: { requesterId?: number; assigneeId?: number }) {
+  const { sql, params } = buildWhere(scope);
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT t.status, COUNT(*) AS total FROM tickets t ${sql} GROUP BY t.status`,
+    params,
+  );
+  return Object.fromEntries(rows.map((r) => [r.status, Number(r.total)])) as Partial<Record<TicketStatus, number>>;
+}

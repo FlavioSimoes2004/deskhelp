@@ -1,0 +1,707 @@
+openapi: 3.1.0
+info:
+  title: DeskHelp API
+  version: 1.0.0
+  description: |
+    API do DeskHelp, sistema de chamados (help desk).
+
+    ## Autenticação
+    Faça `POST /api/auth/login` com e-mail e senha. A resposta traz um `token` JWT,
+    que deve ser enviado em todas as outras chamadas:
+
+    ```
+    Authorization: Bearer <token>
+    ```
+
+    Nesta página, clique em **Authorize** para informar o token. Se você já está logado
+    no DeskHelp, o token da sua sessão é usado automaticamente.
+
+    ## Perfis de acesso
+    | Perfil | Pode |
+    | ------ | ---- |
+    | `comum` | Abrir chamados, ver e comentar os próprios chamados, editar o próprio perfil |
+    | `admin` | Tudo: ver todos os chamados, alterar status, prioridade, categoria e responsável, excluir chamados, gerenciar usuários e ver relatórios |
+
+    ## Erros
+    Todos os erros seguem o formato `{ "error": { "code", "message", "details?" } }`.
+
+    | Status | Código | Quando |
+    | ------ | ------ | ------ |
+    | 400 | `VALIDATION_ERROR`, `INVALID_JSON`, `WRONG_PASSWORD` | Dados inválidos; veja `details` |
+    | 401 | `UNAUTHORIZED`, `INVALID_CREDENTIALS` | Token ausente/expirado ou login incorreto |
+    | 403 | `FORBIDDEN`, `USER_INACTIVE`, `SIGNUP_DISABLED` | Perfil sem permissão ou conta desativada |
+    | 404 | `NOT_FOUND` | Recurso não existe ou não é visível para você |
+    | 409 | `EMAIL_IN_USE`, `SELF_DEMOTION`, `SELF_DEACTIVATION`, `TICKET_CLOSED` | Conflito com o estado atual |
+    | 429 | `RATE_LIMITED` | Mais de 20 tentativas de login/cadastro em 15 minutos |
+servers:
+  - url: /api
+    description: Este servidor
+tags:
+  - name: Autenticação
+  - name: Chamados
+  - name: Usuários
+    description: Somente administradores
+  - name: Relatórios
+    description: Somente administradores
+security:
+  - BearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      tags: [Autenticação]
+      summary: Entrar
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+            example: { email: admin@deskhelp.local, password: sua-senha }
+      responses:
+        "200":
+          description: Login realizado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /auth/register:
+    post:
+      tags: [Autenticação]
+      summary: Criar conta comum
+      description: Disponível quando `ALLOW_SIGNUP=true`. A conta criada sempre tem o perfil `comum`.
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                email: { type: string, format: email }
+                password: { type: string, format: password, minLength: 8 }
+      responses:
+        "201":
+          description: Conta criada e já autenticada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /auth/config:
+    get:
+      tags: [Autenticação]
+      summary: Configuração pública
+      operationId: getAuthConfig
+      security: []
+      responses:
+        "200":
+          description: Indica se o cadastro público está liberado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  allowSignup: { type: boolean }
+
+  /auth/me:
+    get:
+      tags: [Autenticação]
+      summary: Meu perfil
+      operationId: getMe
+      responses:
+        "200":
+          description: Usuário logado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    patch:
+      tags: [Autenticação]
+      summary: Atualizar meu perfil
+      description: Para trocar a senha, envie `currentPassword` e `newPassword`.
+      operationId: updateMe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                currentPassword: { type: string, format: password }
+                newPassword: { type: string, format: password, minLength: 8 }
+      responses:
+        "200":
+          description: Perfil atualizado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /categories:
+    get:
+      tags: [Chamados]
+      summary: Listar categorias
+      operationId: listCategories
+      responses:
+        "200":
+          description: Categorias disponíveis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Category" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /tickets:
+    get:
+      tags: [Chamados]
+      summary: Listar chamados
+      description: Usuários `comum` recebem apenas os chamados que abriram. Ordenado do mais recente para o mais antigo.
+      operationId: listTickets
+      parameters:
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/TicketStatus" } }
+        - { name: priority, in: query, schema: { $ref: "#/components/schemas/TicketPriority" } }
+        - { name: categoryId, in: query, schema: { type: integer } }
+        - { name: assigneeId, in: query, schema: { type: integer } }
+        - name: search
+          in: query
+          description: Busca no título e na descrição, ou pelo número (ex. `#42`)
+          schema: { type: string, maxLength: 100 }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Página de chamados
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Ticket" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [Chamados]
+      summary: Abrir chamado
+      operationId: createTicket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, description, categoryId]
+              properties:
+                title: { type: string, minLength: 5, maxLength: 160 }
+                description: { type: string, minLength: 10, maxLength: 10000 }
+                categoryId: { type: integer }
+                priority: { $ref: "#/components/schemas/TicketPriority" }
+            example:
+              title: VPN não conecta
+              description: Desde hoje cedo o cliente VPN mostra "tempo esgotado" ao conectar.
+              categoryId: 4
+              priority: alta
+      responses:
+        "201":
+          description: Chamado criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Ticket" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /tickets/overview:
+    get:
+      tags: [Chamados]
+      summary: Resumo para a página inicial
+      description: |
+        Contagem de chamados por status. Para `comum`, considera só os próprios chamados.
+        Para `admin`, traz o total geral e, em `assignedToMe`, os chamados sob sua responsabilidade.
+      operationId: getTicketOverview
+      responses:
+        "200":
+          description: Contagens por status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      byStatus: { $ref: "#/components/schemas/StatusCounts" }
+                      assignedToMe: { $ref: "#/components/schemas/StatusCounts" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /tickets/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Chamados]
+      summary: Detalhar chamado
+      description: Inclui comentários e histórico de alterações.
+      operationId: getTicket
+      responses:
+        "200":
+          description: Chamado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/TicketDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Chamados]
+      summary: Alterar chamado (admin)
+      description: |
+        Envie apenas os campos a alterar. Cada mudança é registrada no histórico.
+        Ao mudar para `resolvido` ou `fechado`, as datas de resolução/fechamento são preenchidas;
+        ao reabrir, são limpas. O responsável precisa ser um administrador ativo; envie `null` para remover.
+      operationId: updateTicket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                title: { type: string, minLength: 5, maxLength: 160 }
+                description: { type: string, minLength: 10 }
+                status: { $ref: "#/components/schemas/TicketStatus" }
+                priority: { $ref: "#/components/schemas/TicketPriority" }
+                categoryId: { type: integer }
+                assigneeId: { type: [integer, "null"] }
+            example: { status: em_andamento, assigneeId: 1 }
+      responses:
+        "200":
+          description: Chamado atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/TicketDetail" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Chamados]
+      summary: Excluir chamado (admin)
+      operationId: deleteTicket
+      responses:
+        "204": { description: Chamado excluído }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /tickets/{id}/comments:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Chamados]
+      summary: Comentar no chamado
+      description: Usuários `comum` só comentam nos próprios chamados e não podem comentar em chamados fechados.
+      operationId: addTicketComment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 5000 }
+      responses:
+        "201":
+          description: Lista atualizada de comentários
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Comment" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /users:
+    get:
+      tags: [Usuários]
+      summary: Listar usuários
+      operationId: listUsers
+      parameters:
+        - { name: search, in: query, description: Nome ou e-mail, schema: { type: string } }
+        - { name: role, in: query, schema: { $ref: "#/components/schemas/Role" } }
+        - { name: active, in: query, schema: { type: string, enum: ["true", "false"] } }
+      responses:
+        "200":
+          description: Usuários
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Usuários]
+      summary: Cadastrar usuário
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                email: { type: string, format: email }
+                password: { type: string, format: password, minLength: 8 }
+                role: { $ref: "#/components/schemas/Role" }
+      responses:
+        "201":
+          description: Usuário criado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /users/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Usuários]
+      summary: Detalhar usuário
+      operationId: getUser
+      responses:
+        "200":
+          description: Usuário
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Usuários]
+      summary: Alterar usuário
+      description: |
+        Altera nome, e-mail, perfil, situação (ativo) ou redefine a senha.
+        Um administrador não pode remover o próprio perfil de admin nem desativar a própria conta.
+      operationId: updateUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                email: { type: string, format: email }
+                role: { $ref: "#/components/schemas/Role" }
+                active: { type: boolean }
+                password: { type: string, format: password, minLength: 8 }
+      responses:
+        "200":
+          description: Usuário atualizado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /reports/summary:
+    get:
+      tags: [Relatórios]
+      summary: Indicadores de chamados
+      description: Considera chamados criados no período. Sem datas, usa os últimos 30 dias.
+      operationId: getReportSummary
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+      responses:
+        "200":
+          description: Indicadores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/ReportSummary" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /reports/tickets.csv:
+    get:
+      tags: [Relatórios]
+      summary: Exportar chamados em CSV
+      operationId: exportTicketsCsv
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+      responses:
+        "200":
+          description: Arquivo CSV (UTF-8 com BOM)
+          content:
+            text/csv:
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token obtido em `POST /auth/login`.
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    From:
+      name: from
+      in: query
+      description: Data inicial (inclusiva), AAAA-MM-DD
+      schema: { type: string, format: date }
+    To:
+      name: to
+      in: query
+      description: Data final (inclusiva), AAAA-MM-DD
+      schema: { type: string, format: date }
+
+  schemas:
+    Role:
+      type: string
+      enum: [admin, comum]
+    TicketStatus:
+      type: string
+      enum: [aberto, em_andamento, aguardando, resolvido, fechado]
+    TicketPriority:
+      type: string
+      enum: [baixa, media, alta, critica]
+      default: media
+    User:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        name: { type: string, example: Ana Souza }
+        email: { type: string, format: email, example: ana@empresa.com }
+        role: { $ref: "#/components/schemas/Role" }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    UserResponse:
+      type: object
+      properties:
+        data: { $ref: "#/components/schemas/User" }
+    AuthResponse:
+      type: object
+      properties:
+        token: { type: string, description: JWT para o cabeçalho Authorization }
+        user: { $ref: "#/components/schemas/User" }
+    Category:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string, example: Rede e internet }
+    Ticket:
+      type: object
+      properties:
+        id: { type: integer, example: 42 }
+        title: { type: string }
+        description: { type: string }
+        status: { $ref: "#/components/schemas/TicketStatus" }
+        priority: { $ref: "#/components/schemas/TicketPriority" }
+        categoryId: { type: integer }
+        categoryName: { type: string }
+        requesterId: { type: integer }
+        requesterName: { type: string }
+        assigneeId: { type: [integer, "null"] }
+        assigneeName: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        resolvedAt: { type: [string, "null"], format: date-time }
+        closedAt: { type: [string, "null"], format: date-time }
+    Comment:
+      type: object
+      properties:
+        id: { type: integer }
+        ticketId: { type: integer }
+        userId: { type: integer }
+        userName: { type: string }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+    HistoryEntry:
+      type: object
+      properties:
+        id: { type: integer }
+        userName: { type: string }
+        field: { type: string, enum: [title, description, status, priority, categoryId, assigneeId] }
+        oldValue: { type: [string, "null"] }
+        newValue: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+    TicketDetail:
+      allOf:
+        - $ref: "#/components/schemas/Ticket"
+        - type: object
+          properties:
+            comments:
+              type: array
+              items: { $ref: "#/components/schemas/Comment" }
+            history:
+              type: array
+              items: { $ref: "#/components/schemas/HistoryEntry" }
+    StatusCounts:
+      type: object
+      description: Quantidade por status; status sem chamados não aparecem
+      additionalProperties: { type: integer }
+      example: { aberto: 4, em_andamento: 2 }
+    Pagination:
+      type: object
+      properties:
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+    CountItem:
+      type: object
+      properties:
+        label: { type: [string, "null"] }
+        total: { type: integer }
+    ReportSummary:
+      type: object
+      properties:
+        period:
+          type: object
+          properties:
+            from: { type: string, format: date }
+            to: { type: string, format: date }
+        totals:
+          type: object
+          properties:
+            total: { type: integer }
+            resolved: { type: integer }
+            avgResolutionHours: { type: [number, "null"] }
+        byStatus: { type: array, items: { $ref: "#/components/schemas/CountItem" } }
+        byPriority: { type: array, items: { $ref: "#/components/schemas/CountItem" } }
+        byCategory: { type: array, items: { $ref: "#/components/schemas/CountItem" } }
+        byAssignee:
+          type: array
+          description: "`label: null` agrupa os chamados sem responsável"
+          items: { $ref: "#/components/schemas/CountItem" }
+        perDay:
+          type: array
+          items:
+            type: object
+            properties:
+              day: { type: string, format: date }
+              total: { type: integer }
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field: { type: string }
+                  message: { type: string }
+
+  responses:
+    BadRequest:
+      description: Dados inválidos
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: O título precisa ter pelo menos 5 caracteres
+              details: [{ field: title, message: O título precisa ter pelo menos 5 caracteres }]
+    Unauthorized:
+      description: Não autenticado
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: UNAUTHORIZED, message: Faça login para continuar } }
+    Forbidden:
+      description: Sem permissão
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: FORBIDDEN, message: Você não tem permissão para esta ação } }
+    NotFound:
+      description: Não encontrado
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: NOT_FOUND, message: Chamado não encontrado } }
+    Conflict:
+      description: Conflito com o estado atual
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: EMAIL_IN_USE, message: Já existe uma conta com este e-mail } }
+    RateLimited:
+      description: Muitas tentativas
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: RATE_LIMITED, message: Muitas tentativas. Tente novamente em alguns minutos. } }
