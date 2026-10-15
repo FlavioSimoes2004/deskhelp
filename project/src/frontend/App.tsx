@@ -8,6 +8,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { MachinesPage } from "./pages/MachinesPage";
 import { NewTicketPage } from "./pages/NewTicketPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { NotificationsPage } from "./pages/NotificationsPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { SignupPage } from "./pages/SignupPage";
 import { TicketDetailPage } from "./pages/TicketDetailPage";
@@ -38,6 +39,7 @@ export function App() {
             <Route path="chamados/novo" element={<NewTicketPage />} />
             <Route path="chamados/:id" element={<TicketDetailPage />} />
             <Route path="perfil" element={<ProfilePage />} />
+            <Route path="notificacoes" element={<NotificationsPage />} />
             <Route
               path="api-docs"
               element={

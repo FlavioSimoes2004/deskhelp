@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { useAuth } from "../hooks/useAuth";
 import { initials, ROLE_LABEL } from "../utils/format";
 import { LogoMark } from "./Logo";
+import { NotificationBell } from "./NotificationBell";
 
 const navClass = ({ isActive }: { isActive: boolean }) => `nav-link${isActive ? " active" : ""}`;
 
@@ -22,15 +23,18 @@ export function Layout() {
             <LogoMark />
             DeskHelp
           </Link>
-          <button
-            type="button"
-            className="btn btn-rail btn-sm menu-toggle"
-            aria-expanded={open}
-            aria-controls="main-nav"
-            onClick={() => setOpen((v) => !v)}
-          >
-            Menu
-          </button>
+          <div className="rail-top-actions">
+            <NotificationBell />
+            <button
+              type="button"
+              className="btn btn-rail btn-sm menu-toggle"
+              aria-expanded={open}
+              aria-controls="main-nav"
+              onClick={() => setOpen((v) => !v)}
+            >
+              Menu
+            </button>
+          </div>
         </div>
 
         <nav id="main-nav" aria-label="Principal">

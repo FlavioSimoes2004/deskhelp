@@ -4,6 +4,9 @@ export type Role = (typeof ROLES)[number];
 export const TICKET_STATUSES = ["aberto", "em_andamento", "aguardando", "resolvido", "fechado"] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
+export const NOTIFICATION_TYPES = ["assigned", "comment"] as const;
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
 export const TICKET_PRIORITIES = ["baixa", "media", "alta", "critica"] as const;
 export type TicketPriority = (typeof TICKET_PRIORITIES)[number];
 
@@ -95,5 +98,20 @@ export interface MachineHistoryEntry {
   field: string;
   oldValue: string | null;
   newValue: string | null;
+  createdAt: Date;
+}
+
+export interface Notification {
+  id: number;
+  type: NotificationType;
+  ticketId: number;
+  ticketTitle: string;
+  actorId: number;
+  actorName: string;
+  commentId: number | null;
+  /** Início do comentário, para notificações do tipo "comment". */
+  commentExcerpt: string | null;
+  read: boolean;
+  readAt: Date | null;
   createdAt: Date;
 }

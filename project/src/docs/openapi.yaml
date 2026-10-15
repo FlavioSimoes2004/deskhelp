@@ -39,6 +39,11 @@ servers:
 tags:
   - name: Autenticação
   - name: Chamados
+  - name: Notificações
+    description: |
+      Cada usuário vê apenas as próprias. Geradas quando um admin atribui um chamado a outra pessoa
+      (`assigned`, para o novo responsável) e quando alguém comenta em um chamado do qual o usuário é
+      solicitante ou responsável (`comment`, nunca para o autor do comentário).
   - name: Usuários
     description: Administradores e suporte. O suporte não cria, promove nem altera administradores (403).
   - name: Máquinas
@@ -407,6 +412,102 @@ paths:
           content:
             application/octet-stream:
               schema: { type: string, format: binary }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /notifications:
+    get:
+      tags: [Notificações]
+      summary: Listar notificações
+      operationId: listNotifications
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [unread, read] } }
+        - { name: type, in: query, schema: { type: string, enum: [assigned, comment] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Notificações, mais recentes primeiro
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Notification" }
+                  unread: { type: integer, description: Total de não lidas (independe dos filtros) }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /notifications/unread-count:
+    get:
+      tags: [Notificações]
+      summary: Quantidade de não lidas
+      operationId: countUnreadNotifications
+      responses:
+        "200":
+          description: Total de não lidas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      unread: { type: integer }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /notifications/read-all:
+    post:
+      tags: [Notificações]
+      summary: Marcar todas como lidas
+      operationId: readAllNotifications
+      responses:
+        "200":
+          description: Todas lidas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      unread: { type: integer, example: 0 }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /notifications/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    patch:
+      tags: [Notificações]
+      summary: Marcar como lida ou não lida
+      operationId: updateNotification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [read]
+              properties:
+                read: { type: boolean }
+      responses:
+        "200":
+          description: Atualizada; devolve o novo total de não lidas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      unread: { type: integer }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
@@ -837,6 +938,20 @@ components:
         ipAddress: { type: [string, "null"], description: IPv4 ou IPv6 }
         description: { type: [string, "null"], maxLength: 255, description: Vazio vira null }
         userId: { type: [integer, "null"] }
+    Notification:
+      type: object
+      properties:
+        id: { type: integer }
+        type: { type: string, enum: [assigned, comment] }
+        ticketId: { type: integer }
+        ticketTitle: { type: string }
+        actorId: { type: integer, description: Quem gerou a notificação }
+        actorName: { type: string }
+        commentId: { type: [integer, "null"] }
+        commentExcerpt: { type: [string, "null"], description: Início do comentário (até 160 caracteres) }
+        read: { type: boolean }
+        readAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
     StatusCounts:
       type: object
       description: Quantidade por status; status sem chamados não aparecem

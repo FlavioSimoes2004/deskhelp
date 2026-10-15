@@ -81,6 +81,27 @@ CREATE TABLE IF NOT EXISTS ticket_comment_attachments (
   CONSTRAINT fk_attachments_ticket FOREIGN KEY (ticket_id) REFERENCES tickets (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Notificações de cada usuário. type: 'assigned' (um admin atribuiu o chamado a ele)
+-- ou 'comment' (alguém comentou em um chamado que ele abriu ou do qual é responsável).
+-- actor_id é quem gerou a notificação; read_at fica NULL enquanto não for lida.
+CREATE TABLE IF NOT EXISTS notifications (
+  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id    INT UNSIGNED NOT NULL,
+  type       ENUM('assigned', 'comment') NOT NULL,
+  ticket_id  INT UNSIGNED NOT NULL,
+  actor_id   INT UNSIGNED NOT NULL,
+  comment_id INT UNSIGNED NULL,
+  read_at    DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_notifications_user_created (user_id, created_at),
+  KEY idx_notifications_user_read (user_id, read_at),
+  CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users (id),
+  CONSTRAINT fk_notifications_ticket FOREIGN KEY (ticket_id) REFERENCES tickets (id) ON DELETE CASCADE,
+  CONSTRAINT fk_notifications_actor FOREIGN KEY (actor_id) REFERENCES users (id),
+  CONSTRAINT fk_notifications_comment FOREIGN KEY (comment_id) REFERENCES ticket_comments (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Máquinas (endereço MAC, IP, descrição e o usuário que está com ela).
 CREATE TABLE IF NOT EXISTS machines (
   id          INT UNSIGNED NOT NULL AUTO_INCREMENT,

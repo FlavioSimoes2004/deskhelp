@@ -3,6 +3,7 @@ import rateLimit from "express-rate-limit";
 import * as authCtrl from "../controllers/authController.js";
 import * as docsCtrl from "../controllers/docsController.js";
 import * as machineCtrl from "../controllers/machineController.js";
+import * as notificationCtrl from "../controllers/notificationController.js";
 import * as reportCtrl from "../controllers/reportController.js";
 import * as ticketCtrl from "../controllers/ticketController.js";
 import * as userCtrl from "../controllers/userController.js";
@@ -15,10 +16,12 @@ import {
   idParamSchema,
   loginSchema,
   machineQuerySchema,
+  notificationQuerySchema,
   registerSchema,
   reportQuerySchema,
   ticketQuerySchema,
   updateMachineSchema,
+  updateNotificationSchema,
   updateProfileSchema,
   updateTicketSchema,
   updateUserSchema,
@@ -64,6 +67,12 @@ apiRouter.get("/tickets/:id", byId, ticketCtrl.get);
 apiRouter.post("/tickets/:id/comments", byId, parseMultipart, validate(commentSchema), ticketCtrl.addComment);
 apiRouter.post("/tickets/:id/resolve", requireRole("comum"), byId, ticketCtrl.resolve);
 apiRouter.get("/attachments/:id", byId, ticketCtrl.downloadAttachment);
+
+// Notificações: cada usuário só vê e altera as próprias
+apiRouter.get("/notifications", validate(notificationQuerySchema, "query"), notificationCtrl.list);
+apiRouter.get("/notifications/unread-count", notificationCtrl.unreadCount);
+apiRouter.post("/notifications/read-all", notificationCtrl.readAll);
+apiRouter.patch("/notifications/:id", byId, validate(updateNotificationSchema), notificationCtrl.update);
 
 // Administradores e suporte (o suporte tem regras próprias no ticketService)
 apiRouter.patch("/tickets/:id", staffOnly, byId, validate(updateTicketSchema), ticketCtrl.update);

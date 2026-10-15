@@ -6,6 +6,7 @@ import type { TicketQuery } from "../middlewares/schemas.js";
 import type { UploadedFile } from "../middlewares/upload.js";
 import { removeStored, resolveStored, saveFile } from "../utils/fileStorage.js";
 import { forbidden, HttpError, notFound } from "../utils/httpError.js";
+import { assignmentRecipient, commentRecipients } from "./notificationRules.js";
 import {
   applySupportRules,
   canComment,
@@ -71,7 +72,9 @@ export async function updateTicket(user: AuthUser, id: number, requested: Partia
 
   const statusChanged = changes.some((c) => c.field === "status");
   const timestamps = statusChanged && patch.status ? statusTimestamps(current, patch.status, new Date()) : {};
-  await tickets.updateTicket(id, user.id, { ...patch, ...timestamps }, changes);
+  const recipient = assignmentRecipient(user, current, patch);
+  const notifications = recipient ? [{ userId: recipient, type: "assigned" as const, ticketId: id, actorId: user.id }] : [];
+  await tickets.updateTicket(id, user.id, { ...patch, ...timestamps }, changes, notifications);
   return getTicketDetail(user, id);
 }
 
@@ -106,7 +109,7 @@ export async function addComment(user: AuthUser, id: number, body: string, files
       const filePath = await saveFile(attachmentFolder(id), file.extension, file.data);
       saved.push({ originalName: file.originalName, filePath, mimeType: file.mimeType, sizeBytes: file.sizeBytes });
     }
-    await tickets.insertComment(id, user.id, body, saved);
+    await tickets.insertComment(id, user.id, body, saved, commentRecipients(user.id, ticket));
   } catch (error) {
     // Não deixa arquivos órfãos se a gravação no banco falhar.
     await Promise.all(saved.map((f) => removeStored(f.filePath).catch(() => undefined)));

@@ -146,6 +146,57 @@ a {
   height: 28px;
 }
 
+.rail-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.rail-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Sino de notificações com a quantidade de não lidas. */
+.bell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  color: var(--rail-ink);
+}
+
+.bell:hover,
+.bell.active {
+  color: #fff;
+  background: #243046;
+}
+
+.bell svg {
+  width: 20px;
+  height: 20px;
+}
+
+.bell-count {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #e5484d;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
 .rail nav {
   display: flex;
   flex-direction: column;
@@ -511,6 +562,70 @@ a {
 
 .filters .field.grow {
   flex: 3 1 240px;
+}
+
+/* ---------- Notificações ---------- */
+.notification-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notification {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: start;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+.notification.unread {
+  border-left: 4px solid var(--petrol);
+}
+
+.notification-body p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.notification.unread .notification-body > p:first-child {
+  font-weight: 600;
+}
+
+.notification-excerpt {
+  margin-top: 4px !important;
+  color: var(--ink-2);
+  font-size: var(--step--1);
+}
+
+.notification-meta {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-3);
+  font-size: var(--step--1);
+}
+
+.notification-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .notification {
+    grid-template-columns: 1fr;
+  }
+
+  .notification-actions {
+    justify-content: flex-start;
+  }
 }
 
 /* ---------- Tabelas ---------- */

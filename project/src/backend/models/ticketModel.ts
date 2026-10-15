@@ -1,6 +1,7 @@
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { pool, type SqlParams } from "../config/database.js";
 import type { TicketChange, TicketEditableFields } from "../services/ticketRules.js";
+import { insertNotifications, type NewNotification } from "./notificationModel.js";
 import type {
   StoredAttachment,
   Ticket,
@@ -127,12 +128,13 @@ const COLUMN: Record<keyof TicketEditableFields, string> = {
   assigneeId: "assignee_id",
 };
 
-/** Atualiza o chamado e grava o histórico na mesma transação. */
+/** Atualiza o chamado e grava o histórico (e as notificações geradas) na mesma transação. */
 export async function updateTicket(
   id: number,
   userId: number,
   patch: Partial<TicketEditableFields> & { resolvedAt?: Date | null; closedAt?: Date | null },
   changes: TicketChange[],
+  notifications: NewNotification[] = [],
 ): Promise<void> {
   const sets: string[] = [];
   const params: SqlParams = { id };
@@ -168,6 +170,7 @@ export async function updateTicket(
         },
       );
     }
+    await insertNotifications(conn, notifications);
     await conn.commit();
   } catch (error) {
     await conn.rollback();
@@ -221,12 +224,16 @@ export interface NewAttachment {
   sizeBytes: number;
 }
 
-/** Grava o comentário e os anexos (já salvos em disco) na mesma transação. */
+/**
+ * Grava o comentário, os anexos (já salvos em disco) e as notificações para
+ * notifyUserIds na mesma transação.
+ */
 export async function insertComment(
   ticketId: number,
   userId: number,
   body: string,
   attachments: NewAttachment[] = [],
+  notifyUserIds: number[] = [],
 ): Promise<number> {
   const conn: PoolConnection = await pool.getConnection();
   try {
@@ -242,6 +249,10 @@ export async function insertComment(
         [result.insertId, ticketId, file.originalName, file.filePath, file.mimeType, file.sizeBytes],
       );
     }
+    await insertNotifications(
+      conn,
+      notifyUserIds.map((id) => ({ userId: id, type: "comment", ticketId, actorId: userId, commentId: result.insertId })),
+    );
     // Comentar também conta como atividade no chamado.
     await conn.execute("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [ticketId]);
     await conn.commit();

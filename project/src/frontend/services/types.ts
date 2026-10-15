@@ -112,3 +112,19 @@ export interface MachineHistoryEntry {
   newValue: string | null;
   createdAt: string;
 }
+
+export type NotificationType = "assigned" | "comment";
+
+export interface Notification {
+  id: number;
+  type: NotificationType;
+  ticketId: number;
+  ticketTitle: string;
+  actorId: number;
+  actorName: string;
+  commentId: number | null;
+  commentExcerpt: string | null;
+  read: boolean;
+  readAt: string | null;
+  createdAt: string;
+}

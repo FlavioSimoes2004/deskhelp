@@ -3,6 +3,8 @@ import type {
   Category,
   Machine,
   MachineHistoryEntry,
+  Notification,
+  NotificationType,
   Pagination,
   ReportSummary,
   Role,
@@ -101,6 +103,22 @@ export const machineService = {
     api.patch<{ data: Machine }>(`/machines/${id}`, data).then((r) => r.data),
   history: (id: number) =>
     api.get<{ data: MachineHistoryEntry[] }>(`/machines/${id}/history`).then((r) => r.data),
+};
+
+export interface NotificationFilters {
+  status?: "unread" | "read" | "";
+  type?: NotificationType | "";
+  page?: number;
+  pageSize?: number;
+}
+
+export const notificationService = {
+  list: (filters: NotificationFilters) =>
+    api.get<{ data: Notification[]; unread: number; pagination: Pagination }>("/notifications", { ...filters }),
+  unreadCount: () => api.get<{ data: { unread: number } }>("/notifications/unread-count").then((r) => r.data.unread),
+  setRead: (id: number, read: boolean) =>
+    api.patch<{ data: { unread: number } }>(`/notifications/${id}`, { read }).then((r) => r.data.unread),
+  readAll: () => api.post<{ data: { unread: number } }>("/notifications/read-all").then((r) => r.data.unread),
 };
 
 export const reportService = {

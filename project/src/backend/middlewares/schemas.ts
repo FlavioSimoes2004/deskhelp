@@ -1,6 +1,6 @@
 import { isIP } from "node:net";
 import { z } from "zod";
-import { ROLES, TICKET_PRIORITIES, TICKET_STATUSES } from "../models/types.js";
+import { NOTIFICATION_TYPES, ROLES, TICKET_PRIORITIES, TICKET_STATUSES } from "../models/types.js";
 
 const email = z.string().trim().toLowerCase().pipe(z.email("E-mail inválido").max(190));
 const password = z.string().min(8, "A senha precisa ter pelo menos 8 caracteres").max(128);
@@ -130,6 +130,20 @@ export const machineQuerySchema = z.object({
   search: z.string().trim().max(100).optional(),
 });
 
+export const notificationQuerySchema = z.object({
+  status: z.enum(["unread", "read"]).optional(),
+  type: z.enum(NOTIFICATION_TYPES).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .default(20)
+    .transform((n) => Math.min(n, 100)),
+});
+
+export const updateNotificationSchema = z.object({ read: z.boolean() });
+
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use o formato AAAA-MM-DD");
 
 export const reportQuerySchema = z.object({
@@ -141,3 +155,4 @@ export const idParamSchema = z.object({ id });
 
 export type TicketQuery = z.infer<typeof ticketQuerySchema>;
 export type ReportQuery = z.infer<typeof reportQuerySchema>;
+export type NotificationQuery = z.infer<typeof notificationQuerySchema>;
