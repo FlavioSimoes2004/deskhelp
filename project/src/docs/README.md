@@ -19,6 +19,7 @@ Regras importantes:
 - O responsável por um chamado precisa ser um administrador ou suporte ativo.
 - Somente quem abriu o chamado e o responsável por ele podem comentar (vale também para admin).
 - Chamados não podem ser excluídos.
+- Admin e suporte vinculam a máquina do chamado; um chamado só pode ficar "resolvido" com máquina vinculada.
 - Um admin não pode tirar o próprio perfil de admin nem desativar a própria conta.
 - Conta desativada perde o acesso na hora (o token é revalidado no banco a cada requisição).
 - Chamado fechado só aceita comentários de administrador.

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { applySupportRules, canComment, canViewTicket, diffTicket, statusTimestamps } from "./ticketRules.js";
+import {
+  applySupportRules,
+  assertMachineWhenResolved,
+  canComment,
+  canViewTicket,
+  diffTicket,
+  statusTimestamps,
+} from "./ticketRules.js";
 
 const admin = { id: 1, role: "admin" as const };
 const comum = { id: 2, role: "comum" as const };
@@ -104,6 +111,7 @@ describe("diffTicket", () => {
     priority: "media" as const,
     categoryId: 1,
     assigneeId: null,
+    machineId: null,
   };
 
   it("returns only the fields whose value actually changes", () => {
@@ -121,5 +129,39 @@ describe("diffTicket", () => {
   it("records unassigning a ticket as a change to null", () => {
     const changes = diffTicket({ ...current, assigneeId: 5 }, { assigneeId: null });
     expect(changes).toEqual([{ field: "assigneeId", oldValue: "5", newValue: null }]);
+  });
+});
+
+describe("assertMachineWhenResolved", () => {
+  it("requires a machine to resolve a ticket", () => {
+    expect(() => assertMachineWhenResolved({ status: "em_andamento", machineId: null }, { status: "resolvido" })).toThrow(
+      /máquina/,
+    );
+  });
+
+  it("allows resolving when the ticket has, or gets, a machine", () => {
+    expect(() => assertMachineWhenResolved({ status: "em_andamento", machineId: 3 }, { status: "resolvido" })).not.toThrow();
+    expect(() =>
+      assertMachineWhenResolved({ status: "em_andamento", machineId: null }, { status: "resolvido", machineId: 3 }),
+    ).not.toThrow();
+  });
+
+  it("blocks removing the machine from a resolved ticket", () => {
+    expect(() => assertMachineWhenResolved({ status: "resolvido", machineId: 3 }, { machineId: null })).toThrow(/máquina/);
+  });
+
+  it("does not block unrelated edits on an old resolved ticket without machine", () => {
+    expect(() => assertMachineWhenResolved({ status: "resolvido", machineId: null }, { status: "resolvido" })).not.toThrow();
+    expect(() => assertMachineWhenResolved({ status: "resolvido", machineId: null }, {})).not.toThrow();
+  });
+
+  it("does not require a machine for other statuses", () => {
+    expect(() => assertMachineWhenResolved({ status: "aberto", machineId: null }, { status: "fechado" })).not.toThrow();
+  });
+});
+
+describe("applySupportRules and machines", () => {
+  it("lets support link a machine", () => {
+    expect(applySupportRules(support, { status: "em_andamento", assigneeId: 7 }, { machineId: 3 })).toEqual({ machineId: 3 });
   });
 });

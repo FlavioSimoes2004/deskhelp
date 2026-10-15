@@ -33,14 +33,14 @@ const columnNullable = (conn: Conn, table: string, column: string) =>
     [table, column],
   );
 
-const indexExists = (conn: Conn, table: string, index: string) =>
+export const indexExists = (conn: Conn, table: string, index: string) =>
   exists(
     conn,
     "SELECT 1 FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?",
     [table, index],
   );
 
-const foreignKeyExists = (conn: Conn, table: string, name: string) =>
+export const foreignKeyExists = (conn: Conn, table: string, name: string) =>
   exists(
     conn,
     `SELECT 1 FROM information_schema.table_constraints

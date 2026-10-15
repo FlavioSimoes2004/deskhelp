@@ -61,6 +61,7 @@ export const ticketService = {
       priority: TicketPriority;
       categoryId: number;
       assigneeId: number | null;
+      machineId: number | null;
     }>,
   ) => api.patch<{ data: TicketDetail }>(`/tickets/${id}`, data).then((r) => r.data),
   comment: (id: number, body: string, files: File[] = []) => {

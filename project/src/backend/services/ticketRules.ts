@@ -1,5 +1,5 @@
 import type { AuthUser, Role, TicketPriority, TicketStatus } from "../models/types.js";
-import { forbidden } from "../utils/httpError.js";
+import { forbidden, HttpError } from "../utils/httpError.js";
 
 /** Equipe de atendimento: administradores e suporte. */
 export const isStaff = (role: Role) => role === "admin" || role === "support";
@@ -16,7 +16,7 @@ export function canComment(user: AuthUser, ticket: { requesterId: number; assign
 
 /**
  * Regras do perfil suporte ao alterar um chamado:
- * - altera prioridade e categoria;
+ * - altera prioridade, categoria e a máquina vinculada;
  * - não altera assunto, descrição nem status;
  * - só assume para si um chamado sem responsável (e não troca o responsável existente).
  * Ao assumir um chamado "aberto", o status passa para "em_andamento", como no admin.
@@ -64,6 +64,27 @@ export interface TicketEditableFields {
   priority: TicketPriority;
   categoryId: number;
   assigneeId: number | null;
+  machineId: number | null;
+}
+
+/**
+ * Chamado "resolvido" precisa ter máquina vinculada. Confere o estado final quando
+ * a alteração muda de fato o status ou a máquina, assim chamados antigos sem máquina
+ * podem ter outros campos editados normalmente.
+ */
+export function assertMachineWhenResolved(
+  current: { status: TicketStatus; machineId: number | null },
+  patch: Partial<Pick<TicketEditableFields, "status" | "machineId">>,
+): void {
+  const statusChanges = patch.status !== undefined && patch.status !== current.status;
+  const machineChanges = patch.machineId !== undefined && patch.machineId !== current.machineId;
+  if (!statusChanges && !machineChanges) return;
+  const status = patch.status ?? current.status;
+  const machineId = patch.machineId !== undefined ? patch.machineId : current.machineId;
+  if (status === "resolvido" && machineId === null) {
+    const message = "Vincule a máquina ao chamado antes de marcá-lo como resolvido";
+    throw new HttpError(400, "MACHINE_REQUIRED", message, [{ field: "machineId", message }]);
+  }
 }
 
 export interface TicketChange {

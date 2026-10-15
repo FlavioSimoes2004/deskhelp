@@ -28,6 +28,9 @@ export interface Ticket {
   requesterName: string;
   assigneeId: number | null;
   assigneeName: string | null;
+  machineId: number | null;
+  machineMacAddress: string | null;
+  machineDescription: string | null;
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;
@@ -56,7 +59,7 @@ export interface TicketAttachment {
 export interface TicketHistoryEntry {
   id: number;
   userName: string;
-  field: "title" | "description" | "status" | "priority" | "categoryId" | "assigneeId";
+  field: "title" | "description" | "status" | "priority" | "categoryId" | "assigneeId" | "machineId";
   oldValue: string | null;
   newValue: string | null;
   createdAt: string;

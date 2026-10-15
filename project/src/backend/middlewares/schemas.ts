@@ -63,6 +63,7 @@ export const updateTicketSchema = z
     priority: z.enum(TICKET_PRIORITIES).optional(),
     categoryId: id.optional(),
     assigneeId: id.nullable().optional(),
+    machineId: id.nullable().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, { message: "Nenhum campo para atualizar" });
 

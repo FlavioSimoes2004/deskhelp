@@ -7,9 +7,10 @@ import { TicketStub } from "../components/TicketStub";
 import { useAsync } from "../hooks/useAsync";
 import { useAuth } from "../hooks/useAuth";
 import { ApiError } from "../services/api";
-import { ticketService, userService } from "../services/deskhelp";
+import { machineService, ticketService, userService } from "../services/deskhelp";
 import type {
   Category,
+  Machine,
   TicketAttachment,
   TicketDetail,
   TicketHistoryEntry,
@@ -28,8 +29,26 @@ import {
   timeAgo,
 } from "../utils/format";
 
-function describeChange(entry: TicketHistoryEntry, categories: Category[], users: User[]): string {
+/** "AA:BB:CC:DD:EE:FF (descrição)", para mostrar a máquina vinculada. */
+const machineLabel = (mac: string, description: string | null) => (description ? `${mac} (${description})` : mac);
+
+function describeChange(
+  entry: TicketHistoryEntry,
+  categories: Category[],
+  users: User[],
+  machines: Machine[],
+  ticket: TicketDetail,
+): string {
   const userName = (id: string | null) => (id ? (users.find((u) => String(u.id) === id)?.name ?? `#${id}`) : null);
+  // Usuário comum não lista máquinas; ainda assim reconhece a máquina atual do chamado.
+  const machineName = (id: string) => {
+    const machine = machines.find((m) => String(m.id) === id);
+    if (machine) return machineLabel(machine.macAddress, machine.description);
+    if (id === String(ticket.machineId) && ticket.machineMacAddress) {
+      return machineLabel(ticket.machineMacAddress, ticket.machineDescription);
+    }
+    return `#${id}`;
+  };
   switch (entry.field) {
     case "status":
       return `mudou o status de ${STATUS_LABEL[entry.oldValue as TicketStatus]} para ${STATUS_LABEL[entry.newValue as TicketStatus]}`;
@@ -45,6 +64,8 @@ function describeChange(entry: TicketHistoryEntry, categories: Category[], users
       return `alterou o assunto para “${entry.newValue}”`;
     case "description":
       return "editou a descrição";
+    case "machineId":
+      return entry.newValue ? `vinculou a máquina ${machineName(entry.newValue)}` : "removeu a máquina vinculada";
   }
 }
 
@@ -56,6 +77,7 @@ export function TicketDetailPage() {
   const ticket = useAsync(() => ticketService.get(id), [id]);
   const categories = useAsync(() => ticketService.categories(), []);
   const staff = useAsync(() => (isStaff ? userService.staff() : Promise.resolve([])), [isStaff]);
+  const machines = useAsync(() => (isStaff ? machineService.list() : Promise.resolve([])), [isStaff]);
 
   if (ticket.loading && !ticket.data) return <Loading />;
   if (ticket.error?.status === 404 || Number.isNaN(id)) {
@@ -120,6 +142,7 @@ export function TicketDetailPage() {
             blockedReason={commentBlocked}
             categories={categories.data ?? []}
             staff={staff.data ?? []}
+            machines={machines.data ?? []}
             onCommented={(updated) => ticket.setData(updated)}
           />
         </div>
@@ -132,11 +155,16 @@ export function TicketDetailPage() {
               currentUserId={user.id}
               categories={categories.data ?? []}
               staff={(staff.data ?? []).filter((a) => a.active)}
+              machines={machines.data ?? []}
               onSaved={(updated) => ticket.setData(updated)}
             />
           ) : null}
           {user?.role === "comum" && t.requesterId === user.id && t.status !== "resolvido" && t.status !== "fechado" && (
-            <ResolvePanel ticketId={t.id} onResolved={(updated) => ticket.setData(updated)} />
+            <ResolvePanel
+              ticketId={t.id}
+              hasMachine={t.machineId !== null}
+              onResolved={(updated) => ticket.setData(updated)}
+            />
           )}
           <section className="panel" aria-labelledby="info-title">
             <div className="panel-head">
@@ -145,6 +173,8 @@ export function TicketDetailPage() {
             <dl className="meta-list">
               <dt>Responsável</dt>
               <dd>{t.assigneeName ?? "Ainda não atribuído"}</dd>
+              <dt>Máquina</dt>
+              <dd>{t.machineMacAddress ? machineLabel(t.machineMacAddress, t.machineDescription) : "Não vinculada"}</dd>
               <dt>Aberto em</dt>
               <dd>{formatDateTime(t.createdAt)}</dd>
               <dt>Última atividade</dt>
@@ -174,6 +204,7 @@ function Conversation({
   blockedReason,
   categories,
   staff,
+  machines,
   onCommented,
 }: {
   ticket: TicketDetail;
@@ -181,6 +212,7 @@ function Conversation({
   blockedReason: string | null;
   categories: Category[];
   staff: User[];
+  machines: Machine[];
   onCommented: (ticket: TicketDetail) => void;
 }) {
   const [body, setBody] = useState("");
@@ -250,7 +282,7 @@ function Conversation({
               <li key={item.key}>
                 <span className="event-dot" aria-hidden="true" />
                 <span className="event" title={formatDateTime(item.at)}>
-                  <strong>{item.h.userName}</strong> {describeChange(item.h, categories, staff)}, {timeAgo(item.at)}
+                  <strong>{item.h.userName}</strong> {describeChange(item.h, categories, staff, machines, ticket)}, {timeAgo(item.at)}
                 </span>
               </li>
             ),
@@ -297,7 +329,8 @@ function Conversation({
 
 /**
  * Atendimento do chamado. Admin altera tudo; suporte só assume chamados sem
- * responsável e altera prioridade e categoria (as regras valem também na API).
+ * responsável e altera prioridade, categoria e máquina (as regras valem também na API).
+ * Para marcar como "resolvido", o chamado precisa ter máquina vinculada.
  */
 function ManagePanel({
   ticket,
@@ -305,6 +338,7 @@ function ManagePanel({
   currentUserId,
   categories,
   staff,
+  machines,
   onSaved,
 }: {
   ticket: TicketDetail;
@@ -312,6 +346,7 @@ function ManagePanel({
   currentUserId: number;
   categories: Category[];
   staff: User[];
+  machines: Machine[];
   onSaved: (ticket: TicketDetail) => void;
 }) {
   const initial = useMemo(
@@ -320,6 +355,7 @@ function ManagePanel({
       priority: ticket.priority,
       categoryId: String(ticket.categoryId),
       assigneeId: ticket.assigneeId ? String(ticket.assigneeId) : "",
+      machineId: ticket.machineId ? String(ticket.machineId) : "",
     }),
     [ticket],
   );
@@ -347,7 +383,11 @@ function ManagePanel({
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const editable = { priority: form.priority, categoryId: Number(form.categoryId) };
+    const editable = {
+      priority: form.priority,
+      categoryId: Number(form.categoryId),
+      machineId: form.machineId ? Number(form.machineId) : null,
+    };
     void save(
       isAdmin
         ? { ...editable, status: form.status, assigneeId: form.assigneeId ? Number(form.assigneeId) : null }
@@ -364,7 +404,8 @@ function ManagePanel({
         <h2 id="manage-title">Atendimento</h2>
       </div>
       <form className="form" onSubmit={onSubmit}>
-        <ErrorAlert error={error} />
+        {/* O erro de máquina aparece no próprio campo. */}
+        <ErrorAlert error={error?.fieldError("machineId") ? null : error} />
         {saved && !dirty && (
           <div className="alert alert-ok" role="status">
             Alterações salvas.
@@ -435,6 +476,21 @@ function ManagePanel({
             ))}
           </select>
         </Field>
+        <Field
+          label="Máquina"
+          hint={form.machineId ? undefined : "Obrigatória para marcar o chamado como resolvido."}
+          error={error?.fieldError("machineId")}
+        >
+          <select className="select" value={form.machineId} onChange={(e) => setForm({ ...form, machineId: e.target.value })}>
+            <option value="">Nenhuma máquina</option>
+            {machines.map((m) => (
+              <option key={m.id} value={m.id}>
+                {machineLabel(m.macAddress, m.description)}
+                {m.userName ? ` - ${m.userName}` : ""}
+              </option>
+            ))}
+          </select>
+        </Field>
         <button className="btn btn-primary" type="submit" disabled={!dirty || saving}>
           {saving ? "Salvando…" : "Salvar alterações"}
         </button>
@@ -465,7 +521,16 @@ function AttachmentLink({ attachment, onError }: { attachment: TicketAttachment;
   );
 }
 
-function ResolvePanel({ ticketId, onResolved }: { ticketId: number; onResolved: (ticket: TicketDetail) => void }) {
+function ResolvePanel({
+  ticketId,
+  hasMachine,
+  onResolved,
+}: {
+  ticketId: number;
+  /** Chamado só pode ser resolvido com máquina vinculada (feito pelo suporte). */
+  hasMachine: boolean;
+  onResolved: (ticket: TicketDetail) => void;
+}) {
   const [error, setError] = useState<ApiError | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -489,9 +554,15 @@ function ResolvePanel({ ticketId, onResolved }: { ticketId: number; onResolved: 
       </div>
       <div className="form">
         <ErrorAlert error={error} />
-        <button type="button" className="btn btn-primary" onClick={onResolve} disabled={saving}>
-          {saving ? "Salvando…" : "Marcar como resolvido"}
-        </button>
+        {hasMachine ? (
+          <button type="button" className="btn btn-primary" onClick={onResolve} disabled={saving}>
+            {saving ? "Salvando…" : "Marcar como resolvido"}
+          </button>
+        ) : (
+          <p className="muted" style={{ margin: 0 }}>
+            Para marcar como resolvido, o suporte precisa primeiro vincular a máquina a este chamado.
+          </p>
+        )}
       </div>
     </section>
   );

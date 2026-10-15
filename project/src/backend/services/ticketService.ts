@@ -1,6 +1,7 @@
 import { categoryExists } from "../models/categoryModel.js";
 import * as tickets from "../models/ticketModel.js";
 import type { AuthUser, Ticket, TicketPriority } from "../models/types.js";
+import { findMachineById } from "../models/machineModel.js";
 import { findUserById } from "../models/userModel.js";
 import type { TicketQuery } from "../middlewares/schemas.js";
 import type { UploadedFile } from "../middlewares/upload.js";
@@ -9,6 +10,7 @@ import { forbidden, HttpError, notFound } from "../utils/httpError.js";
 import { assignmentRecipient, commentRecipients } from "./notificationRules.js";
 import {
   applySupportRules,
+  assertMachineWhenResolved,
   canComment,
   canViewTicket,
   diffTicket,
@@ -66,6 +68,10 @@ export async function updateTicket(user: AuthUser, id: number, requested: Partia
       ]);
     }
   }
+  if (patch.machineId != null && !(await findMachineById(patch.machineId))) {
+    throw new HttpError(400, "VALIDATION_ERROR", "Máquina inválida", [{ field: "machineId", message: "Máquina inválida" }]);
+  }
+  assertMachineWhenResolved(current, patch);
 
   const changes = diffTicket(current, patch);
   if (changes.length === 0) return getTicketDetail(user, id);
@@ -88,6 +94,13 @@ export async function resolveOwnTicket(user: AuthUser, id: number) {
     throw new HttpError(409, "TICKET_ALREADY_RESOLVED", "Este chamado já está resolvido ou fechado");
   }
   const patch = { status: "resolvido" as const };
+  if (current.machineId === null) {
+    throw new HttpError(
+      409,
+      "MACHINE_REQUIRED",
+      "O suporte precisa vincular a máquina a este chamado antes de ele ser marcado como resolvido",
+    );
+  }
   const timestamps = statusTimestamps(current, patch.status, new Date());
   await tickets.updateTicket(id, user.id, { ...patch, ...timestamps }, diffTicket(current, patch));
   return getTicketDetail(user, id);

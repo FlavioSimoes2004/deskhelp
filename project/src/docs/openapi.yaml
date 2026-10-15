@@ -295,7 +295,11 @@ paths:
         Ao mudar para `resolvido` ou `fechado`, as datas de resolução/fechamento são preenchidas;
         ao reabrir, são limpas. O responsável precisa ser um administrador ou suporte ativo; envie `null` para remover.
 
-        Perfil `support`: altera apenas `priority` e `categoryId`, e pode assumir um chamado **sem responsável**
+        `machineId` vincula a máquina do chamado (envie `null` para remover). Um chamado só pode ficar
+        `resolvido` com máquina vinculada: mudar o status para `resolvido` sem máquina, ou remover a máquina
+        de um chamado resolvido, retorna 400 `MACHINE_REQUIRED`.
+
+        Perfil `support`: altera apenas `priority`, `categoryId` e `machineId`, e pode assumir um chamado **sem responsável**
         enviando o próprio id em `assigneeId` (um chamado `aberto` passa para `em_andamento`). Alterar `status`,
         `title`, `description` ou um responsável já definido retorna 403.
       operationId: updateTicket
@@ -313,7 +317,8 @@ paths:
                 priority: { $ref: "#/components/schemas/TicketPriority" }
                 categoryId: { type: integer }
                 assigneeId: { type: [integer, "null"] }
-            example: { status: em_andamento, assigneeId: 1 }
+                machineId: { type: [integer, "null"] }
+            example: { status: em_andamento, assigneeId: 1, machineId: 3 }
       responses:
         "200":
           description: Chamado atualizado
@@ -382,7 +387,9 @@ paths:
     post:
       tags: [Chamados]
       summary: Marcar o próprio chamado como resolvido (comum)
-      description: Somente usuários `comum`, no chamado que eles abriram. A mudança é registrada no histórico.
+      description: |
+        Somente usuários `comum`, no chamado que eles abriram. A mudança é registrada no histórico.
+        Exige máquina vinculada pelo suporte; sem ela, retorna 409 `MACHINE_REQUIRED`.
       operationId: resolveOwnTicket
       responses:
         "200":
@@ -862,6 +869,9 @@ components:
         requesterName: { type: string }
         assigneeId: { type: [integer, "null"] }
         assigneeName: { type: [string, "null"] }
+        machineId: { type: [integer, "null"] }
+        machineMacAddress: { type: [string, "null"] }
+        machineDescription: { type: [string, "null"] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         resolvedAt: { type: [string, "null"], format: date-time }
@@ -893,7 +903,7 @@ components:
       properties:
         id: { type: integer }
         userName: { type: string }
-        field: { type: string, enum: [title, description, status, priority, categoryId, assigneeId] }
+        field: { type: string, enum: [title, description, status, priority, categoryId, assigneeId, machineId] }
         oldValue: { type: [string, "null"] }
         newValue: { type: [string, "null"] }
         createdAt: { type: string, format: date-time }

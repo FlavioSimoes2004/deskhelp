@@ -13,11 +13,13 @@ import type {
 } from "./types.js";
 
 const SELECT_TICKET = `
-  SELECT t.*, c.name AS category_name, r.name AS requester_name, a.name AS assignee_name
+  SELECT t.*, c.name AS category_name, r.name AS requester_name, a.name AS assignee_name,
+         m.mac_address AS machine_mac_address, m.description AS machine_description
   FROM tickets t
   JOIN categories c ON c.id = t.category_id
   JOIN users r ON r.id = t.requester_id
-  LEFT JOIN users a ON a.id = t.assignee_id`;
+  LEFT JOIN users a ON a.id = t.assignee_id
+  LEFT JOIN machines m ON m.id = t.machine_id`;
 
 interface TicketRow extends RowDataPacket {
   id: number;
@@ -31,6 +33,9 @@ interface TicketRow extends RowDataPacket {
   requester_name: string;
   assignee_id: number | null;
   assignee_name: string | null;
+  machine_id: number | null;
+  machine_mac_address: string | null;
+  machine_description: string | null;
   created_at: Date;
   updated_at: Date;
   resolved_at: Date | null;
@@ -49,6 +54,9 @@ const toTicket = (row: TicketRow): Ticket => ({
   requesterName: row.requester_name,
   assigneeId: row.assignee_id,
   assigneeName: row.assignee_name,
+  machineId: row.machine_id,
+  machineMacAddress: row.machine_mac_address,
+  machineDescription: row.machine_description,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   resolvedAt: row.resolved_at,
@@ -126,6 +134,7 @@ const COLUMN: Record<keyof TicketEditableFields, string> = {
   priority: "priority",
   categoryId: "category_id",
   assigneeId: "assignee_id",
+  machineId: "machine_id",
 };
 
 /** Atualiza o chamado e grava o histórico (e as notificações geradas) na mesma transação. */
