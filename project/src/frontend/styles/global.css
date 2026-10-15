@@ -8,9 +8,14 @@
   --surface: #ffffff;
   --line: #d9dee6;
   --line-strong: #b9c1cd;
+  /* Cor de destaque: o usuário pode trocá-la (utils/theme.ts recalcula estas variações). */
   --petrol: #0e5e6f;
+  --petrol-hover: #0a4a58;
+  --petrol-text: #0e5e6f;
   --petrol-strong: #0a4a58;
   --petrol-soft: #e1eff1;
+  --petrol-light: #5fb4c4;
+  --on-petrol: #ffffff;
   --danger: #b4322b;
   --danger-soft: #fbeceb;
   --ok: #23774c;
@@ -84,7 +89,7 @@ p {
 }
 
 a {
-  color: var(--petrol);
+  color: var(--petrol-text);
 }
 
 :focus-visible {
@@ -127,6 +132,8 @@ a {
   position: sticky;
   top: 0;
   height: 100vh;
+  /* Rola quando o conteúdo (ex.: painel de cor do tema aberto) não cabe na tela. */
+  overflow-y: auto;
 }
 
 .brand {
@@ -229,7 +236,78 @@ a {
 .rail a.nav-link.active {
   background: #24384a;
   color: #fff;
-  box-shadow: inset 3px 0 0 #5fb4c4;
+  box-shadow: inset 3px 0 0 var(--petrol-light);
+}
+
+/* Escolha da cor do tema (no rodapé do menu). */
+.theme-picker {
+  grid-column: 1 / -1;
+}
+
+.theme-picker > .btn {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.theme-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #344157;
+}
+
+.theme-panel {
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid #344157;
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.theme-swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.theme-swatch {
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px var(--rail);
+}
+
+.theme-swatch[aria-pressed="true"] {
+  box-shadow:
+    0 0 0 2px var(--rail),
+    0 0 0 4px #fff;
+}
+
+.theme-custom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--rail-ink);
+  font-size: var(--step--1);
+  cursor: pointer;
+}
+
+.theme-custom input[type="color"] {
+  width: 36px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #344157;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+}
+
+.theme-custom small {
+  display: block;
+  color: var(--ink-3);
 }
 
 .rail-user {
@@ -247,7 +325,7 @@ a {
   height: 34px;
   border-radius: 50%;
   background: var(--petrol);
-  color: #fff;
+  color: var(--on-petrol);
   display: grid;
   place-items: center;
   font-weight: 700;
@@ -409,11 +487,11 @@ a {
 
 .btn-primary {
   background: var(--petrol);
-  color: #fff;
+  color: var(--on-petrol);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--petrol-strong);
+  background: var(--petrol-hover);
 }
 
 .btn-ghost {
@@ -963,7 +1041,7 @@ table.table {
 
 .columns .col:hover i,
 .columns .col:focus-visible i {
-  background: var(--petrol-strong);
+  background: var(--petrol-hover);
 }
 
 .columns .col .tip {

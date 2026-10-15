@@ -4,6 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 import { initials, ROLE_LABEL } from "../utils/format";
 import { LogoMark } from "./Logo";
 import { NotificationBell } from "./NotificationBell";
+import { ThemePicker } from "./ThemePicker";
 
 const navClass = ({ isActive }: { isActive: boolean }) => `nav-link${isActive ? " active" : ""}`;
 
@@ -85,6 +86,7 @@ export function Layout() {
           <NavLink to="/perfil" className={navClass} style={{ gridColumn: "1 / -1" }}>
             Meu perfil
           </NavLink>
+          <ThemePicker />
           <button type="button" className="btn btn-rail btn-sm" onClick={logout}>
             Sair
           </button>
