@@ -2,6 +2,7 @@ import * as reports from "../models/reportModel.js";
 import type { ReportQuery } from "../middlewares/schemas.js";
 import { toCsv } from "../utils/csv.js";
 import { aggregateMachineReport } from "./machineReport.js";
+import { aggregatePeopleReport } from "./peopleReport.js";
 import { HttpError } from "../utils/httpError.js";
 
 /** Data local AAAA-MM-DD (o banco grava no fuso local). */
@@ -43,6 +44,27 @@ export async function getMachineReport(query: ReportQuery) {
   const { machines, categories } = aggregateMachineReport(counts);
   const withMachine = machines.reduce((sum, m) => sum + m.total, 0);
   return { period, totals: { withMachine, withoutMachine, machines: machines.length }, machines, categories };
+}
+
+/**
+ * Chamados abertos no período por quem abriu (requester) ou por responsável (assignee),
+ * separados por status e categoria, com resolvidos e tempo médio até resolver.
+ */
+export async function getPeopleReport(query: ReportQuery, role: reports.PersonRole) {
+  const period = resolvePeriod(query);
+  const [counts, resolution, totals] = await Promise.all([
+    reports.ticketsByPerson(period, role),
+    reports.resolutionByPerson(period, role),
+    reports.resolutionStats(period),
+  ]);
+  const { people, categories } = aggregatePeopleReport(counts, resolution);
+  const unassigned = people.find((p) => p.userId === null)?.total ?? 0;
+  return {
+    period,
+    totals: { ...totals, people: people.filter((p) => p.userId !== null).length, unassigned },
+    people,
+    categories,
+  };
 }
 
 const isoOrEmpty = (d: Date | null) => (d ? d.toISOString() : "");

@@ -1,5 +1,7 @@
-import { useId, type CSSProperties } from "react";
-import { isoDay } from "../utils/format";
+import { useId, type CSSProperties, type ReactNode } from "react";
+import type { TicketStatus } from "../services/types";
+import { isoDay, STATUS_ORDER } from "../utils/format";
+import { StatusBadge } from "./Badges";
 
 export const daysAgo = (n: number) => isoDay(new Date(Date.now() - n * 86_400_000));
 
@@ -92,5 +94,104 @@ export function BarList({
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Número da célula; zero aparece apagado para destacar onde há chamados. */
+export const Count = ({ value }: { value: number }) => (
+  <td className="num">{value === 0 ? <span className="muted">0</span> : <strong>{value}</strong>}</td>
+);
+
+export interface BreakdownRow {
+  key: string;
+  /** Conteúdo do cabeçalho da linha (nome da máquina, da pessoa...). */
+  header: ReactNode;
+  total: number;
+  byStatus: Record<TicketStatus, number>;
+  byCategory: { label: string; total: number }[];
+}
+
+/** Tabelas "Por status" e "Por categoria": uma linha por grupo, com o total ao fim. */
+export function BreakdownTables({
+  rowLabel,
+  rows,
+  categories,
+}: {
+  /** Título da primeira coluna (ex.: "Máquina"). */
+  rowLabel: string;
+  rows: BreakdownRow[];
+  categories: string[];
+}) {
+  const id = useId();
+  return (
+    <>
+      <section className="panel" aria-labelledby={`${id}-status`}>
+        <div className="panel-head">
+          <h2 id={`${id}-status`}>Por status</h2>
+        </div>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th scope="col">{rowLabel}</th>
+                {STATUS_ORDER.map((s) => (
+                  <th key={s} scope="col" className="num">
+                    <StatusBadge status={s} />
+                  </th>
+                ))}
+                <th scope="col" className="num">
+                  Total
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.key}>
+                  <th scope="row">{r.header}</th>
+                  {STATUS_ORDER.map((s) => (
+                    <Count key={s} value={r.byStatus[s]} />
+                  ))}
+                  <Count value={r.total} />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="panel" aria-labelledby={`${id}-category`}>
+        <div className="panel-head">
+          <h2 id={`${id}-category`}>Por categoria</h2>
+        </div>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th scope="col">{rowLabel}</th>
+                {categories.map((c) => (
+                  <th key={c} scope="col" className="num">
+                    {c}
+                  </th>
+                ))}
+                <th scope="col" className="num">
+                  Total
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.key}>
+                  <th scope="row">{r.header}</th>
+                  {categories.map((c) => (
+                    <Count key={c} value={r.byCategory.find((x) => x.label === c)?.total ?? 0} />
+                  ))}
+                  <Count value={r.total} />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </>
   );
 }

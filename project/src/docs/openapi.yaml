@@ -814,6 +814,55 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /reports/requesters:
+    get:
+      tags: [Relatórios]
+      summary: Relatório de solicitantes
+      description: |
+        Chamados abertos no período (pela data de abertura) por quem abriu o chamado, separados por status e por
+        categoria, com resolvidos e tempo médio até resolver. Sem `from`/`to`, usa os últimos 30 dias.
+      operationId: requesterReport
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: Relatório
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/PeopleReport" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /reports/assignees:
+    get:
+      tags: [Relatórios]
+      summary: Relatório de responsáveis
+      description: |
+        Chamados abertos no período (pela data de abertura) por responsável, separados por status e por
+        categoria, com resolvidos e tempo médio até resolver. Sem `from`/`to`, usa os últimos 30 dias.
+        Chamados sem responsável aparecem como uma linha com `userId: null` (por último).
+      operationId: assigneeReport
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: Relatório
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/PeopleReport" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
   /reports/summary:
     get:
       tags: [Relatórios]
@@ -1020,6 +1069,36 @@ components:
         read: { type: boolean }
         readAt: { type: [string, "null"], format: date-time }
         createdAt: { type: string, format: date-time }
+    PeopleReport:
+      type: object
+      properties:
+        period:
+          type: object
+          properties:
+            from: { type: string, format: date }
+            to: { type: string, format: date }
+        totals:
+          type: object
+          properties:
+            total: { type: integer }
+            resolved: { type: integer }
+            avgResolutionHours: { type: [number, "null"] }
+            people: { type: integer, description: Pessoas com ao menos um chamado }
+            unassigned: { type: integer, description: Chamados sem responsável (0 no relatório de solicitantes) }
+        people:
+          type: array
+          description: Da pessoa com mais chamados para a com menos
+          items:
+            type: object
+            properties:
+              userId: { type: [integer, "null"] }
+              userName: { type: [string, "null"] }
+              total: { type: integer }
+              resolved: { type: integer }
+              avgResolutionHours: { type: [number, "null"] }
+              byStatus: { type: object, additionalProperties: { type: integer } }
+              byCategory: { type: array, items: { $ref: "#/components/schemas/CountItem" } }
+        categories: { type: array, items: { type: string } }
     StatusCounts:
       type: object
       description: Quantidade por status; status sem chamados não aparecem

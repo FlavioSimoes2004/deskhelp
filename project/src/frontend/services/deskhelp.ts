@@ -7,6 +7,7 @@ import type {
   Notification,
   NotificationType,
   Pagination,
+  PeopleReport,
   ReportSummary,
   Role,
   StatusCounts,
@@ -128,6 +129,9 @@ export const reportService = {
     api.get<{ data: ReportSummary }>("/reports/summary", { from, to }).then((r) => r.data),
   machines: (from: string, to: string) =>
     api.get<{ data: MachineReport }>("/reports/machines", { from, to }).then((r) => r.data),
+  /** Por quem abriu ("requesters") ou por responsável ("assignees"). */
+  people: (kind: "requesters" | "assignees", from: string, to: string) =>
+    api.get<{ data: PeopleReport }>(`/reports/${kind}`, { from, to }).then((r) => r.data),
   exportCsv: (from: string, to: string) =>
     api.download("/reports/tickets.csv", { from, to }, `chamados_${from}_a_${to}.csv`),
 };

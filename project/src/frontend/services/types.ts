@@ -149,3 +149,29 @@ export interface MachineReport {
   /** Categorias presentes no período, da mais para a menos frequente. */
   categories: string[];
 }
+
+export interface PersonReportRow {
+  /** null = chamados sem responsável (só no relatório de responsáveis). */
+  userId: number | null;
+  userName: string | null;
+  total: number;
+  resolved: number;
+  avgResolutionHours: number | null;
+  byStatus: Record<TicketStatus, number>;
+  byCategory: { label: string; total: number }[];
+}
+
+export interface PeopleReport {
+  period: { from: string; to: string };
+  totals: {
+    total: number;
+    resolved: number;
+    avgResolutionHours: number | null;
+    /** Pessoas com ao menos um chamado (sem contar "sem responsável"). */
+    people: number;
+    /** Chamados sem responsável (sempre 0 no relatório de solicitantes). */
+    unassigned: number;
+  };
+  people: PersonReportRow[];
+  categories: string[];
+}

@@ -10,6 +10,7 @@ import { MachinesPage } from "./pages/MachinesPage";
 import { NewTicketPage } from "./pages/NewTicketPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
+import { PeopleReportPage } from "./pages/PeopleReportPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { SignupPage } from "./pages/SignupPage";
 import { TicketDetailPage } from "./pages/TicketDetailPage";
@@ -78,6 +79,22 @@ export function App() {
               element={
                 <RequireAuth admin>
                   <MachineReportPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="relatorios/solicitantes"
+              element={
+                <RequireAuth admin>
+                  <PeopleReportPage key="requesters" kind="requesters" />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="relatorios/responsaveis"
+              element={
+                <RequireAuth admin>
+                  <PeopleReportPage key="assignees" kind="assignees" />
                 </RequireAuth>
               }
             />

@@ -99,3 +99,49 @@ export async function ticketsWithoutMachine(period: Period): Promise<number> {
   );
   return Number(rows[0]?.total ?? 0);
 }
+
+/** Quem é agrupado no relatório de pessoas: quem abriu o chamado ou o responsável. */
+export type PersonRole = "requester" | "assignee";
+
+// Nomes de coluna fixos (nunca vêm do usuário).
+const PERSON_COLUMN: Record<PersonRole, string> = { requester: "t.requester_id", assignee: "t.assignee_id" };
+
+/** Chamados do período por pessoa, status e categoria (user_id NULL = sem responsável). */
+export async function ticketsByPerson(period: Period, role: PersonRole) {
+  const column = PERSON_COLUMN[role];
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT ${column} AS user_id, u.name AS user_name, t.status, c.name AS category, COUNT(*) AS total
+     FROM tickets t
+     LEFT JOIN users u ON u.id = ${column}
+     JOIN categories c ON c.id = t.category_id
+     WHERE ${PERIOD}
+     GROUP BY ${column}, t.status, c.id`,
+    period,
+  );
+  return rows.map((r) => ({
+    userId: r.user_id === null ? null : Number(r.user_id),
+    userName: r.user_name === null ? null : String(r.user_name),
+    status: r.status as TicketStatus,
+    category: String(r.category),
+    total: Number(r.total),
+  }));
+}
+
+/** Resolvidos e tempo médio até resolver, por pessoa, no período. */
+export async function resolutionByPerson(period: Period, role: PersonRole) {
+  const column = PERSON_COLUMN[role];
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT ${column} AS user_id,
+            SUM(t.resolved_at IS NOT NULL) AS resolved,
+            AVG(CASE WHEN t.resolved_at IS NOT NULL
+                     THEN TIMESTAMPDIFF(MINUTE, t.created_at, t.resolved_at) END) AS avg_minutes
+     FROM tickets t WHERE ${PERIOD}
+     GROUP BY ${column}`,
+    period,
+  );
+  return rows.map((r) => ({
+    userId: r.user_id === null ? null : Number(r.user_id),
+    resolved: Number(r.resolved ?? 0),
+    avgMinutes: r.avg_minutes == null ? null : Number(r.avg_minutes),
+  }));
+}
