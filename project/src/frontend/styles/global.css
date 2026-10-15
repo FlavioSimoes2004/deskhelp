@@ -1187,6 +1187,14 @@ table.table {
   margin: 20px 0;
 }
 
+/* Os botões do modal "Available authorizations" usam a classe "auth", que também é o
+   layout das telas de login/cadastro (.auth: altura da tela, grade de 2 colunas). */
+.docs-frame .swagger-ui .btn.auth {
+  display: inline-flex;
+  min-height: 0;
+  grid-template-columns: none;
+}
+
 .docs-frame .swagger-ui .scheme-container {
   box-shadow: none;
   border-bottom: 1px solid var(--line);
