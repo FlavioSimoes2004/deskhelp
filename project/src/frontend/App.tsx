@@ -5,6 +5,7 @@ import { Layout } from "./components/Layout";
 import { RequireAuth } from "./components/RequireAuth";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
+import { MachineReportPage } from "./pages/MachineReportPage";
 import { MachinesPage } from "./pages/MachinesPage";
 import { NewTicketPage } from "./pages/NewTicketPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -69,6 +70,14 @@ export function App() {
               element={
                 <RequireAuth admin>
                   <ReportsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="relatorios/maquinas"
+              element={
+                <RequireAuth admin>
+                  <MachineReportPage />
                 </RequireAuth>
               }
             />

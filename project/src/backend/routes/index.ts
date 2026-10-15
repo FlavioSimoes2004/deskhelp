@@ -92,4 +92,5 @@ apiRouter.get("/machines/:id/history", staffOnly, byId, machineCtrl.history);
 
 // Somente administradores
 apiRouter.get("/reports/summary", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.summary);
+apiRouter.get("/reports/machines", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.machines);
 apiRouter.get("/reports/tickets.csv", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.exportCsv);

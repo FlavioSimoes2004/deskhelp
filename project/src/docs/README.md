@@ -39,6 +39,7 @@ Regras importantes:
 | `/api-docs` | Documentação da API (Swagger UI) | todos |
 | `/usuarios` | Cadastro e gestão de usuários | admin e suporte |
 | `/relatorios` | Indicadores por período + exportação CSV | admin |
+| `/relatorios/maquinas` | Chamados por máquina no período, por status e por categoria | admin |
 
 ## Instalação (Fedora)
 

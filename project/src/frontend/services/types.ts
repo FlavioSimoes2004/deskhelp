@@ -131,3 +131,21 @@ export interface Notification {
   readAt: string | null;
   createdAt: string;
 }
+
+export interface MachineReportRow {
+  machineId: number;
+  macAddress: string;
+  description: string | null;
+  userName: string | null;
+  total: number;
+  byStatus: Record<TicketStatus, number>;
+  byCategory: { label: string; total: number }[];
+}
+
+export interface MachineReport {
+  period: { from: string; to: string };
+  totals: { withMachine: number; withoutMachine: number; machines: number };
+  machines: MachineReportRow[];
+  /** Categorias presentes no período, da mais para a menos frequente. */
+  categories: string[];
+}

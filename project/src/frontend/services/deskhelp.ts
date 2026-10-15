@@ -3,6 +3,7 @@ import type {
   Category,
   Machine,
   MachineHistoryEntry,
+  MachineReport,
   Notification,
   NotificationType,
   Pagination,
@@ -125,6 +126,8 @@ export const notificationService = {
 export const reportService = {
   summary: (from: string, to: string) =>
     api.get<{ data: ReportSummary }>("/reports/summary", { from, to }).then((r) => r.data),
+  machines: (from: string, to: string) =>
+    api.get<{ data: MachineReport }>("/reports/machines", { from, to }).then((r) => r.data),
   exportCsv: (from: string, to: string) =>
     api.download("/reports/tickets.csv", { from, to }, `chamados_${from}_a_${to}.csv`),
 };

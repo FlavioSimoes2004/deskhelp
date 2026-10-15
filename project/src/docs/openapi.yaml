@@ -756,6 +756,64 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /reports/machines:
+    get:
+      tags: [Relatórios]
+      summary: Relatório de máquinas
+      description: |
+        Chamados abertos no período (pela data de abertura) com máquina vinculada, por máquina,
+        separados por status e por categoria. Sem `from`/`to`, usa os últimos 30 dias.
+      operationId: machineReport
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: Relatório
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      period:
+                        type: object
+                        properties:
+                          from: { type: string, format: date }
+                          to: { type: string, format: date }
+                      totals:
+                        type: object
+                        properties:
+                          withMachine: { type: integer }
+                          withoutMachine: { type: integer }
+                          machines: { type: integer, description: Máquinas com ao menos um chamado }
+                      machines:
+                        type: array
+                        description: Da máquina com mais chamados para a com menos
+                        items:
+                          type: object
+                          properties:
+                            machineId: { type: integer }
+                            macAddress: { type: string }
+                            description: { type: [string, "null"] }
+                            userName: { type: [string, "null"] }
+                            total: { type: integer }
+                            byStatus:
+                              type: object
+                              additionalProperties: { type: integer }
+                              example: { aberto: 2, em_andamento: 0, aguardando: 0, resolvido: 1, fechado: 0 }
+                            byCategory:
+                              type: array
+                              items: { $ref: "#/components/schemas/CountItem" }
+                      categories:
+                        type: array
+                        items: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
   /reports/summary:
     get:
       tags: [Relatórios]

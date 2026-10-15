@@ -64,8 +64,11 @@ export function Layout() {
           {isAdmin && (
             <>
               <div className="rail-group">Administração</div>
-              <NavLink to="/relatorios" className={navClass}>
+              <NavLink to="/relatorios" end className={navClass}>
                 Relatórios
+              </NavLink>
+              <NavLink to="/relatorios/maquinas" className={navClass}>
+                Relatório de máquinas
               </NavLink>
             </>
           )}

@@ -1,5 +1,6 @@
 import type { RowDataPacket } from "mysql2";
 import { pool } from "../config/database.js";
+import type { TicketStatus } from "./types.js";
 
 export type Period = {
   from: string; // AAAA-MM-DD, inclusivo
@@ -64,4 +65,37 @@ export async function ticketsForExport(period: Period) {
     period,
   );
   return rows;
+}
+
+/** Chamados do período com máquina vinculada, agrupados por máquina, status e categoria. */
+export async function ticketsByMachine(period: Period) {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT m.id AS machine_id, m.mac_address, m.description, u.name AS user_name,
+            t.status, c.name AS category, COUNT(*) AS total
+     FROM tickets t
+     JOIN machines m ON m.id = t.machine_id
+     LEFT JOIN users u ON u.id = m.user_id
+     JOIN categories c ON c.id = t.category_id
+     WHERE ${PERIOD}
+     GROUP BY m.id, t.status, c.id`,
+    period,
+  );
+  return rows.map((r) => ({
+    machineId: Number(r.machine_id),
+    macAddress: String(r.mac_address),
+    description: r.description === null ? null : String(r.description),
+    userName: r.user_name === null ? null : String(r.user_name),
+    status: r.status as TicketStatus,
+    category: String(r.category),
+    total: Number(r.total),
+  }));
+}
+
+/** Chamados do período sem máquina vinculada. */
+export async function ticketsWithoutMachine(period: Period): Promise<number> {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT COUNT(*) AS total FROM tickets t WHERE ${PERIOD} AND t.machine_id IS NULL`,
+    period,
+  );
+  return Number(rows[0]?.total ?? 0);
 }

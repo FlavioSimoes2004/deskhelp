@@ -1,6 +1,7 @@
 import * as reports from "../models/reportModel.js";
 import type { ReportQuery } from "../middlewares/schemas.js";
 import { toCsv } from "../utils/csv.js";
+import { aggregateMachineReport } from "./machineReport.js";
 import { HttpError } from "../utils/httpError.js";
 
 /** Data local AAAA-MM-DD (o banco grava no fuso local). */
@@ -30,6 +31,18 @@ export async function getSummary(query: ReportQuery) {
     reports.ticketsPerDay(period),
   ]);
   return { period, totals, byStatus, byPriority, byCategory, byAssignee, perDay };
+}
+
+/** Chamados abertos no período, por máquina vinculada, separados por status e categoria. */
+export async function getMachineReport(query: ReportQuery) {
+  const period = resolvePeriod(query);
+  const [counts, withoutMachine] = await Promise.all([
+    reports.ticketsByMachine(period),
+    reports.ticketsWithoutMachine(period),
+  ]);
+  const { machines, categories } = aggregateMachineReport(counts);
+  const withMachine = machines.reduce((sum, m) => sum + m.total, 0);
+  return { period, totals: { withMachine, withoutMachine, machines: machines.length }, machines, categories };
 }
 
 const isoOrEmpty = (d: Date | null) => (d ? d.toISOString() : "");

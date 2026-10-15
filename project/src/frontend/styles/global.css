@@ -657,8 +657,18 @@ table.table {
   white-space: nowrap;
 }
 
-.table tbody tr:last-child td {
+.table tbody tr:last-child td,
+.table tbody tr:last-child th {
   border-bottom: 0;
+}
+
+/* Cabeçalho de linha (ex.: máquina no relatório): visual de célula comum. */
+.table tbody th[scope="row"] {
+  font-size: inherit;
+  font-weight: inherit;
+  color: var(--ink);
+  background: transparent;
+  white-space: normal;
 }
 
 .table tbody tr.clickable {
