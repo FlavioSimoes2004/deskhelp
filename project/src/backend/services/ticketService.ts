@@ -5,6 +5,7 @@ import { findUserById } from "../models/userModel.js";
 import type { TicketQuery } from "../middlewares/schemas.js";
 import type { UploadedFile } from "../middlewares/upload.js";
 import { removeStored, resolveStored, saveFile } from "../utils/fileStorage.js";
+import { MAX_COMMENTS_LENGTH } from "./ticketComments.js";
 import { forbidden, HttpError, notFound } from "../utils/httpError.js";
 import {
   applySupportRules,
@@ -41,7 +42,13 @@ export async function listTickets(user: AuthUser, query: TicketQuery) {
 export async function getTicketDetail(user: AuthUser, id: number) {
   const ticket = await getVisibleTicket(user, id);
   const [comments, history] = await Promise.all([tickets.listComments(id), tickets.listHistory(id)]);
-  return { ...ticket, comments, history };
+  return {
+    ...ticket,
+    comments: comments.items,
+    commentsUsed: comments.used,
+    commentsMax: MAX_COMMENTS_LENGTH,
+    history,
+  };
 }
 
 export async function createTicket(
@@ -101,18 +108,25 @@ export async function addComment(user: AuthUser, id: number, body: string, files
     throw new HttpError(409, "TICKET_CLOSED", "Este chamado está fechado e não aceita novos comentários");
   }
   const saved: tickets.NewAttachment[] = [];
+  let fits = false;
   try {
     for (const file of files) {
       const filePath = await saveFile(attachmentFolder(id), file.extension, file.data);
       saved.push({ originalName: file.originalName, filePath, mimeType: file.mimeType, sizeBytes: file.sizeBytes });
     }
-    await tickets.insertComment(id, user.id, body, saved);
-  } catch (error) {
-    // Não deixa arquivos órfãos se a gravação no banco falhar.
-    await Promise.all(saved.map((f) => removeStored(f.filePath).catch(() => undefined)));
-    throw error;
+    fits = await tickets.insertComment(id, user.id, body, saved);
+  } finally {
+    // Não deixa arquivos órfãos se a mensagem não foi gravada (erro ou falta de espaço).
+    if (!fits) await Promise.all(saved.map((f) => removeStored(f.filePath).catch(() => undefined)));
   }
-  return tickets.listComments(id);
+  if (!fits) {
+    throw new HttpError(
+      409,
+      "COMMENTS_FULL",
+      `Não há espaço para esta mensagem: os comentários do chamado são limitados a ${MAX_COMMENTS_LENGTH} caracteres. Escreva uma mensagem menor.`,
+    );
+  }
+  return getTicketDetail(user, id);
 }
 
 /** Localiza o arquivo de um anexo, respeitando quem pode ver o chamado. */

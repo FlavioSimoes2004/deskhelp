@@ -12,6 +12,7 @@ interface MachineRow extends RowDataPacket {
   id: number;
   mac_address: string;
   ip_address: string | null;
+  description: string | null;
   user_id: number | null;
   user_name: string | null;
   created_at: Date;
@@ -22,6 +23,7 @@ const toMachine = (row: MachineRow): Machine => ({
   id: row.id,
   macAddress: row.mac_address,
   ipAddress: row.ip_address,
+  description: row.description,
   userId: row.user_id,
   userName: row.user_name,
   createdAt: row.created_at,
@@ -31,6 +33,7 @@ const toMachine = (row: MachineRow): Machine => ({
 export interface MachineFields {
   macAddress: string;
   ipAddress: string | null;
+  description: string | null;
   userId: number | null;
 }
 
@@ -38,7 +41,8 @@ export async function listMachines(filters: { search?: string }): Promise<Machin
   const params: SqlParams = {};
   let where = "";
   if (filters.search) {
-    where = "WHERE (m.mac_address LIKE :search OR m.ip_address LIKE :search OR u.name LIKE :search)";
+    where =
+      "WHERE (m.mac_address LIKE :search OR m.ip_address LIKE :search OR m.description LIKE :search OR u.name LIKE :search)";
     params.search = `%${filters.search}%`;
   }
   const [rows] = await pool.query<MachineRow[]>(`${SELECT_MACHINE} ${where} ORDER BY m.mac_address`, params);
@@ -93,7 +97,8 @@ export async function insertMachine(data: MachineFields, userId: number, changes
     userId,
     async (conn) => {
       const [result] = await conn.execute<ResultSetHeader>(
-        "INSERT INTO machines (mac_address, ip_address, user_id) VALUES (:macAddress, :ipAddress, :userId)",
+        `INSERT INTO machines (mac_address, ip_address, description, user_id)
+         VALUES (:macAddress, :ipAddress, :description, :userId)`,
         { ...data },
       );
       return result.insertId;
@@ -111,6 +116,7 @@ export async function updateMachine(
   const columns: Record<keyof MachineFields, string> = {
     macAddress: "mac_address",
     ipAddress: "ip_address",
+    description: "description",
     userId: "user_id",
   };
   const sets: string[] = [];

@@ -73,7 +73,7 @@ export function MachinesPage() {
             id="m-search"
             className="input"
             type="search"
-            placeholder="MAC, IP ou nome do usuário"
+            placeholder="MAC, IP, descrição ou nome do usuário"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -90,6 +90,7 @@ export function MachinesPage() {
               <tr>
                 <th scope="col">Endereço MAC</th>
                 <th scope="col">IP</th>
+                <th scope="col">Descrição</th>
                 <th scope="col">Usuário</th>
                 <th scope="col">Atualizado em</th>
                 <th scope="col">
@@ -104,6 +105,7 @@ export function MachinesPage() {
                     <strong>{m.macAddress}</strong>
                   </td>
                   <td>{m.ipAddress ?? <span className="muted">Sem IP</span>}</td>
+                  <td>{m.description ?? <span className="muted">Sem descrição</span>}</td>
                   <td>{m.userName ?? <span className="muted">Sem usuário</span>}</td>
                   <td className="muted">{formatDateTime(m.updatedAt)}</td>
                   <td className="num">
@@ -162,6 +164,7 @@ function MachineForm({
   const [form, setForm] = useState({
     macAddress: machine?.macAddress ?? "",
     ipAddress: machine?.ipAddress ?? "",
+    description: machine?.description ?? "",
     userId: machine?.userId ? String(machine.userId) : "",
   });
   const [error, setError] = useState<ApiError | null>(null);
@@ -177,6 +180,7 @@ function MachineForm({
     const data = {
       macAddress: form.macAddress,
       ipAddress: form.ipAddress.trim() || null,
+      description: form.description.trim() || null,
       userId: form.userId ? Number(form.userId) : null,
     };
     try {
@@ -218,6 +222,18 @@ function MachineForm({
           />
         </Field>
       </div>
+      <Field
+        label="Descrição"
+        hint="Ex.: Notebook da recepção. Deixe em branco se não houver."
+        error={error?.fieldError("description")}
+      >
+        <input
+          className="input"
+          value={form.description}
+          maxLength={255}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+        />
+      </Field>
       <Field label="Usuário" error={error?.fieldError("userId")}>
         <select className="select" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}>
           <option value="">Sem usuário</option>
@@ -248,6 +264,10 @@ function describeMachineChange(entry: MachineHistoryEntry, users: User[]): strin
       return `cadastrou a máquina com o MAC ${to}`;
     case "macAddress":
       return `alterou o MAC de ${from} para ${to}`;
+    case "description":
+      if (!from) return `definiu a descrição como “${to}”`;
+      if (!to) return `removeu a descrição “${from}”`;
+      return `alterou a descrição de “${from}” para “${to}”`;
     case "ipAddress":
       if (!from) return `definiu o IP como ${to}`;
       if (!to) return `removeu o IP ${from}`;

@@ -45,7 +45,7 @@ export interface TicketComment {
 
 export interface TicketAttachment {
   id: number;
-  commentId: number;
+  ticketId: number;
   originalName: string;
   mimeType: string;
   sizeBytes: number;
@@ -63,6 +63,9 @@ export interface TicketHistoryEntry {
 
 export interface TicketDetail extends Ticket {
   comments: TicketComment[];
+  /** Caracteres já usados na coluna de comentários do chamado e o limite dela. */
+  commentsUsed: number;
+  commentsMax: number;
   history: TicketHistoryEntry[];
 }
 
@@ -94,6 +97,7 @@ export interface Machine {
   id: number;
   macAddress: string;
   ipAddress: string | null;
+  description: string | null;
   userId: number | null;
   userName: string | null;
   createdAt: string;
@@ -105,7 +109,7 @@ export interface MachineHistoryEntry {
   machineId: number;
   userId: number;
   userName: string;
-  field: "created" | "macAddress" | "ipAddress" | "userId";
+  field: "created" | "macAddress" | "ipAddress" | "description" | "userId";
   oldValue: string | null;
   newValue: string | null;
   createdAt: string;

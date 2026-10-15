@@ -67,7 +67,8 @@ export const updateTicketSchema = z
   .refine((data) => Object.keys(data).length > 0, { message: "Nenhum campo para atualizar" });
 
 export const commentSchema = z.object({
-  body: z.string().trim().min(1, "Escreva o comentário").max(5000),
+  // Todas as mensagens do chamado dividem 510 caracteres (tickets.comments); o espaço restante é conferido ao gravar.
+  body: z.string().trim().min(1, "Escreva o comentário").max(460, "O comentário pode ter no máximo 460 caracteres"),
 });
 
 export const ticketQuerySchema = z.object({
@@ -102,9 +103,18 @@ const ipAddress = z
   .transform((v) => v || null)
   .refine((v) => v === null || isIP(v) !== 0, "Endereço IP inválido");
 
+// Vazio vira null (máquina sem descrição).
+const machineDescription = z
+  .string()
+  .trim()
+  .max(255, "A descrição pode ter no máximo 255 caracteres")
+  .nullable()
+  .transform((v) => v || null);
+
 export const createMachineSchema = z.object({
   macAddress,
   ipAddress: ipAddress.default(null),
+  description: machineDescription.default(null),
   userId: id.nullable().default(null),
 });
 
@@ -112,6 +122,7 @@ export const updateMachineSchema = z
   .object({
     macAddress: macAddress.optional(),
     ipAddress: ipAddress.optional(),
+    description: machineDescription.optional(),
     userId: id.nullable().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, { message: "Nenhum campo para atualizar" });

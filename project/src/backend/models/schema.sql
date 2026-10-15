@@ -29,6 +29,9 @@ CREATE TABLE IF NOT EXISTS tickets (
   id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
   title        VARCHAR(160) NOT NULL,
   description  TEXT NOT NULL,
+  -- Comentários: uma mensagem por linha, com o prefixo
+  -- [AAAA-MM-DD HH:MM:SS, users:{id}, attachs:{id}|{id}] (ver services/ticketComments.ts).
+  comments     VARCHAR(510) NULL,
   status       ENUM('aberto', 'em_andamento', 'aguardando', 'resolvido', 'fechado') NOT NULL DEFAULT 'aberto',
   priority     ENUM('baixa', 'media', 'alta', 'critica') NOT NULL DEFAULT 'media',
   category_id  INT UNSIGNED NOT NULL,
@@ -49,23 +52,15 @@ CREATE TABLE IF NOT EXISTS tickets (
   CONSTRAINT fk_tickets_assignee FOREIGN KEY (assignee_id) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS ticket_comments (
-  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  ticket_id  INT UNSIGNED NOT NULL,
-  user_id    INT UNSIGNED NOT NULL,
-  body       TEXT NOT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  KEY idx_comments_ticket (ticket_id, created_at),
-  CONSTRAINT fk_comments_ticket FOREIGN KEY (ticket_id) REFERENCES tickets (id) ON DELETE CASCADE,
-  CONSTRAINT fk_comments_user FOREIGN KEY (user_id) REFERENCES users (id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Bancos criados antes da coluna tickets.comments.
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS comments VARCHAR(510) NULL AFTER description;
 
 -- Anexos dos comentários. O arquivo fica no servidor (pasta UPLOAD_DIR);
--- file_path guarda o caminho dele relativo a essa pasta.
+-- file_path guarda o caminho dele relativo a essa pasta. A mensagem que usa o
+-- anexo o referencia pelo id no prefixo (attachs:{id}).
 CREATE TABLE IF NOT EXISTS ticket_comment_attachments (
   id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  comment_id    INT UNSIGNED NOT NULL,
+  ticket_id     INT UNSIGNED NOT NULL,
   original_name VARCHAR(255) NOT NULL,
   file_path     VARCHAR(255) NOT NULL,
   mime_type     VARCHAR(120) NOT NULL,
@@ -73,15 +68,16 @@ CREATE TABLE IF NOT EXISTS ticket_comment_attachments (
   created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_attachments_path (file_path),
-  KEY idx_attachments_comment (comment_id),
-  CONSTRAINT fk_attachments_comment FOREIGN KEY (comment_id) REFERENCES ticket_comments (id) ON DELETE CASCADE
+  KEY idx_attachments_ticket (ticket_id),
+  CONSTRAINT fk_attachments_ticket FOREIGN KEY (ticket_id) REFERENCES tickets (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Máquinas (endereço MAC, IP e o usuário que está com ela).
+-- Máquinas (endereço MAC, IP, descrição e o usuário que está com ela).
 CREATE TABLE IF NOT EXISTS machines (
   id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
   mac_address CHAR(17) NOT NULL,
   ip_address  VARCHAR(45) NULL,
+  description VARCHAR(255) NULL,
   user_id     INT UNSIGNED NULL,
   created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -90,6 +86,9 @@ CREATE TABLE IF NOT EXISTS machines (
   KEY idx_machines_user (user_id),
   CONSTRAINT fk_machines_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Bancos criados antes da coluna machines.description.
+ALTER TABLE machines ADD COLUMN IF NOT EXISTS description VARCHAR(255) NULL AFTER ip_address;
 
 -- Histórico das máquinas: cadastro (field = 'created') e cada campo alterado.
 CREATE TABLE IF NOT EXISTS machine_history (

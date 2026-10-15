@@ -9,7 +9,6 @@ import type {
   StatusCounts,
   Ticket,
   TicketAttachment,
-  TicketComment,
   TicketDetail,
   TicketPriority,
   TicketStatus,
@@ -64,12 +63,12 @@ export const ticketService = {
   ) => api.patch<{ data: TicketDetail }>(`/tickets/${id}`, data).then((r) => r.data),
   comment: (id: number, body: string, files: File[] = []) => {
     if (files.length === 0) {
-      return api.post<{ data: TicketComment[] }>(`/tickets/${id}/comments`, { body }).then((r) => r.data);
+      return api.post<{ data: TicketDetail }>(`/tickets/${id}/comments`, { body }).then((r) => r.data);
     }
     const form = new FormData();
     form.append("body", body);
     for (const file of files) form.append("attachments", file);
-    return api.postForm<{ data: TicketComment[] }>(`/tickets/${id}/comments`, form).then((r) => r.data);
+    return api.postForm<{ data: TicketDetail }>(`/tickets/${id}/comments`, form).then((r) => r.data);
   },
   resolve: (id: number) => api.post<{ data: TicketDetail }>(`/tickets/${id}/resolve`).then((r) => r.data),
   downloadAttachment: (attachment: TicketAttachment) =>
@@ -91,6 +90,7 @@ export const userService = {
 export interface MachineInput {
   macAddress: string;
   ipAddress: string | null;
+  description: string | null;
   userId: number | null;
 }
 

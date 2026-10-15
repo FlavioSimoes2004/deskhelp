@@ -120,7 +120,7 @@ export function TicketDetailPage() {
             blockedReason={commentBlocked}
             categories={categories.data ?? []}
             staff={staff.data ?? []}
-            onCommented={(comments) => ticket.setData({ ...t, comments })}
+            onCommented={(updated) => ticket.setData(updated)}
           />
         </div>
 
@@ -169,6 +169,8 @@ export function TicketDetailPage() {
   );
 }
 
+const COMMENT_PREFIX_ESTIMATE = 45;
+
 function Conversation({
   ticket,
   blockedReason,
@@ -181,7 +183,7 @@ function Conversation({
   blockedReason: string | null;
   categories: Category[];
   staff: User[];
-  onCommented: (comments: TicketDetail["comments"]) => void;
+  onCommented: (ticket: TicketDetail) => void;
 }) {
   const [body, setBody] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -194,6 +196,13 @@ function Conversation({
     const events = ticket.history.map((h) => ({ kind: "event" as const, at: h.createdAt, key: `h${h.id}`, h }));
     return [...comments, ...events].sort((a, b) => a.at.localeCompare(b.at));
   }, [ticket.comments, ticket.history]);
+
+  // Todas as mensagens dividem a coluna de comentários do chamado; cada uma gasta
+  // ~45 caracteres com o prefixo (data, usuário) e alguns a mais por anexo.
+  // É uma estimativa: quem confere de fato é a API.
+  const free = ticket.commentsMax - ticket.commentsUsed - (ticket.commentsUsed > 0 ? 1 : 0);
+  const room = free - COMMENT_PREFIX_ESTIMATE - files.length * 6;
+  const full = free <= COMMENT_PREFIX_ESTIMATE;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -258,10 +267,17 @@ function Conversation({
         </ol>
       )}
 
-      {blockedReason === null ? (
+      {blockedReason === null && full ? (
+        <p className="alert alert-ok" style={{ marginTop: 20 }}>
+          Os comentários deste chamado atingiram o limite de {ticket.commentsMax} caracteres.
+        </p>
+      ) : blockedReason === null ? (
         <form className="form" onSubmit={onSubmit} style={{ marginTop: 20 }}>
           <ErrorAlert error={error} />
-          <Field label="Responder">
+          <Field
+            label="Responder"
+            hint={`Restam cerca de ${Math.max(0, room - body.trim().length)} caracteres para mensagens neste chamado (limite total de ${ticket.commentsMax}). Quebras de linha viram espaço.`}
+          >
             <textarea
               className="textarea"
               rows={4}

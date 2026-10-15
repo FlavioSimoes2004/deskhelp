@@ -75,8 +75,22 @@ describe("createMachineSchema", () => {
     expect(createMachineSchema.parse({ macAddress: "aabbccddeeff" })).toEqual({
       macAddress: "AA:BB:CC:DD:EE:FF",
       ipAddress: null,
+      description: null,
       userId: null,
     });
+  });
+});
+
+describe("machine description", () => {
+  it("trims the description and turns an empty one into null", () => {
+    expect(createMachineSchema.parse({ macAddress: "aabbccddeeff", description: "  Notebook  " }).description).toBe(
+      "Notebook",
+    );
+    expect(updateMachineSchema.parse({ description: "  " })).toEqual({ description: null });
+  });
+
+  it("rejects descriptions longer than 255 characters", () => {
+    expect(updateMachineSchema.safeParse({ description: "x".repeat(256) }).success).toBe(false);
   });
 });
 

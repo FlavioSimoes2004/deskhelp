@@ -331,6 +331,9 @@ paths:
       summary: Comentar no chamado
       description: |
         Somente quem abriu o chamado e o responsável por ele podem comentar (os demais recebem 403).
+        As mensagens ficam na coluna `tickets.comments` (VARCHAR(510)), uma por linha, com o prefixo
+        `[AAAA-MM-DD HH:MM:SS, users:{id}, attachs:{id}|{id}]`. Todas as mensagens do chamado dividem esses
+        510 caracteres; se a nova não couber, a resposta é 409 `COMMENTS_FULL`. Quebras de linha viram espaço.
         Exceto administradores, ninguém comenta em chamados fechados.
         Para enviar anexos use `multipart/form-data` com o campo `attachments` (até 5 arquivos de 10 MB;
         imagens, PDF, TXT, LOG, CSV, DOC(X), XLS(X), ODT, ODS ou ZIP). Os arquivos ficam no servidor
@@ -344,28 +347,26 @@ paths:
               type: object
               required: [body]
               properties:
-                body: { type: string, minLength: 1, maxLength: 5000 }
+                body: { type: string, minLength: 1, maxLength: 460 }
           multipart/form-data:
             schema:
               type: object
               required: [body]
               properties:
-                body: { type: string, minLength: 1, maxLength: 5000 }
+                body: { type: string, minLength: 1, maxLength: 460 }
                 attachments:
                   type: array
                   maxItems: 5
                   items: { type: string, format: binary }
       responses:
         "201":
-          description: Lista atualizada de comentários
+          description: Chamado atualizado, com a nova mensagem
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  data:
-                    type: array
-                    items: { $ref: "#/components/schemas/Comment" }
+                  data: { $ref: "#/components/schemas/TicketDetail" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -534,7 +535,7 @@ paths:
       summary: Listar máquinas
       operationId: listMachines
       parameters:
-        - { name: search, in: query, description: MAC, IP ou nome do usuário, schema: { type: string } }
+        - { name: search, in: query, description: MAC, IP, descrição ou nome do usuário, schema: { type: string } }
       responses:
         "200":
           description: Máquinas
@@ -768,8 +769,9 @@ components:
         closedAt: { type: [string, "null"], format: date-time }
     Comment:
       type: object
+      description: Mensagem lida de `tickets.comments`
       properties:
-        id: { type: integer }
+        id: { type: integer, description: Posição da mensagem no chamado (1, 2, 3...) }
         ticketId: { type: integer }
         userId: { type: integer }
         userName: { type: string }
@@ -782,7 +784,7 @@ components:
       type: object
       properties:
         id: { type: integer }
-        commentId: { type: integer }
+        ticketId: { type: integer }
         originalName: { type: string }
         mimeType: { type: string }
         sizeBytes: { type: integer }
@@ -804,6 +806,8 @@ components:
             comments:
               type: array
               items: { $ref: "#/components/schemas/Comment" }
+            commentsUsed: { type: integer, description: Caracteres já usados em tickets.comments }
+            commentsMax: { type: integer, example: 510 }
             history:
               type: array
               items: { $ref: "#/components/schemas/HistoryEntry" }
@@ -813,6 +817,7 @@ components:
         id: { type: integer }
         macAddress: { type: string, example: "AA:BB:CC:DD:EE:FF" }
         ipAddress: { type: [string, "null"], example: "192.168.0.10" }
+        description: { type: [string, "null"], maxLength: 255, example: "Notebook da recepção" }
         userId: { type: [integer, "null"] }
         userName: { type: [string, "null"] }
         createdAt: { type: string, format: date-time }
@@ -824,7 +829,7 @@ components:
         machineId: { type: integer }
         userId: { type: integer, description: Quem fez a alteração }
         userName: { type: string }
-        field: { type: string, enum: [created, macAddress, ipAddress, userId] }
+        field: { type: string, enum: [created, macAddress, ipAddress, description, userId] }
         oldValue: { type: [string, "null"] }
         newValue: { type: [string, "null"] }
         createdAt: { type: string, format: date-time }
@@ -834,6 +839,7 @@ components:
       properties:
         macAddress: { type: string }
         ipAddress: { type: [string, "null"], description: IPv4 ou IPv6 }
+        description: { type: [string, "null"], maxLength: 255, description: Vazio vira null }
         userId: { type: [integer, "null"] }
     StatusCounts:
       type: object

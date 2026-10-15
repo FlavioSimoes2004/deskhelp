@@ -25,13 +25,13 @@ export async function update(req: Request, res: Response) {
 }
 
 export async function addComment(req: Request, res: Response) {
-  const comments = await tickets.addComment(
+  const ticket = await tickets.addComment(
     currentUser(req),
     res.locals.params.id,
     res.locals.body.body,
     res.locals.files ?? [],
   );
-  res.status(201).json({ data: comments });
+  res.status(201).json({ data: ticket });
 }
 
 export async function resolve(req: Request, res: Response) {

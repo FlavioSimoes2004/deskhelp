@@ -1,6 +1,7 @@
 export interface MachineEditableFields {
   macAddress: string;
   ipAddress: string | null;
+  description: string | null;
   userId: number | null;
 }
 
@@ -27,8 +28,9 @@ export function diffMachine(current: MachineEditableFields, patch: Partial<Machi
 export function creationEntries(data: MachineEditableFields): MachineChange[] {
   return [
     { field: "created", oldValue: null, newValue: data.macAddress },
-    ...diffMachine({ macAddress: data.macAddress, ipAddress: null, userId: null }, {
+    ...diffMachine({ macAddress: data.macAddress, ipAddress: null, description: null, userId: null }, {
       ipAddress: data.ipAddress,
+      description: data.description,
       userId: data.userId,
     }),
   ];

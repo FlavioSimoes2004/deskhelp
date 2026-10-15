@@ -40,6 +40,7 @@ export interface Ticket {
   closedAt: Date | null;
 }
 
+/** Mensagem lida de tickets.comments; id é a posição da linha (1, 2, 3...). */
 export interface TicketComment {
   id: number;
   ticketId: number;
@@ -52,7 +53,7 @@ export interface TicketComment {
 
 export interface TicketAttachment {
   id: number;
-  commentId: number;
+  ticketId: number;
   originalName: string;
   mimeType: string;
   sizeBytes: number;
@@ -61,7 +62,6 @@ export interface TicketAttachment {
 
 /** Anexo com o caminho do arquivo no servidor (uso interno, não vai para a API). */
 export interface StoredAttachment extends TicketAttachment {
-  ticketId: number;
   filePath: string;
 }
 
@@ -80,6 +80,7 @@ export interface Machine {
   id: number;
   macAddress: string;
   ipAddress: string | null;
+  description: string | null;
   userId: number | null;
   userName: string | null;
   createdAt: Date;

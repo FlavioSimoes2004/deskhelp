@@ -1,5 +1,6 @@
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { pool, type SqlParams } from "../config/database.js";
+import { appendCommentLine, buildCommentLine, charLength, parseComments } from "../services/ticketComments.js";
 import type { TicketChange, TicketEditableFields } from "../services/ticketRules.js";
 import type {
   StoredAttachment,
@@ -177,41 +178,44 @@ export async function updateTicket(
   }
 }
 
-export async function listComments(ticketId: number): Promise<TicketComment[]> {
-  const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT cm.id, cm.ticket_id, cm.user_id, u.name AS user_name, cm.body, cm.created_at
-     FROM ticket_comments cm JOIN users u ON u.id = cm.user_id
-     WHERE cm.ticket_id = ? ORDER BY cm.created_at, cm.id`,
-    [ticketId],
-  );
+const toAttachment = (r: RowDataPacket): TicketAttachment => ({
+  id: r.id,
+  ticketId: r.ticket_id,
+  originalName: r.original_name,
+  mimeType: r.mime_type,
+  sizeBytes: r.size_bytes,
+  createdAt: r.created_at,
+});
+
+/** Mensagens do chamado (de tickets.comments) e quantos caracteres a coluna já usa. */
+export async function listComments(ticketId: number): Promise<{ items: TicketComment[]; used: number }> {
+  const [ticketRows] = await pool.execute<RowDataPacket[]>("SELECT comments FROM tickets WHERE id = ?", [ticketId]);
+  const text: string | null = ticketRows[0]?.comments ?? null;
+  const parsed = parseComments(text);
+  if (parsed.length === 0) return { items: [], used: text ? charLength(text) : 0 };
+
+  const userIds = [...new Set(parsed.map((c) => c.userId))];
+  const [userRows] = await pool.query<RowDataPacket[]>("SELECT id, name FROM users WHERE id IN (?)", [userIds]);
+  const userName = new Map<number, string>(userRows.map((r) => [r.id, r.name]));
+
+  // Só anexos do próprio chamado, mesmo que o prefixo cite outro id.
   const [attachmentRows] = await pool.execute<RowDataPacket[]>(
-    `SELECT a.id, a.comment_id, a.original_name, a.mime_type, a.size_bytes, a.created_at
-     FROM ticket_comment_attachments a JOIN ticket_comments cm ON cm.id = a.comment_id
-     WHERE cm.ticket_id = ? ORDER BY a.id`,
+    `SELECT id, ticket_id, original_name, mime_type, size_bytes, created_at
+     FROM ticket_comment_attachments WHERE ticket_id = ?`,
     [ticketId],
   );
-  const byComment = new Map<number, TicketAttachment[]>();
-  for (const r of attachmentRows) {
-    const list = byComment.get(r.comment_id) ?? [];
-    list.push({
-      id: r.id,
-      commentId: r.comment_id,
-      originalName: r.original_name,
-      mimeType: r.mime_type,
-      sizeBytes: r.size_bytes,
-      createdAt: r.created_at,
-    });
-    byComment.set(r.comment_id, list);
-  }
-  return rows.map((r) => ({
-    id: r.id,
-    ticketId: r.ticket_id,
-    userId: r.user_id,
-    userName: r.user_name,
-    body: r.body,
-    createdAt: r.created_at,
-    attachments: byComment.get(r.id) ?? [],
+  const attachment = new Map<number, TicketAttachment>(attachmentRows.map((r) => [r.id, toAttachment(r)]));
+
+  const items = parsed.map((c) => ({
+    id: c.index,
+    ticketId,
+    userId: c.userId,
+    userName: userName.get(c.userId) ?? `Usuário #${c.userId}`,
+    body: c.body,
+    createdAt: c.createdAt,
+    attachments: c.attachmentIds.flatMap((id) => attachment.get(id) ?? []),
   }));
+  return { items, used: text ? charLength(text) : 0 };
 }
 
 export interface NewAttachment {
@@ -221,31 +225,43 @@ export interface NewAttachment {
   sizeBytes: number;
 }
 
-/** Grava o comentário e os anexos (já salvos em disco) na mesma transação. */
+/**
+ * Grava os anexos (já salvos em disco) e acrescenta a mensagem, com os ids
+ * deles no prefixo, a tickets.comments, tudo na mesma transação. Devolve
+ * false, sem gravar nada, se a mensagem não couber na coluna.
+ */
 export async function insertComment(
   ticketId: number,
   userId: number,
   body: string,
   attachments: NewAttachment[] = [],
-): Promise<number> {
+): Promise<boolean> {
   const conn: PoolConnection = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [result] = await conn.execute<ResultSetHeader>(
-      "INSERT INTO ticket_comments (ticket_id, user_id, body) VALUES (?, ?, ?)",
-      [ticketId, userId, body],
-    );
+    // Trava a linha para que duas mensagens simultâneas não se sobrescrevam.
+    const [rows] = await conn.execute<RowDataPacket[]>("SELECT comments FROM tickets WHERE id = ? FOR UPDATE", [
+      ticketId,
+    ]);
+    const attachmentIds: number[] = [];
     for (const file of attachments) {
-      await conn.execute(
-        `INSERT INTO ticket_comment_attachments (comment_id, original_name, file_path, mime_type, size_bytes)
+      const [result] = await conn.execute<ResultSetHeader>(
+        `INSERT INTO ticket_comment_attachments (ticket_id, original_name, file_path, mime_type, size_bytes)
          VALUES (?, ?, ?, ?, ?)`,
-        [result.insertId, file.originalName, file.filePath, file.mimeType, file.sizeBytes],
+        [ticketId, file.originalName, file.filePath, file.mimeType, file.sizeBytes],
       );
+      attachmentIds.push(result.insertId);
     }
-    // Comentar também conta como atividade no chamado.
-    await conn.execute("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [ticketId]);
+    const line = buildCommentLine({ at: new Date(), userId, attachmentIds, body });
+    const next = appendCommentLine(rows[0]?.comments ?? null, line);
+    if (next === null) {
+      await conn.rollback();
+      return false;
+    }
+    // updated_at muda junto: comentar também conta como atividade no chamado.
+    await conn.execute("UPDATE tickets SET comments = ? WHERE id = ?", [next, ticketId]);
     await conn.commit();
-    return result.insertId;
+    return true;
   } catch (error) {
     await conn.rollback();
     throw error;
@@ -256,23 +272,12 @@ export async function insertComment(
 
 export async function findAttachmentById(id: number): Promise<StoredAttachment | null> {
   const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT a.id, a.comment_id, cm.ticket_id, a.original_name, a.file_path, a.mime_type, a.size_bytes, a.created_at
-     FROM ticket_comment_attachments a JOIN ticket_comments cm ON cm.id = a.comment_id
-     WHERE a.id = ?`,
+    `SELECT id, ticket_id, original_name, file_path, mime_type, size_bytes, created_at
+     FROM ticket_comment_attachments WHERE id = ?`,
     [id],
   );
   const r = rows[0];
-  if (!r) return null;
-  return {
-    id: r.id,
-    commentId: r.comment_id,
-    ticketId: r.ticket_id,
-    originalName: r.original_name,
-    filePath: r.file_path,
-    mimeType: r.mime_type,
-    sizeBytes: r.size_bytes,
-    createdAt: r.created_at,
-  };
+  return r ? { ...toAttachment(r), filePath: r.file_path } : null;
 }
 
 export async function listHistory(ticketId: number): Promise<TicketHistoryEntry[]> {
