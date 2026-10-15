@@ -52,6 +52,9 @@ export function Layout() {
               <NavLink to="/maquinas" className={navClass}>
                 Máquinas
               </NavLink>
+              <NavLink to="/api-docs" className={navClass}>
+                Documentação da API
+              </NavLink>
             </>
           )}
           {isAdmin && (
@@ -62,10 +65,6 @@ export function Layout() {
               </NavLink>
             </>
           )}
-          <div className="rail-group">Ajuda</div>
-          <NavLink to="/api-docs" className={navClass}>
-            Documentação da API
-          </NavLink>
         </nav>
 
         <div className="rail-user">
