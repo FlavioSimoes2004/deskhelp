@@ -29,9 +29,6 @@ CREATE TABLE IF NOT EXISTS tickets (
   id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
   title        VARCHAR(160) NOT NULL,
   description  TEXT NOT NULL,
-  -- Comentários: uma mensagem por linha, com o prefixo
-  -- [AAAA-MM-DD HH:MM:SS, users:{id}, attachs:{id}|{id}] (ver services/ticketComments.ts).
-  comments     VARCHAR(510) NULL,
   status       ENUM('aberto', 'em_andamento', 'aguardando', 'resolvido', 'fechado') NOT NULL DEFAULT 'aberto',
   priority     ENUM('baixa', 'media', 'alta', 'critica') NOT NULL DEFAULT 'media',
   category_id  INT UNSIGNED NOT NULL,
@@ -52,12 +49,24 @@ CREATE TABLE IF NOT EXISTS tickets (
   CONSTRAINT fk_tickets_assignee FOREIGN KEY (assignee_id) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Bancos criados antes da coluna tickets.comments.
-ALTER TABLE tickets ADD COLUMN IF NOT EXISTS comments VARCHAR(510) NULL AFTER description;
+-- Comentários dos chamados. attachments lista os ids de ticket_comment_attachments
+-- enviados com o comentário, separados por vírgula e espaço (ex.: "1, 2, 10").
+CREATE TABLE IF NOT EXISTS ticket_comments (
+  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  ticket_id   INT UNSIGNED NOT NULL,
+  user_id     INT UNSIGNED NOT NULL,
+  body        TEXT NOT NULL,
+  attachments VARCHAR(125) NULL,
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_comments_ticket (ticket_id, created_at),
+  CONSTRAINT fk_comments_ticket FOREIGN KEY (ticket_id) REFERENCES tickets (id) ON DELETE CASCADE,
+  CONSTRAINT fk_comments_user FOREIGN KEY (user_id) REFERENCES users (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Anexos dos comentários. O arquivo fica no servidor (pasta UPLOAD_DIR);
--- file_path guarda o caminho dele relativo a essa pasta. A mensagem que usa o
--- anexo o referencia pelo id no prefixo (attachs:{id}).
+-- file_path guarda o caminho dele relativo a essa pasta. O comentário que usa o
+-- anexo o referencia pelo id na coluna ticket_comments.attachments.
 CREATE TABLE IF NOT EXISTS ticket_comment_attachments (
   id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
   ticket_id     INT UNSIGNED NOT NULL,

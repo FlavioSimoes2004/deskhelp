@@ -40,7 +40,6 @@ export interface Ticket {
   closedAt: Date | null;
 }
 
-/** Mensagem lida de tickets.comments; id é a posição da linha (1, 2, 3...). */
 export interface TicketComment {
   id: number;
   ticketId: number;

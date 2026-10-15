@@ -63,9 +63,6 @@ export interface TicketHistoryEntry {
 
 export interface TicketDetail extends Ticket {
   comments: TicketComment[];
-  /** Caracteres já usados na coluna de comentários do chamado e o limite dela. */
-  commentsUsed: number;
-  commentsMax: number;
   history: TicketHistoryEntry[];
 }
 

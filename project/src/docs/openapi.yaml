@@ -331,9 +331,8 @@ paths:
       summary: Comentar no chamado
       description: |
         Somente quem abriu o chamado e o responsável por ele podem comentar (os demais recebem 403).
-        As mensagens ficam na coluna `tickets.comments` (VARCHAR(510)), uma por linha, com o prefixo
-        `[AAAA-MM-DD HH:MM:SS, users:{id}, attachs:{id}|{id}]`. Todas as mensagens do chamado dividem esses
-        510 caracteres; se a nova não couber, a resposta é 409 `COMMENTS_FULL`. Quebras de linha viram espaço.
+        Cada comentário é uma linha de `ticket_comments`; os ids dos anexos enviados com ele ficam na coluna
+        `attachments` (ex.: `1, 2, 10`).
         Exceto administradores, ninguém comenta em chamados fechados.
         Para enviar anexos use `multipart/form-data` com o campo `attachments` (até 5 arquivos de 10 MB;
         imagens, PDF, TXT, LOG, CSV, DOC(X), XLS(X), ODT, ODS ou ZIP). Os arquivos ficam no servidor
@@ -347,13 +346,13 @@ paths:
               type: object
               required: [body]
               properties:
-                body: { type: string, minLength: 1, maxLength: 460 }
+                body: { type: string, minLength: 1, maxLength: 5000 }
           multipart/form-data:
             schema:
               type: object
               required: [body]
               properties:
-                body: { type: string, minLength: 1, maxLength: 460 }
+                body: { type: string, minLength: 1, maxLength: 5000 }
                 attachments:
                   type: array
                   maxItems: 5
@@ -769,9 +768,8 @@ components:
         closedAt: { type: [string, "null"], format: date-time }
     Comment:
       type: object
-      description: Mensagem lida de `tickets.comments`
       properties:
-        id: { type: integer, description: Posição da mensagem no chamado (1, 2, 3...) }
+        id: { type: integer }
         ticketId: { type: integer }
         userId: { type: integer }
         userName: { type: string }
@@ -806,8 +804,6 @@ components:
             comments:
               type: array
               items: { $ref: "#/components/schemas/Comment" }
-            commentsUsed: { type: integer, description: Caracteres já usados em tickets.comments }
-            commentsMax: { type: integer, example: 510 }
             history:
               type: array
               items: { $ref: "#/components/schemas/HistoryEntry" }

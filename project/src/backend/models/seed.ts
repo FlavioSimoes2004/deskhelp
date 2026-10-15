@@ -6,7 +6,6 @@
  */
 import mysql from "mysql2/promise";
 import { env } from "../config/env.js";
-import { appendCommentLine, buildCommentLine } from "../services/ticketComments.js";
 import { hashPassword } from "../utils/password.js";
 
 const SEED_PASSWORD = "Exemplo@2026";
@@ -178,20 +177,13 @@ try {
       ticketId[t.key] = r.insertId;
     }
 
-    // Comentários ficam em tickets.comments: uma linha por mensagem, da mais antiga para a mais nova.
-    const commentsText: Record<string, string | null> = {};
-    for (const c of [...COMMENTS].sort((a, b) => b.hoursAgo - a.hoursAgo)) {
-      const line = buildCommentLine({
-        at: new Date(Date.now() - c.hoursAgo * 3600 * 1000),
-        userId: userId[c.user]!,
-        attachmentIds: [],
-        body: c.body,
-      });
-      commentsText[c.ticket] = appendCommentLine(commentsText[c.ticket] ?? null, line) ?? commentsText[c.ticket] ?? null;
-    }
-    for (const [key, text] of Object.entries(commentsText)) {
-      // updated_at = updated_at mantém a data de exemplo (senão o ON UPDATE a troca por agora).
-      await conn.execute("UPDATE tickets SET comments = ?, updated_at = updated_at WHERE id = ?", [text, ticketId[key]]);
+    for (const c of COMMENTS) {
+      await conn.execute(`INSERT INTO ticket_comments (ticket_id, user_id, body, created_at) VALUES (?, ?, ?, ${ago})`, [
+        ticketId[c.ticket],
+        userId[c.user],
+        c.body,
+        c.hoursAgo,
+      ]);
     }
 
     for (const h of HISTORY) {
