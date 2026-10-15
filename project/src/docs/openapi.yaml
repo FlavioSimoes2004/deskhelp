@@ -331,8 +331,7 @@ paths:
       summary: Comentar no chamado
       description: |
         Somente quem abriu o chamado e o responsável por ele podem comentar (os demais recebem 403).
-        Cada comentário é uma linha de `ticket_comments`; os ids dos anexos enviados com ele ficam na coluna
-        `attachments` (ex.: `1, 2, 10`).
+        Os anexos enviados com o comentário ficam em `ticket_comment_attachments`, ligados a ele por `comment_id`.
         Exceto administradores, ninguém comenta em chamados fechados.
         Para enviar anexos use `multipart/form-data` com o campo `attachments` (até 5 arquivos de 10 MB;
         imagens, PDF, TXT, LOG, CSV, DOC(X), XLS(X), ODT, ODS ou ZIP). Os arquivos ficam no servidor
@@ -782,6 +781,7 @@ components:
       type: object
       properties:
         id: { type: integer }
+        commentId: { type: integer }
         ticketId: { type: integer }
         originalName: { type: string }
         mimeType: { type: string }

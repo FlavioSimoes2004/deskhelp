@@ -49,15 +49,12 @@ CREATE TABLE IF NOT EXISTS tickets (
   CONSTRAINT fk_tickets_assignee FOREIGN KEY (assignee_id) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Comentários dos chamados. attachments lista os ids de ticket_comment_attachments
--- enviados com o comentário, separados por vírgula e espaço (ex.: "1, 2, 10").
 CREATE TABLE IF NOT EXISTS ticket_comments (
-  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  ticket_id   INT UNSIGNED NOT NULL,
-  user_id     INT UNSIGNED NOT NULL,
-  body        TEXT NOT NULL,
-  attachments VARCHAR(125) NULL,
-  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  ticket_id  INT UNSIGNED NOT NULL,
+  user_id    INT UNSIGNED NOT NULL,
+  body       TEXT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_comments_ticket (ticket_id, created_at),
   CONSTRAINT fk_comments_ticket FOREIGN KEY (ticket_id) REFERENCES tickets (id) ON DELETE CASCADE,
@@ -65,10 +62,11 @@ CREATE TABLE IF NOT EXISTS ticket_comments (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Anexos dos comentários. O arquivo fica no servidor (pasta UPLOAD_DIR);
--- file_path guarda o caminho dele relativo a essa pasta. O comentário que usa o
--- anexo o referencia pelo id na coluna ticket_comments.attachments.
+-- file_path guarda o caminho dele relativo a essa pasta. comment_id liga o anexo
+-- ao comentário; ticket_id repete o chamado para checar o acesso no download.
 CREATE TABLE IF NOT EXISTS ticket_comment_attachments (
   id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  comment_id    INT UNSIGNED NOT NULL,
   ticket_id     INT UNSIGNED NOT NULL,
   original_name VARCHAR(255) NOT NULL,
   file_path     VARCHAR(255) NOT NULL,
@@ -77,7 +75,9 @@ CREATE TABLE IF NOT EXISTS ticket_comment_attachments (
   created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_attachments_path (file_path),
+  KEY idx_attachments_comment (comment_id),
   KEY idx_attachments_ticket (ticket_id),
+  CONSTRAINT fk_attachments_comment FOREIGN KEY (comment_id) REFERENCES ticket_comments (id) ON DELETE CASCADE,
   CONSTRAINT fk_attachments_ticket FOREIGN KEY (ticket_id) REFERENCES tickets (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

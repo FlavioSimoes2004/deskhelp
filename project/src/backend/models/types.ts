@@ -52,6 +52,7 @@ export interface TicketComment {
 
 export interface TicketAttachment {
   id: number;
+  commentId: number;
   ticketId: number;
   originalName: string;
   mimeType: string;

@@ -1,6 +1,5 @@
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { pool, type SqlParams } from "../config/database.js";
-import { formatAttachmentIds, parseAttachmentIds } from "../services/ticketComments.js";
 import type { TicketChange, TicketEditableFields } from "../services/ticketRules.js";
 import type {
   StoredAttachment,
@@ -180,6 +179,7 @@ export async function updateTicket(
 
 const toAttachment = (r: RowDataPacket): TicketAttachment => ({
   id: r.id,
+  commentId: r.comment_id,
   ticketId: r.ticket_id,
   originalName: r.original_name,
   mimeType: r.mime_type,
@@ -189,18 +189,20 @@ const toAttachment = (r: RowDataPacket): TicketAttachment => ({
 
 export async function listComments(ticketId: number): Promise<TicketComment[]> {
   const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT cm.id, cm.ticket_id, cm.user_id, u.name AS user_name, cm.body, cm.attachments, cm.created_at
+    `SELECT cm.id, cm.ticket_id, cm.user_id, u.name AS user_name, cm.body, cm.created_at
      FROM ticket_comments cm JOIN users u ON u.id = cm.user_id
      WHERE cm.ticket_id = ? ORDER BY cm.created_at, cm.id`,
     [ticketId],
   );
-  // Só anexos do próprio chamado, mesmo que a coluna attachments cite outro id.
   const [attachmentRows] = await pool.execute<RowDataPacket[]>(
-    `SELECT id, ticket_id, original_name, mime_type, size_bytes, created_at
-     FROM ticket_comment_attachments WHERE ticket_id = ?`,
+    `SELECT id, comment_id, ticket_id, original_name, mime_type, size_bytes, created_at
+     FROM ticket_comment_attachments WHERE ticket_id = ? ORDER BY id`,
     [ticketId],
   );
-  const attachment = new Map<number, TicketAttachment>(attachmentRows.map((r) => [r.id, toAttachment(r)]));
+  const byComment = new Map<number, TicketAttachment[]>();
+  for (const r of attachmentRows) {
+    byComment.set(r.comment_id, [...(byComment.get(r.comment_id) ?? []), toAttachment(r)]);
+  }
   return rows.map((r) => ({
     id: r.id,
     ticketId: r.ticket_id,
@@ -208,7 +210,7 @@ export async function listComments(ticketId: number): Promise<TicketComment[]> {
     userName: r.user_name,
     body: r.body,
     createdAt: r.created_at,
-    attachments: parseAttachmentIds(r.attachments).flatMap((id) => attachment.get(id) ?? []),
+    attachments: byComment.get(r.id) ?? [],
   }));
 }
 
@@ -219,7 +221,7 @@ export interface NewAttachment {
   sizeBytes: number;
 }
 
-/** Grava os anexos (já salvos em disco) e o comentário, com os ids deles, na mesma transação. */
+/** Grava o comentário e os anexos (já salvos em disco) na mesma transação. */
 export async function insertComment(
   ticketId: number,
   userId: number,
@@ -229,19 +231,17 @@ export async function insertComment(
   const conn: PoolConnection = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const attachmentIds: number[] = [];
-    for (const file of attachments) {
-      const [result] = await conn.execute<ResultSetHeader>(
-        `INSERT INTO ticket_comment_attachments (ticket_id, original_name, file_path, mime_type, size_bytes)
-         VALUES (?, ?, ?, ?, ?)`,
-        [ticketId, file.originalName, file.filePath, file.mimeType, file.sizeBytes],
-      );
-      attachmentIds.push(result.insertId);
-    }
     const [result] = await conn.execute<ResultSetHeader>(
-      "INSERT INTO ticket_comments (ticket_id, user_id, body, attachments) VALUES (?, ?, ?, ?)",
-      [ticketId, userId, body, formatAttachmentIds(attachmentIds)],
+      "INSERT INTO ticket_comments (ticket_id, user_id, body) VALUES (?, ?, ?)",
+      [ticketId, userId, body],
     );
+    for (const file of attachments) {
+      await conn.execute(
+        `INSERT INTO ticket_comment_attachments (comment_id, ticket_id, original_name, file_path, mime_type, size_bytes)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [result.insertId, ticketId, file.originalName, file.filePath, file.mimeType, file.sizeBytes],
+      );
+    }
     // Comentar também conta como atividade no chamado.
     await conn.execute("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [ticketId]);
     await conn.commit();
@@ -256,7 +256,7 @@ export async function insertComment(
 
 export async function findAttachmentById(id: number): Promise<StoredAttachment | null> {
   const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT id, ticket_id, original_name, file_path, mime_type, size_bytes, created_at
+    `SELECT id, comment_id, ticket_id, original_name, file_path, mime_type, size_bytes, created_at
      FROM ticket_comment_attachments WHERE id = ?`,
     [id],
   );
