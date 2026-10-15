@@ -12,7 +12,7 @@ Sistema de chamados (help desk): usuários abrem chamados e a equipe de suporte 
 | Perfil | Pode |
 | --- | --- |
 | **Comum** | Abrir chamados, ver e comentar apenas os próprios chamados, editar o próprio perfil e senha |
-| **Suporte** | Tudo do comum + ver todos os chamados, assumir um chamado sem responsável (status vai para "em andamento" se estava aberto) e alterar prioridade e categoria. Não altera status nem troca um responsável já definido |
+| **Suporte** | Tudo do comum + ver todos os chamados, assumir um chamado sem responsável (status vai para "em andamento" se estava aberto) e alterar prioridade e categoria. Não altera status nem troca um responsável já definido. Também gerencia usuários comuns e de suporte (sem criar, promover ou alterar administradores) e máquinas |
 | **Admin** | Tudo do comum + ver todos os chamados, alterar status, prioridade, categoria e responsável, assumir chamados, cadastrar/editar/desativar usuários, ver relatórios e exportar CSV |
 
 Regras importantes:
@@ -36,7 +36,7 @@ Regras importantes:
 | `/chamados/:id` | Detalhe, conversa, histórico e painel de atendimento (admin e suporte) | dono, admin ou suporte |
 | `/perfil` | Nome e troca de senha | todos |
 | `/api-docs` | Documentação da API (Swagger UI) | todos |
-| `/usuarios` | Cadastro e gestão de usuários | admin |
+| `/usuarios` | Cadastro e gestão de usuários | admin e suporte |
 | `/relatorios` | Indicadores por período + exportação CSV | admin |
 
 ## Instalação (Fedora)

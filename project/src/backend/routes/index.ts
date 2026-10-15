@@ -69,18 +69,18 @@ apiRouter.get("/attachments/:id", byId, ticketCtrl.downloadAttachment);
 apiRouter.patch("/tickets/:id", staffOnly, byId, validate(updateTicketSchema), ticketCtrl.update);
 apiRouter.get("/users/staff", staffOnly, userCtrl.staff);
 
+// Usuários e máquinas: administradores e suporte (o suporte não gerencia administradores)
+apiRouter.get("/users", staffOnly, validate(userQuerySchema, "query"), userCtrl.list);
+apiRouter.post("/users", staffOnly, validate(createUserSchema), userCtrl.create);
+apiRouter.get("/users/:id", staffOnly, byId, userCtrl.get);
+apiRouter.patch("/users/:id", staffOnly, byId, validate(updateUserSchema), userCtrl.update);
+
+apiRouter.get("/machines", staffOnly, validate(machineQuerySchema, "query"), machineCtrl.list);
+apiRouter.post("/machines", staffOnly, validate(createMachineSchema), machineCtrl.create);
+apiRouter.get("/machines/:id", staffOnly, byId, machineCtrl.get);
+apiRouter.patch("/machines/:id", staffOnly, byId, validate(updateMachineSchema), machineCtrl.update);
+apiRouter.get("/machines/:id/history", staffOnly, byId, machineCtrl.history);
+
 // Somente administradores
-
-apiRouter.get("/users", adminOnly, validate(userQuerySchema, "query"), userCtrl.list);
-apiRouter.post("/users", adminOnly, validate(createUserSchema), userCtrl.create);
-apiRouter.get("/users/:id", adminOnly, byId, userCtrl.get);
-apiRouter.patch("/users/:id", adminOnly, byId, validate(updateUserSchema), userCtrl.update);
-
-apiRouter.get("/machines", adminOnly, validate(machineQuerySchema, "query"), machineCtrl.list);
-apiRouter.post("/machines", adminOnly, validate(createMachineSchema), machineCtrl.create);
-apiRouter.get("/machines/:id", adminOnly, byId, machineCtrl.get);
-apiRouter.patch("/machines/:id", adminOnly, byId, validate(updateMachineSchema), machineCtrl.update);
-apiRouter.get("/machines/:id/history", adminOnly, byId, machineCtrl.history);
-
 apiRouter.get("/reports/summary", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.summary);
 apiRouter.get("/reports/tickets.csv", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.exportCsv);

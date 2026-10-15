@@ -49,7 +49,7 @@ export function App() {
             <Route
               path="usuarios"
               element={
-                <RequireAuth admin>
+                <RequireAuth staff>
                   <UsersPage />
                 </RequireAuth>
               }
@@ -57,7 +57,7 @@ export function App() {
             <Route
               path="maquinas"
               element={
-                <RequireAuth admin>
+                <RequireAuth staff>
                   <MachinesPage />
                 </RequireAuth>
               }

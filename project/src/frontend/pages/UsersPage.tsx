@@ -9,7 +9,7 @@ import type { Role, User } from "../services/types";
 import { formatDateTime, ROLE_LABEL } from "../utils/format";
 
 export function UsersPage() {
-  const { user: me } = useAuth();
+  const { user: me, isAdmin } = useAuth();
   const [search, setSearch] = useState("");
   const [role, setRole] = useState<Role | "">("");
   const [active, setActive] = useState<"true" | "false" | "">("");
@@ -28,7 +28,7 @@ export function UsersPage() {
       <div className="page-head">
         <div>
           <h1>Usuários</h1>
-          <p>Cadastre pessoas, defina quem é administrador e desative contas que não devem mais entrar.</p>
+          <p>Cadastre pessoas, defina o perfil de cada uma e desative contas que não devem mais entrar.</p>
         </div>
         <button
           type="button"
@@ -53,6 +53,7 @@ export function UsersPage() {
           key={editing === "new" ? "new" : editing.id}
           user={editing === "new" ? null : editing}
           isSelf={editing !== "new" && editing.id === me?.id}
+          canGrantAdmin={isAdmin}
           onCancel={() => setEditing(null)}
           onSaved={onSaved}
         />
@@ -126,16 +127,19 @@ export function UsersPage() {
                   <td>{u.active ? "Ativo" : <span className="muted">Desativado</span>}</td>
                   <td className="muted">{formatDateTime(u.createdAt)}</td>
                   <td className="num">
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => {
-                        setNotice(null);
-                        setEditing(u);
-                      }}
-                    >
-                      Editar
-                    </button>
+                    {/* O suporte não altera administradores (regra também aplicada na API). */}
+                    {(isAdmin || u.role !== "admin") && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          setNotice(null);
+                          setEditing(u);
+                        }}
+                      >
+                        Editar
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -156,11 +160,14 @@ export function UsersPage() {
 function UserForm({
   user,
   isSelf,
+  canGrantAdmin,
   onCancel,
   onSaved,
 }: {
   user: User | null;
   isSelf: boolean;
+  /** Só admin pode criar ou promover administradores. */
+  canGrantAdmin: boolean;
   onCancel: () => void;
   onSaved: (message: string) => void;
 }) {
@@ -220,7 +227,7 @@ function UserForm({
       <div className="form-row">
         <Field
           label="Perfil"
-          hint={isSelf ? "Você não pode remover o seu próprio acesso de administrador." : undefined}
+          hint={isSelf ? "Você não pode alterar o seu próprio perfil de acesso." : undefined}
           error={error?.fieldError("role")}
         >
           <select
@@ -231,7 +238,7 @@ function UserForm({
           >
             <option value="comum">Comum: abre e acompanha os próprios chamados</option>
             <option value="support">Suporte: assume chamados sem responsável e ajusta prioridade e categoria</option>
-            <option value="admin">Administrador: atende chamados e gerencia o sistema</option>
+            {canGrantAdmin && <option value="admin">Administrador: atende chamados e gerencia o sistema</option>}
           </select>
         </Field>
         <Field

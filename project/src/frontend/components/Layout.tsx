@@ -43,15 +43,20 @@ export function Layout() {
           <NavLink to="/chamados/novo" className={navClass}>
             Abrir chamado
           </NavLink>
-          {isAdmin && (
+          {isStaff && (
             <>
-              <div className="rail-group">Administração</div>
+              <div className="rail-group">Suporte</div>
               <NavLink to="/usuarios" className={navClass}>
                 Usuários
               </NavLink>
               <NavLink to="/maquinas" className={navClass}>
                 Máquinas
               </NavLink>
+            </>
+          )}
+          {isAdmin && (
+            <>
+              <div className="rail-group">Administração</div>
               <NavLink to="/relatorios" className={navClass}>
                 Relatórios
               </NavLink>

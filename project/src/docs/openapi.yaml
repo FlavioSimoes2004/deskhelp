@@ -40,9 +40,9 @@ tags:
   - name: Autenticação
   - name: Chamados
   - name: Usuários
-    description: Somente administradores
+    description: Administradores e suporte. O suporte não cria, promove nem altera administradores (403).
   - name: Máquinas
-    description: Somente administradores
+    description: Administradores e suporte
   - name: Relatórios
     description: Somente administradores
 security:

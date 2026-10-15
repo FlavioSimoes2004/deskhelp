@@ -1,13 +1,14 @@
 import * as users from "../models/userModel.js";
-import type { PublicUser, Role } from "../models/types.js";
+import type { AuthUser, PublicUser, Role } from "../models/types.js";
 import { HttpError, notFound } from "../utils/httpError.js";
 import { hashPassword } from "../utils/password.js";
-import { assertCanUpdateUser } from "./userRules.js";
+import { assertCanManageUser, assertCanUpdateUser } from "./userRules.js";
 
 export const listUsers = users.listUsers;
 export const listStaff = users.listStaff;
 
-export async function createUser(data: { name: string; email: string; password: string; role: Role }) {
+export async function createUser(actor: AuthUser, data: { name: string; email: string; password: string; role: Role }) {
+  assertCanManageUser(actor, null, data);
   if (await users.findUserByEmail(data.email)) {
     throw new HttpError(409, "EMAIL_IN_USE", "Já existe uma conta com este e-mail");
   }
@@ -23,12 +24,13 @@ export async function getUser(id: number): Promise<PublicUser> {
 }
 
 export async function updateUser(
-  actorId: number,
+  actor: AuthUser,
   id: number,
   data: { name?: string; email?: string; role?: Role; active?: boolean; password?: string },
 ) {
-  await getUser(id);
-  assertCanUpdateUser(actorId, id, data);
+  const target = await getUser(id);
+  assertCanManageUser(actor, target, data);
+  assertCanUpdateUser(actor, id, data);
   if (data.email) {
     const other = await users.findUserByEmail(data.email);
     if (other && other.id !== id) throw new HttpError(409, "EMAIL_IN_USE", "Já existe uma conta com este e-mail");
