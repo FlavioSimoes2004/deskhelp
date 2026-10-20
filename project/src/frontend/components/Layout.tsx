@@ -70,7 +70,7 @@ export function Layout() {
             <>
               <div className="rail-group">Administração</div>
               <NavLink to="/relatorios" end className={navClass}>
-                Relatórios
+                Relatório de chamados
               </NavLink>
               <NavLink to="/relatorios/maquinas" className={navClass}>
                 Relatório de máquinas

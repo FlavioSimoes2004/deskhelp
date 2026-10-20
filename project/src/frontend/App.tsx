@@ -17,7 +17,7 @@ import { SignupPage } from "./pages/SignupPage";
 import { TicketDetailPage } from "./pages/TicketDetailPage";
 import { TicketsPage } from "./pages/TicketsPage";
 import { UsersPage } from "./pages/UsersPage";
-import { ReportsPage } from "./pages/ReportsPage";
+import { TicketReportPage } from "./pages/TicketReportPage";
 import { AuthProvider } from "./store/AuthContext";
 
 // O Swagger UI é pesado; só é baixado quando alguém abre a documentação.
@@ -72,7 +72,7 @@ export function App() {
               path="relatorios"
               element={
                 <RequireAuth admin>
-                  <ReportsPage />
+                  <TicketReportPage />
                 </RequireAuth>
               }
             />

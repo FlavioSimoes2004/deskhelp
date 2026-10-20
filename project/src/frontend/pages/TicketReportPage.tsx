@@ -12,7 +12,7 @@ function inOrder<K extends string>(items: CountItem[], order: K[], labels: Recor
   return order.map((key) => ({ key, label: labels[key], total: items.find((i) => i.label === key)?.total ?? 0 }));
 }
 
-export function ReportsPage() {
+export function TicketReportPage() {
   const [from, setFrom] = useState(daysAgo(29));
   const [to, setTo] = useState(isoDay(new Date()));
   const [exportError, setExportError] = useState<ApiError | null>(null);
@@ -46,7 +46,7 @@ export function ReportsPage() {
     <div className="page">
       <div className="page-head">
         <div>
-          <h1>Relatórios</h1>
+          <h1>Relatório de chamados</h1>
           <p>Chamados abertos no período escolhido: volume, situação e tempo até a solução.</p>
         </div>
         <button type="button" className="btn btn-ghost" onClick={onExport} disabled={exporting}>
