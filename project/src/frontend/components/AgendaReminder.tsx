@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router";
+import { Link, useLocation } from "react-router";
 import { notifyNotificationsChanged } from "../hooks/useUnreadNotifications";
 import { agendaService } from "../services/deskhelp";
 import type { AgendaItem } from "../services/types";
-import { formatDateTime } from "../utils/format";
+import { formatDateTime, ticketNumber } from "../utils/format";
 
 /** Disparado ao criar um item na agenda, para o aviso conferir na hora (ex.: marcado para agora). */
 export const AGENDA_CHANGED_EVENT = "deskhelp:agenda-changed";
@@ -87,6 +87,11 @@ export function AgendaReminder() {
                 <strong>{item.title}</strong>
                 <span className="muted">{formatDateTime(item.scheduledAt)}</span>
                 {item.description && <p>{item.description}</p>}
+                {item.ticketId && (
+                  <Link to={`/chamados/${item.ticketId}`} className="agenda-reminder-ticket">
+                    Chamado #{ticketNumber(item.ticketId)} {item.ticketTitle ? `“${item.ticketTitle}”` : ""}
+                  </Link>
+                )}
               </div>
               <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => dismiss([item.id])}>
                 Dispensar

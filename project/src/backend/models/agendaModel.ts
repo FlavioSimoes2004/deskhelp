@@ -4,6 +4,8 @@ import type { AgendaItem } from "./types.js";
 
 const toItem = (r: RowDataPacket): AgendaItem => ({
   id: r.id,
+  ticketId: r.ticket_id,
+  ticketTitle: r.ticket_title,
   title: r.title,
   description: r.description,
   scheduledAt: r.scheduled_at,
@@ -12,54 +14,74 @@ const toItem = (r: RowDataPacket): AgendaItem => ({
   createdAt: r.created_at,
 });
 
-const COLUMNS = "id, title, description, scheduled_at, notified_at, dismissed_at, created_at";
+const SELECT_ITEM = `
+  SELECT ag.id, ag.ticket_id, t.title AS ticket_title, ag.title, ag.description, ag.scheduled_at,
+         ag.notified_at, ag.dismissed_at, ag.created_at
+  FROM agenda_items ag
+  LEFT JOIN tickets t ON t.id = ag.ticket_id`;
 
 export async function insertAgendaItem(
   userId: number,
-  data: { title: string; description: string | null; scheduledAt: Date },
+  data: { title: string; description: string | null; scheduledAt: Date; ticketId: number | null },
 ): Promise<number> {
   const [result] = await pool.execute<ResultSetHeader>(
-    "INSERT INTO agenda_items (user_id, title, description, scheduled_at) VALUES (?, ?, ?, ?)",
-    [userId, data.title, data.description, data.scheduledAt],
+    "INSERT INTO agenda_items (user_id, ticket_id, title, description, scheduled_at) VALUES (?, ?, ?, ?, ?)",
+    [userId, data.ticketId, data.title, data.description, data.scheduledAt],
   );
   return result.insertId;
 }
 
 export async function findAgendaItem(userId: number, id: number): Promise<AgendaItem | null> {
   const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT ${COLUMNS} FROM agenda_items WHERE id = ? AND user_id = ?`,
+    `${SELECT_ITEM} WHERE ag.id = ? AND ag.user_id = ?`,
     [id, userId],
   );
   return rows[0] ? toItem(rows[0]) : null;
 }
 
-/** upcoming = ainda não chegou a hora; past = já chegou. Próximos em ordem cronológica, passados do mais recente. */
-export async function listAgendaItems(userId: number, when?: "upcoming" | "past"): Promise<AgendaItem[]> {
+/**
+ * upcoming = ainda não chegou a hora; past = já chegou. Próximos em ordem cronológica,
+ * passados do mais recente. ticketId restringe aos itens vinculados a esse chamado.
+ */
+export async function listAgendaItems(
+  userId: number,
+  filters: { when?: "upcoming" | "past"; ticketId?: number } = {},
+): Promise<AgendaItem[]> {
   const params: SqlParams = { userId };
-  let where = "user_id = :userId";
-  let order = "scheduled_at DESC, id DESC";
-  if (when === "upcoming") {
-    where += " AND scheduled_at > NOW()";
-    order = "scheduled_at, id";
-  } else if (when === "past") {
-    where += " AND scheduled_at <= NOW()";
+  let where = "ag.user_id = :userId";
+  let order = "ag.scheduled_at DESC, ag.id DESC";
+  if (filters.when === "upcoming") {
+    where += " AND ag.scheduled_at > NOW()";
+    order = "ag.scheduled_at, ag.id";
+  } else if (filters.when === "past") {
+    where += " AND ag.scheduled_at <= NOW()";
   }
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT ${COLUMNS} FROM agenda_items WHERE ${where} ORDER BY ${order} LIMIT 500`,
-    params,
-  );
+  if (filters.ticketId !== undefined) {
+    where += " AND ag.ticket_id = :ticketId";
+    params.ticketId = filters.ticketId;
+  }
+  const [rows] = await pool.query<RowDataPacket[]>(`${SELECT_ITEM} WHERE ${where} ORDER BY ${order} LIMIT 500`, params);
   return rows.map(toItem);
 }
 
 /** Itens cuja hora chegou e que o usuário ainda não dispensou (os avisos na tela). */
 export async function listDueAgendaItems(userId: number): Promise<AgendaItem[]> {
   const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT ${COLUMNS} FROM agenda_items
-     WHERE user_id = ? AND scheduled_at <= NOW() AND dismissed_at IS NULL
-     ORDER BY scheduled_at, id`,
+    `${SELECT_ITEM}
+     WHERE ag.user_id = ? AND ag.scheduled_at <= NOW() AND ag.dismissed_at IS NULL
+     ORDER BY ag.scheduled_at, ag.id`,
     [userId],
   );
   return rows.map(toItem);
+}
+
+/** Exclui o item (a notificação dele sai junto); false se o item não for do usuário. */
+export async function deleteAgendaItem(userId: number, id: number): Promise<boolean> {
+  const [result] = await pool.execute<ResultSetHeader>("DELETE FROM agenda_items WHERE id = ? AND user_id = ?", [
+    id,
+    userId,
+  ]);
+  return result.affectedRows > 0;
 }
 
 /** Dispensa o aviso e marca a notificação dele como lida; false se o item não for do usuário. */

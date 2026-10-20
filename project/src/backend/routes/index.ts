@@ -76,6 +76,7 @@ apiRouter.get("/agenda", validate(agendaQuerySchema, "query"), agendaCtrl.list);
 apiRouter.post("/agenda", validate(createAgendaSchema), agendaCtrl.create);
 apiRouter.get("/agenda/due", agendaCtrl.due);
 apiRouter.post("/agenda/:id/dismiss", byId, agendaCtrl.dismiss);
+apiRouter.delete("/agenda/:id", byId, agendaCtrl.remove);
 
 // Notificações: cada usuário só vê e altera as próprias
 apiRouter.get("/notifications", validate(notificationQuerySchema, "query"), notificationCtrl.list);

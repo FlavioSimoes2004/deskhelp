@@ -36,7 +36,7 @@ Regras importantes:
 | `/chamados/novo` | Abrir chamado | todos |
 | `/chamados/:id` | Detalhe, conversa, histórico e painel de atendimento (admin e suporte) | dono, admin ou suporte |
 | `/perfil` | Nome e troca de senha | todos |
-| `/agenda` | Lembretes pessoais com data e hora; avisam na tela e nas notificações | todos |
+| `/agenda` | Lembretes pessoais com data e hora (opcionalmente vinculados a um chamado); avisam na tela e nas notificações; podem ser excluídos | todos |
 | `/api-docs` | Documentação da API (Swagger UI) | todos |
 | `/usuarios` | Cadastro e gestão de usuários | admin e suporte |
 | `/relatorios` | Indicadores por período + exportação CSV | admin |

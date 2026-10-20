@@ -4,6 +4,7 @@ import { PriorityTag, StatusBadge } from "../components/Badges";
 import { EmptyState, ErrorAlert, Loading } from "../components/Feedback";
 import { Field } from "../components/Field";
 import { ImagePreview, isImageAttachment } from "../components/ImagePreview";
+import { TicketAgendaPanel } from "../components/TicketAgendaPanel";
 import { TicketStub } from "../components/TicketStub";
 import { useAsync } from "../hooks/useAsync";
 import { useAuth } from "../hooks/useAuth";
@@ -167,6 +168,7 @@ export function TicketDetailPage() {
               onResolved={(updated) => ticket.setData(updated)}
             />
           )}
+          <TicketAgendaPanel ticketId={t.id} />
           <section className="panel" aria-labelledby="info-title">
             <div className="panel-head">
               <h2 id="info-title">Informações</h2>

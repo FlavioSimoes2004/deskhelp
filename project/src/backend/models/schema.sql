@@ -86,10 +86,11 @@ CREATE TABLE IF NOT EXISTS ticket_comment_attachments (
 
 -- Agenda pessoal: cada usuário cria lembretes com data e hora. Quando chega a hora,
 -- o sistema cria uma notificação (notified_at) e mostra um aviso na tela até o
--- usuário dispensar (dismissed_at).
+-- usuário dispensar (dismissed_at). ticket_id vincula o item a um chamado (opcional).
 CREATE TABLE IF NOT EXISTS agenda_items (
   id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id      INT UNSIGNED NOT NULL,
+  ticket_id    INT UNSIGNED NULL,
   title        VARCHAR(160) NOT NULL,
   description  TEXT NULL,
   scheduled_at DATETIME NOT NULL,
@@ -99,8 +100,13 @@ CREATE TABLE IF NOT EXISTS agenda_items (
   PRIMARY KEY (id),
   KEY idx_agenda_user_scheduled (user_id, scheduled_at),
   KEY idx_agenda_pending (notified_at, scheduled_at),
-  CONSTRAINT fk_agenda_user FOREIGN KEY (user_id) REFERENCES users (id)
+  KEY idx_agenda_ticket (ticket_id),
+  CONSTRAINT fk_agenda_user FOREIGN KEY (user_id) REFERENCES users (id),
+  CONSTRAINT fk_agenda_ticket FOREIGN KEY (ticket_id) REFERENCES tickets (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Bancos criados antes do vínculo da agenda com chamados (índice e chave criados por migrate.ts).
+ALTER TABLE agenda_items ADD COLUMN IF NOT EXISTS ticket_id INT UNSIGNED NULL AFTER user_id;
 
 -- Notificações de cada usuário. type: 'assigned' (um admin atribuiu o chamado a ele),
 -- 'comment' (alguém comentou em um chamado que ele abriu ou do qual é responsável) ou

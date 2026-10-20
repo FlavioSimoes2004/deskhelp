@@ -1,22 +1,34 @@
 import * as agenda from "../models/agendaModel.js";
+import { findTicketById } from "../models/ticketModel.js";
 import type { AuthUser } from "../models/types.js";
 import { HttpError, notFound } from "../utils/httpError.js";
 import { isNotInPast, parseLocalDateTime } from "./agendaRules.js";
+import { canViewTicket } from "./ticketRules.js";
 
 export async function createItem(
   user: AuthUser,
-  data: { title: string; description: string | null; scheduledAt: string },
+  data: { title: string; description: string | null; scheduledAt: string; ticketId: number | null },
 ) {
   const scheduledAt = parseLocalDateTime(data.scheduledAt);
   if (!scheduledAt || !isNotInPast(scheduledAt, new Date())) {
     const message = scheduledAt ? "Escolha uma data e hora a partir de agora" : "Data ou hora inválida";
     throw new HttpError(400, "VALIDATION_ERROR", message, [{ field: "scheduledAt", message }]);
   }
+  if (data.ticketId !== null) {
+    // Só vincula chamados que o usuário pode ver (mesma regra da página do chamado).
+    const ticket = await findTicketById(data.ticketId);
+    if (!ticket || !canViewTicket(user, ticket)) throw notFound("Chamado não encontrado");
+  }
   const id = await agenda.insertAgendaItem(user.id, { ...data, scheduledAt });
   return agenda.findAgendaItem(user.id, id);
 }
 
-export const listItems = (user: AuthUser, when?: "upcoming" | "past") => agenda.listAgendaItems(user.id, when);
+export const listItems = (user: AuthUser, filters: { when?: "upcoming" | "past"; ticketId?: number }) =>
+  agenda.listAgendaItems(user.id, filters);
+
+export async function deleteItem(user: AuthUser, id: number) {
+  if (!(await agenda.deleteAgendaItem(user.id, id))) throw notFound("Item da agenda não encontrado");
+}
 
 /** Avisos a mostrar na tela; antes gera as notificações que ainda faltam deste usuário. */
 export async function dueItems(user: AuthUser) {

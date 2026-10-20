@@ -1240,6 +1240,52 @@ table.table {
   overflow-wrap: anywhere;
 }
 
+.agenda-reminder-ticket {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: var(--step--1);
+}
+
+/* Lembretes da agenda na página do chamado. */
+.ticket-agenda-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ticket-agenda-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.ticket-agenda-list strong,
+.ticket-agenda-list .muted {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.ticket-agenda-list .muted {
+  color: var(--ink-3);
+  font-size: var(--step--1);
+  margin-bottom: 4px;
+}
+
+/* O formulário de lembrete dentro do painel não repete a moldura de painel. */
+.panel .panel.form {
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+  margin-top: 8px;
+}
+
 /* Pré-visualização de imagem anexada. */
 .image-preview {
   border: 0;

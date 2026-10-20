@@ -3,7 +3,7 @@ import { currentUser } from "../middlewares/auth.js";
 import * as agenda from "../services/agendaService.js";
 
 export async function list(req: Request, res: Response) {
-  res.json({ data: await agenda.listItems(currentUser(req), res.locals.query.when) });
+  res.json({ data: await agenda.listItems(currentUser(req), res.locals.query) });
 }
 
 export async function create(req: Request, res: Response) {
@@ -12,6 +12,11 @@ export async function create(req: Request, res: Response) {
 
 export async function due(req: Request, res: Response) {
   res.json({ data: await agenda.dueItems(currentUser(req)) });
+}
+
+export async function remove(req: Request, res: Response) {
+  await agenda.deleteItem(currentUser(req), res.locals.params.id);
+  res.status(204).end();
 }
 
 export async function dismiss(req: Request, res: Response) {

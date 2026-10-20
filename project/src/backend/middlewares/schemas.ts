@@ -157,10 +157,13 @@ export const createAgendaSchema = z.object({
     .transform((v) => v || null),
   // Data e hora local, como o campo datetime-local envia (AAAA-MM-DDTHH:MM).
   scheduledAt: z.string().regex(LOCAL_DATETIME, "Informe a data e a hora"),
+  /** Chamado a vincular (opcional). */
+  ticketId: id.nullable().default(null),
 });
 
 export const agendaQuerySchema = z.object({
   when: z.enum(["upcoming", "past"]).optional(),
+  ticketId: id.optional(),
 });
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use o formato AAAA-MM-DD");

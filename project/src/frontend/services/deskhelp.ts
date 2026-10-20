@@ -127,11 +127,12 @@ export const notificationService = {
 };
 
 export const agendaService = {
-  list: (when: "upcoming" | "past" | "" = "") =>
-    api.get<{ data: AgendaItem[] }>("/agenda", { when }).then((r) => r.data),
-  /** scheduledAt no formato do campo datetime-local: AAAA-MM-DDTHH:MM. */
-  create: (data: { title: string; description: string | null; scheduledAt: string }) =>
+  list: (filters: { when?: "upcoming" | "past" | ""; ticketId?: number } = {}) =>
+    api.get<{ data: AgendaItem[] }>("/agenda", { ...filters }).then((r) => r.data),
+  /** scheduledAt no formato do campo datetime-local: AAAA-MM-DDTHH:MM; ticketId vincula a um chamado. */
+  create: (data: { title: string; description: string | null; scheduledAt: string; ticketId?: number | null }) =>
     api.post<{ data: AgendaItem }>("/agenda", data).then((r) => r.data),
+  remove: (id: number) => api.delete(`/agenda/${id}`),
   /** Itens cuja hora chegou e ainda não foram dispensados (avisos na tela). */
   due: () => api.get<{ data: AgendaItem[] }>("/agenda/due").then((r) => r.data),
   dismiss: (id: number) => api.post<void>(`/agenda/${id}/dismiss`),

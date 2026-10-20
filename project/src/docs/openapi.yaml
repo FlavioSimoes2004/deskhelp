@@ -438,6 +438,7 @@ paths:
           in: query
           description: "`upcoming` (ainda não chegou a hora, em ordem cronológica) ou `past` (mais recentes primeiro); sem valor, todos"
           schema: { type: string, enum: [upcoming, past] }
+        - { name: ticketId, in: query, description: Só os itens vinculados a este chamado, schema: { type: integer } }
       responses:
         "200":
           description: Itens
@@ -468,6 +469,9 @@ paths:
                   type: string
                   pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$"
                   description: Data e hora local (AAAA-MM-DDTHH:MM), a partir de agora
+                ticketId:
+                  type: [integer, "null"]
+                  description: Chamado a vincular; precisa ser um chamado que o usuário pode ver (senão 404)
             example: { title: "Ligar para o fornecedor", scheduledAt: "2026-10-21T09:00" }
       responses:
         "201":
@@ -480,6 +484,20 @@ paths:
                   data: { $ref: "#/components/schemas/AgendaItem" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /agenda/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    delete:
+      tags: [Agenda]
+      summary: Excluir item da agenda
+      description: Só o dono do item. A notificação do item, se já existir, sai junto.
+      operationId: deleteAgendaItem
+      responses:
+        "204": { description: Excluído }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /agenda/due:
     get:
@@ -1197,6 +1215,8 @@ components:
       type: object
       properties:
         id: { type: integer }
+        ticketId: { type: [integer, "null"], description: Chamado vinculado }
+        ticketTitle: { type: [string, "null"] }
         title: { type: string }
         description: { type: [string, "null"] }
         scheduledAt: { type: string, format: date-time }

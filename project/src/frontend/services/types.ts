@@ -182,6 +182,9 @@ export interface PeopleReport {
 
 export interface AgendaItem {
   id: number;
+  /** Chamado vinculado (opcional). */
+  ticketId: number | null;
+  ticketTitle: string | null;
   title: string;
   description: string | null;
   scheduledAt: string;
