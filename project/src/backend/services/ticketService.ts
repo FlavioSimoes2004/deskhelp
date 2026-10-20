@@ -37,6 +37,11 @@ async function assertCategory(categoryId: number) {
 
 export async function listTickets(user: AuthUser, query: TicketQuery) {
   const { page, pageSize, ...filters } = query;
+  if (filters.from && filters.to && filters.from > filters.to) {
+    throw new HttpError(400, "VALIDATION_ERROR", "A data inicial deve ser anterior à final", [
+      { field: "from", message: "A data inicial deve ser anterior à final" },
+    ]);
+  }
   const scoped = isStaff(user.role) ? filters : { ...filters, requesterId: user.id };
   const { items, total } = await tickets.listTickets(scoped, page, pageSize);
   return { data: items, pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) } };
@@ -147,6 +152,11 @@ export async function getAttachmentFile(user: AuthUser, attachmentId: number) {
   if (!attachment) throw notFound("Anexo não encontrado");
   await getVisibleTicket(user, attachment.ticketId);
   return { path: resolveStored(attachment.filePath), name: attachment.originalName };
+}
+
+/** Data do chamado aberto/em andamento mais antigo que o usuário pode ver (padrão do filtro "De"). */
+export function getOldestOpenDate(user: AuthUser) {
+  return tickets.oldestOpenTicketDate(isStaff(user.role) ? undefined : user.id);
 }
 
 /** Resumo para a página inicial: admin e suporte veem o geral e o que está com eles; comum vê os próprios. */

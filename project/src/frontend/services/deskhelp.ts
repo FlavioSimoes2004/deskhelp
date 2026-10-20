@@ -41,6 +41,9 @@ export interface TicketFilters {
   categoryId?: number | "";
   assigneeId?: number | "";
   search?: string;
+  /** Período pela data de abertura (AAAA-MM-DD, inclusivo). */
+  from?: string;
+  to?: string;
   page?: number;
   pageSize?: number;
 }
@@ -48,6 +51,8 @@ export interface TicketFilters {
 export const ticketService = {
   list: (filters: TicketFilters) =>
     api.get<{ data: Ticket[]; pagination: Pagination }>("/tickets", { ...filters }),
+  /** Data (AAAA-MM-DD) do chamado aberto/em andamento mais antigo visível; null se não houver. */
+  oldestOpenDate: () => api.get<{ data: { date: string | null } }>("/tickets/oldest-open").then((r) => r.data.date),
   overview: () =>
     api
       .get<{ data: { byStatus: StatusCounts; assignedToMe?: StatusCounts } }>("/tickets/overview")

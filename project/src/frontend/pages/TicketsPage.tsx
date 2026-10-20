@@ -6,7 +6,7 @@ import { useAsync } from "../hooks/useAsync";
 import { useAuth } from "../hooks/useAuth";
 import { ticketService, userService } from "../services/deskhelp";
 import type { TicketPriority, TicketStatus } from "../services/types";
-import { PRIORITY_LABEL, PRIORITY_ORDER, STATUS_LABEL, STATUS_ORDER } from "../utils/format";
+import { isoDay, PRIORITY_LABEL, PRIORITY_ORDER, STATUS_LABEL, STATUS_ORDER } from "../utils/format";
 
 const PAGE_SIZE = 20;
 
@@ -19,6 +19,16 @@ export function TicketsPage() {
   const assigneeId = params.get("assigneeId") ?? "";
   const search = params.get("search") ?? "";
   const page = Number(params.get("page") ?? 1);
+
+  // Período: sem escolha na URL, "De" é a data do chamado aberto/em andamento mais
+  // antigo e "Até" é hoje. Sem chamados assim, "De" fica em branco (sem limite).
+  const oldestOpen = useAsync(() => ticketService.oldestOpenDate(), []);
+  const today = isoDay(new Date());
+  const fromParam = params.get("from");
+  const from = fromParam ?? oldestOpen.data ?? "";
+  const to = params.get("to") ?? today;
+  // Enquanto o padrão de "De" não chega, não busca (evita listar com o período errado).
+  const waitingDefault = fromParam === null && oldestOpen.loading;
 
   // Busca com atraso para não consultar a cada tecla.
   const [searchDraft, setSearchDraft] = useState(search);
@@ -34,16 +44,20 @@ export function TicketsPage() {
   const staff = useAsync(() => (isStaff ? userService.staff() : Promise.resolve([])), [isStaff]);
   const list = useAsync(
     () =>
-      ticketService.list({
-        status,
-        priority,
-        categoryId: categoryId ? Number(categoryId) : "",
-        assigneeId: assigneeId ? Number(assigneeId) : "",
-        search,
-        page,
-        pageSize: PAGE_SIZE,
-      }),
-    [status, priority, categoryId, assigneeId, search, page],
+      waitingDefault
+        ? Promise.resolve(null)
+        : ticketService.list({
+            status,
+            priority,
+            categoryId: categoryId ? Number(categoryId) : "",
+            assigneeId: assigneeId ? Number(assigneeId) : "",
+            search,
+            from,
+            to,
+            page,
+            pageSize: PAGE_SIZE,
+          }),
+    [status, priority, categoryId, assigneeId, search, from, to, page, waitingDefault],
   );
 
   function update(changes: Record<string, string>) {
@@ -56,7 +70,8 @@ export function TicketsPage() {
     setParams(next, { replace: true });
   }
 
-  const hasFilters = Boolean(status || priority || categoryId || assigneeId || search);
+  // O período padrão não conta como filtro; só o escolhido pelo usuário.
+  const hasFilters = Boolean(status || priority || categoryId || assigneeId || search || fromParam !== null || params.has("to"));
   const pagination = list.data?.pagination;
 
   return (
@@ -128,6 +143,28 @@ export function TicketsPage() {
             ))}
           </select>
         </div>
+        <div className="field">
+          <label htmlFor="f-from">De</label>
+          <input
+            id="f-from"
+            className="input"
+            type="date"
+            value={from}
+            max={to}
+            onChange={(e) => update({ from: e.target.value })}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="f-to">Até</label>
+          <input
+            id="f-to"
+            className="input"
+            type="date"
+            value={to}
+            min={from || undefined}
+            onChange={(e) => update({ to: e.target.value })}
+          />
+        </div>
         {isStaff && (
           <div className="field">
             <label htmlFor="f-assignee">Responsável</label>
@@ -154,7 +191,7 @@ export function TicketsPage() {
       </div>
 
       <ErrorAlert error={list.error} onRetry={list.reload} />
-      {list.loading && !list.data ? (
+      {waitingDefault || (list.loading && !list.data) ? (
         <Loading />
       ) : list.data?.data.length ? (
         <>

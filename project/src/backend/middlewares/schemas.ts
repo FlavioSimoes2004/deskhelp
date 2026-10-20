@@ -7,6 +7,7 @@ const email = z.string().trim().toLowerCase().pipe(z.email("E-mail inválido").m
 const password = z.string().min(8, "A senha precisa ter pelo menos 8 caracteres").max(128);
 const name = z.string().trim().min(2, "Informe o nome").max(120);
 const id = z.coerce.number().int().positive();
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use o formato AAAA-MM-DD");
 
 export const loginSchema = z.object({
   email,
@@ -88,6 +89,9 @@ export const ticketQuerySchema = z.object({
   categoryId: id.optional(),
   assigneeId: id.optional(),
   search: z.string().trim().max(100).optional(),
+  // Período pela data de abertura (AAAA-MM-DD, inclusivo).
+  from: isoDate.optional(),
+  to: isoDate.optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce
     .number()
@@ -176,7 +180,6 @@ export const agendaQuerySchema = z.object({
   ticketId: id.optional(),
 });
 
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use o formato AAAA-MM-DD");
 
 export const reportQuerySchema = z.object({
   from: isoDate.optional(),

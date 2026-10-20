@@ -8,6 +8,10 @@ export async function list(req: Request, res: Response) {
   res.json(await tickets.listTickets(currentUser(req), res.locals.query));
 }
 
+export async function oldestOpen(req: Request, res: Response) {
+  res.json({ data: { date: await tickets.getOldestOpenDate(currentUser(req)) } });
+}
+
 export async function overview(req: Request, res: Response) {
   res.json({ data: await tickets.getOverview(currentUser(req)) });
 }

@@ -72,6 +72,10 @@ export interface TicketFilters {
   assigneeId?: number;
   requesterId?: number;
   search?: string;
+  /** Data de abertura a partir de (AAAA-MM-DD, inclusivo). */
+  from?: string;
+  /** Data de abertura até (AAAA-MM-DD, inclusivo: vale o dia todo). */
+  to?: string;
 }
 
 function buildWhere(filters: TicketFilters) {
@@ -94,6 +98,14 @@ function buildWhere(filters: TicketFilters) {
     where.push(`(t.title LIKE :search OR t.description LIKE :search${Number.isInteger(asId) && asId > 0 ? " OR t.id = :searchId" : ""})`);
     params.search = `%${filters.search}%`;
     params.searchId = asId;
+  }
+  if (filters.from) {
+    where.push("t.created_at >= :from");
+    params.from = filters.from;
+  }
+  if (filters.to) {
+    where.push("t.created_at < DATE_ADD(:to, INTERVAL 1 DAY)");
+    params.to = filters.to;
   }
   return { sql: where.length ? `WHERE ${where.join(" AND ")}` : "", params };
 }
@@ -314,4 +326,18 @@ export async function countByStatus(scope: { requesterId?: number; assigneeId?: 
     params,
   );
   return Object.fromEntries(rows.map((r) => [r.status, Number(r.total)])) as Partial<Record<TicketStatus, number>>;
+}
+
+/**
+ * Data de abertura (AAAA-MM-DD) do chamado mais antigo ainda "aberto" ou "em andamento";
+ * null se não houver. requesterId restringe aos chamados de quem abriu.
+ */
+export async function oldestOpenTicketDate(requesterId?: number): Promise<string | null> {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT DATE_FORMAT(MIN(t.created_at), '%Y-%m-%d') AS day
+     FROM tickets t
+     WHERE t.status IN ('aberto', 'em_andamento') ${requesterId === undefined ? "" : "AND t.requester_id = :requesterId"}`,
+    { requesterId },
+  );
+  return rows[0]?.day ?? null;
 }

@@ -65,6 +65,7 @@ apiRouter.patch("/auth/me", validate(updateProfileSchema), authCtrl.updateMe);
 
 apiRouter.get("/categories", ticketCtrl.categories);
 apiRouter.get("/tickets/overview", ticketCtrl.overview);
+apiRouter.get("/tickets/oldest-open", ticketCtrl.oldestOpen);
 apiRouter.get("/tickets", validate(ticketQuerySchema, "query"), ticketCtrl.list);
 apiRouter.post("/tickets", validate(createTicketSchema), ticketCtrl.create);
 apiRouter.get("/tickets/:id", byId, ticketCtrl.get);
