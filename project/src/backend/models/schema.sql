@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS tickets (
   -- Máquina a que o chamado se refere (vinculada por admin/suporte; obrigatória para "resolvido").
   -- A chave estrangeira para machines é criada por migrate.ts, pois machines vem depois.
   machine_id   INT UNSIGNED NULL,
+  -- Solução do chamado: registrada pelo responsável ou por um admin, com o chamado "resolvido".
+  solution     TEXT NULL,
   created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   resolved_at  DATETIME NULL,
@@ -153,6 +155,9 @@ CREATE TABLE IF NOT EXISTS machines (
   KEY idx_machines_user (user_id),
   CONSTRAINT fk_machines_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Bancos criados antes da coluna tickets.solution.
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS solution TEXT NULL AFTER machine_id;
 
 -- Bancos criados antes da coluna tickets.machine_id.
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS machine_id INT UNSIGNED NULL AFTER assignee_id;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applySupportRules,
+  assertCanSetSolution,
   assertMachineWhenResolved,
   canComment,
   canViewTicket,
@@ -103,6 +104,17 @@ describe("statusTimestamps", () => {
   });
 });
 
+const baseTicket = {
+  title: "Impressora sem toner",
+  description: "A impressora do 2º andar parou.",
+  status: "aberto" as const,
+  priority: "media" as const,
+  categoryId: 1,
+  assigneeId: null,
+  machineId: null,
+  solution: null,
+};
+
 describe("diffTicket", () => {
   const current = {
     title: "Impressora sem toner",
@@ -112,6 +124,7 @@ describe("diffTicket", () => {
     categoryId: 1,
     assigneeId: null,
     machineId: null,
+    solution: null,
   };
 
   it("returns only the fields whose value actually changes", () => {
@@ -163,5 +176,31 @@ describe("assertMachineWhenResolved", () => {
 describe("applySupportRules and machines", () => {
   it("lets support link a machine", () => {
     expect(applySupportRules(support, { status: "em_andamento", assigneeId: 7 }, { machineId: 3 })).toEqual({ machineId: 3 });
+  });
+});
+
+describe("assertCanSetSolution", () => {
+  const resolved = { status: "resolvido" as const, assigneeId: 7 };
+
+  it("lets the assignee and admins record the solution of a resolved ticket", () => {
+    expect(() => assertCanSetSolution(support, resolved)).not.toThrow();
+    expect(() => assertCanSetSolution(admin, resolved)).not.toThrow();
+    expect(() => assertCanSetSolution(admin, { ...resolved, assigneeId: null })).not.toThrow();
+  });
+
+  it("denies anyone else, including the requester", () => {
+    expect(() => assertCanSetSolution(comum, resolved)).toThrow(/responsável/);
+    expect(() => assertCanSetSolution({ id: 8, role: "support" }, resolved)).toThrow(/responsável/);
+  });
+
+  it("requires the ticket to be resolved", () => {
+    expect(() => assertCanSetSolution(support, { ...resolved, status: "em_andamento" })).toThrow(/resolvido/);
+    expect(() => assertCanSetSolution(admin, { ...resolved, status: "fechado" })).toThrow(/resolvido/);
+  });
+
+  it("records the solution in the history", () => {
+    expect(diffTicket({ ...baseTicket, solution: null }, { solution: "Troquei o toner" })).toEqual([
+      { field: "solution", oldValue: null, newValue: "Troquei o toner" },
+    ]);
   });
 });

@@ -65,6 +65,23 @@ export interface TicketEditableFields {
   categoryId: number;
   assigneeId: number | null;
   machineId: number | null;
+  solution: string | null;
+}
+
+/**
+ * Quem registra a solução: o responsável pelo chamado ou um admin, e só com o
+ * chamado "resolvido".
+ */
+export function assertCanSetSolution(
+  user: AuthUser,
+  ticket: { status: TicketStatus; assigneeId: number | null },
+): void {
+  if (user.role !== "admin" && ticket.assigneeId !== user.id) {
+    throw forbidden("Somente o responsável pelo chamado ou um administrador pode registrar a solução");
+  }
+  if (ticket.status !== "resolvido") {
+    throw new HttpError(409, "TICKET_NOT_RESOLVED", "A solução só pode ser registrada com o chamado resolvido");
+  }
 }
 
 /**

@@ -105,6 +105,7 @@ export const api = {
   get: <T>(path: string, query?: Query) => request<T>("GET", path, { query }),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, { body }),
   patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, { body }),
+  put: <T>(path: string, body?: unknown) => request<T>("PUT", path, { body }),
   /** Envia multipart/form-data (ex. comentário com anexos). */
   postForm: <T>(path: string, form: FormData) => request<T>("POST", path, { body: form }),
   delete: (path: string) => request<void>("DELETE", path),

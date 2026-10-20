@@ -31,6 +31,7 @@ export interface Ticket {
   machineId: number | null;
   machineMacAddress: string | null;
   machineDescription: string | null;
+  solution: string | null;
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;
@@ -59,7 +60,7 @@ export interface TicketAttachment {
 export interface TicketHistoryEntry {
   id: number;
   userName: string;
-  field: "title" | "description" | "status" | "priority" | "categoryId" | "assigneeId" | "machineId";
+  field: "title" | "description" | "status" | "priority" | "categoryId" | "assigneeId" | "machineId" | "solution";
   oldValue: string | null;
   newValue: string | null;
   createdAt: string;

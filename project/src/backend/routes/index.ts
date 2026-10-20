@@ -22,6 +22,7 @@ import {
   notificationQuerySchema,
   registerSchema,
   reportQuerySchema,
+  solutionSchema,
   ticketQuerySchema,
   updateMachineSchema,
   updateNotificationSchema,
@@ -69,6 +70,8 @@ apiRouter.post("/tickets", validate(createTicketSchema), ticketCtrl.create);
 apiRouter.get("/tickets/:id", byId, ticketCtrl.get);
 apiRouter.post("/tickets/:id/comments", byId, parseMultipart, validate(commentSchema), ticketCtrl.addComment);
 apiRouter.post("/tickets/:id/resolve", requireRole("comum"), byId, ticketCtrl.resolve);
+// Solução: responsável ou admin, com o chamado resolvido (regras no ticketService)
+apiRouter.put("/tickets/:id/solution", byId, validate(solutionSchema), ticketCtrl.setSolution);
 apiRouter.get("/attachments/:id", byId, ticketCtrl.downloadAttachment);
 
 // Agenda: cada usuário só vê e altera os próprios itens

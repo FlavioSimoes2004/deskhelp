@@ -34,6 +34,10 @@ export async function addComment(req: Request, res: Response) {
   res.status(201).json({ data: ticket });
 }
 
+export async function setSolution(req: Request, res: Response) {
+  res.json({ data: await tickets.setSolution(currentUser(req), res.locals.params.id, res.locals.body.solution) });
+}
+
 export async function resolve(req: Request, res: Response) {
   res.json({ data: await tickets.resolveOwnTicket(currentUser(req), res.locals.params.id) });
 }

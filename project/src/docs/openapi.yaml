@@ -387,6 +387,42 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
         "413": { description: Anexo maior que o limite }
 
+  /tickets/{id}/solution:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    put:
+      tags: [Chamados]
+      summary: Registrar a solução do chamado
+      description: |
+        Somente o responsável pelo chamado ou um admin (os demais recebem 403), e só com o chamado
+        `resolvido` (senão 409 `TICKET_NOT_RESOLVED`). Envie `null` ou texto vazio para remover.
+        A mudança é registrada no histórico (`field: solution`).
+      operationId: setTicketSolution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [solution]
+              properties:
+                solution: { type: [string, "null"], maxLength: 10000 }
+            example: { solution: "Toner substituído e impressora reiniciada." }
+      responses:
+        "200":
+          description: Chamado atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/TicketDetail" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /tickets/{id}/resolve:
     parameters:
       - $ref: "#/components/parameters/Id"
@@ -1088,6 +1124,7 @@ components:
         machineId: { type: [integer, "null"] }
         machineMacAddress: { type: [string, "null"] }
         machineDescription: { type: [string, "null"] }
+        solution: { type: [string, "null"], description: Solução registrada pelo responsável ou por um admin }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         resolvedAt: { type: [string, "null"], format: date-time }
@@ -1119,7 +1156,7 @@ components:
       properties:
         id: { type: integer }
         userName: { type: string }
-        field: { type: string, enum: [title, description, status, priority, categoryId, assigneeId, machineId] }
+        field: { type: string, enum: [title, description, status, priority, categoryId, assigneeId, machineId, solution] }
         oldValue: { type: [string, "null"] }
         newValue: { type: [string, "null"] }
         createdAt: { type: string, format: date-time }

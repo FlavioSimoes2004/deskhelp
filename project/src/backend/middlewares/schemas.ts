@@ -68,6 +68,16 @@ export const updateTicketSchema = z
   })
   .refine((data) => Object.keys(data).length > 0, { message: "Nenhum campo para atualizar" });
 
+export const solutionSchema = z.object({
+  // Vazio remove a solução.
+  solution: z
+    .string()
+    .trim()
+    .max(10000, "A solução pode ter no máximo 10000 caracteres")
+    .nullable()
+    .transform((v) => v || null),
+});
+
 export const commentSchema = z.object({
   body: z.string().trim().min(1, "Escreva o comentário").max(5000),
 });

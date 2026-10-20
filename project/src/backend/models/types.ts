@@ -40,6 +40,7 @@ export interface Ticket {
   machineId: number | null;
   machineMacAddress: string | null;
   machineDescription: string | null;
+  solution: string | null;
   createdAt: Date;
   updatedAt: Date;
   resolvedAt: Date | null;

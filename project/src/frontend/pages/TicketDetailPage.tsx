@@ -68,6 +68,9 @@ function describeChange(
       return "editou a descrição";
     case "machineId":
       return entry.newValue ? `vinculou a máquina ${machineName(entry.newValue)}` : "removeu a máquina vinculada";
+    case "solution":
+      if (!entry.newValue) return "removeu a solução";
+      return entry.oldValue ? "editou a solução" : "registrou a solução";
   }
 }
 
@@ -139,6 +142,11 @@ export function TicketDetailPage() {
             </div>
             <p className="description">{t.description}</p>
           </section>
+          <SolutionPanel
+            ticket={t}
+            canEdit={isAdmin || (user !== null && t.assigneeId === user.id)}
+            onSaved={(updated) => ticket.setData(updated)}
+          />
           <Conversation
             ticket={t}
             blockedReason={commentBlocked}
@@ -581,6 +589,99 @@ function ResolvePanel({
           </p>
         )}
       </div>
+    </section>
+  );
+}
+
+/**
+ * Solução do chamado: visível a todos que veem o chamado; o responsável ou um admin
+ * registra/edita com o chamado resolvido (a API aplica as mesmas regras).
+ */
+function SolutionPanel({
+  ticket,
+  canEdit,
+  onSaved,
+}: {
+  ticket: TicketDetail;
+  canEdit: boolean;
+  onSaved: (ticket: TicketDetail) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(ticket.solution ?? "");
+  const [error, setError] = useState<ApiError | null>(null);
+  const [saving, setSaving] = useState(false);
+  const isResolved = ticket.status === "resolvido";
+
+  // Fora do modo de edição, acompanha o valor salvo (ex.: depois de recarregar o chamado).
+  useEffect(() => {
+    if (!editing) setText(ticket.solution ?? "");
+  }, [ticket.solution, editing]);
+
+  // Sem solução e sem permissão de registrar: o painel não aparece.
+  if (!ticket.solution && !canEdit) return null;
+
+  async function onSave(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      onSaved(await ticketService.setSolution(ticket.id, text.trim() || null));
+      setEditing(false);
+    } catch (err) {
+      setError(err as ApiError);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="panel" aria-labelledby="solution-title">
+      <div className="panel-head">
+        <h2 id="solution-title">Solução</h2>
+        {canEdit && isResolved && !editing && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(true)}>
+            {ticket.solution ? "Editar solução" : "Registrar solução"}
+          </button>
+        )}
+      </div>
+      {editing ? (
+        <form className="form" onSubmit={onSave}>
+          <ErrorAlert error={error} />
+          <Field label="Como o problema foi resolvido" hint="Deixe em branco e salve para remover a solução.">
+            <textarea
+              className="textarea"
+              rows={5}
+              value={text}
+              maxLength={10000}
+              onChange={(e) => setText(e.target.value)}
+              autoFocus
+            />
+          </Field>
+          <div className="form-actions">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                setEditing(false);
+                setError(null);
+              }}
+            >
+              Cancelar
+            </button>
+            <button className="btn btn-primary" type="submit" disabled={saving}>
+              {saving ? "Salvando…" : "Salvar solução"}
+            </button>
+          </div>
+        </form>
+      ) : ticket.solution ? (
+        <p className="description">{ticket.solution}</p>
+      ) : (
+        <p className="muted" style={{ margin: 0 }}>
+          {isResolved
+            ? "Nenhuma solução registrada ainda."
+            : "A solução poderá ser registrada quando o chamado estiver resolvido."}
+        </p>
+      )}
     </section>
   );
 }

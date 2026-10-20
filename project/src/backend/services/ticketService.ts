@@ -10,6 +10,7 @@ import { forbidden, HttpError, notFound } from "../utils/httpError.js";
 import { assignmentRecipient, commentRecipients } from "./notificationRules.js";
 import {
   applySupportRules,
+  assertCanSetSolution,
   assertMachineWhenResolved,
   canComment,
   canViewTicket,
@@ -81,6 +82,15 @@ export async function updateTicket(user: AuthUser, id: number, requested: Partia
   const recipient = assignmentRecipient(user, current, patch);
   const notifications = recipient ? [{ userId: recipient, type: "assigned" as const, ticketId: id, actorId: user.id }] : [];
   await tickets.updateTicket(id, user.id, { ...patch, ...timestamps }, changes, notifications);
+  return getTicketDetail(user, id);
+}
+
+/** Registra (ou remove, com null) a solução do chamado; a mudança entra no histórico. */
+export async function setSolution(user: AuthUser, id: number, solution: string | null) {
+  const current = await getVisibleTicket(user, id);
+  assertCanSetSolution(user, current);
+  const changes = diffTicket(current, { solution });
+  if (changes.length > 0) await tickets.updateTicket(id, user.id, { solution }, changes);
   return getTicketDetail(user, id);
 }
 

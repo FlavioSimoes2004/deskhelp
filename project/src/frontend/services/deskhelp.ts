@@ -76,6 +76,9 @@ export const ticketService = {
     for (const file of files) form.append("attachments", file);
     return api.postForm<{ data: TicketDetail }>(`/tickets/${id}/comments`, form).then((r) => r.data);
   },
+  /** Responsável ou admin, com o chamado resolvido; null/vazio remove a solução. */
+  setSolution: (id: number, solution: string | null) =>
+    api.put<{ data: TicketDetail }>(`/tickets/${id}/solution`, { solution }).then((r) => r.data),
   resolve: (id: number) => api.post<{ data: TicketDetail }>(`/tickets/${id}/resolve`).then((r) => r.data),
   attachmentBlob: (attachment: TicketAttachment) => api.blob(`/attachments/${attachment.id}`),
   downloadAttachment: (attachment: TicketAttachment) =>

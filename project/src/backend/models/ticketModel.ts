@@ -36,6 +36,7 @@ interface TicketRow extends RowDataPacket {
   machine_id: number | null;
   machine_mac_address: string | null;
   machine_description: string | null;
+  solution: string | null;
   created_at: Date;
   updated_at: Date;
   resolved_at: Date | null;
@@ -57,6 +58,7 @@ const toTicket = (row: TicketRow): Ticket => ({
   machineId: row.machine_id,
   machineMacAddress: row.machine_mac_address,
   machineDescription: row.machine_description,
+  solution: row.solution,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   resolvedAt: row.resolved_at,
@@ -135,6 +137,7 @@ const COLUMN: Record<keyof TicketEditableFields, string> = {
   categoryId: "category_id",
   assigneeId: "assignee_id",
   machineId: "machine_id",
+  solution: "solution",
 };
 
 /** Atualiza o chamado e grava o histórico (e as notificações geradas) na mesma transação. */
