@@ -1,5 +1,6 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
+import * as agendaCtrl from "../controllers/agendaController.js";
 import * as authCtrl from "../controllers/authController.js";
 import * as docsCtrl from "../controllers/docsController.js";
 import * as machineCtrl from "../controllers/machineController.js";
@@ -9,7 +10,9 @@ import * as ticketCtrl from "../controllers/ticketController.js";
 import * as userCtrl from "../controllers/userController.js";
 import { authenticate, requireRole } from "../middlewares/auth.js";
 import {
+  agendaQuerySchema,
   commentSchema,
+  createAgendaSchema,
   createMachineSchema,
   createTicketSchema,
   createUserSchema,
@@ -67,6 +70,12 @@ apiRouter.get("/tickets/:id", byId, ticketCtrl.get);
 apiRouter.post("/tickets/:id/comments", byId, parseMultipart, validate(commentSchema), ticketCtrl.addComment);
 apiRouter.post("/tickets/:id/resolve", requireRole("comum"), byId, ticketCtrl.resolve);
 apiRouter.get("/attachments/:id", byId, ticketCtrl.downloadAttachment);
+
+// Agenda: cada usuário só vê e altera os próprios itens
+apiRouter.get("/agenda", validate(agendaQuerySchema, "query"), agendaCtrl.list);
+apiRouter.post("/agenda", validate(createAgendaSchema), agendaCtrl.create);
+apiRouter.get("/agenda/due", agendaCtrl.due);
+apiRouter.post("/agenda/:id/dismiss", byId, agendaCtrl.dismiss);
 
 // Notificações: cada usuário só vê e altera as próprias
 apiRouter.get("/notifications", validate(notificationQuerySchema, "query"), notificationCtrl.list);

@@ -1,6 +1,7 @@
 import { createApp } from "./app.js";
 import { pool } from "./config/database.js";
 import { env } from "./config/env.js";
+import { startAgendaScheduler } from "./services/agendaService.js";
 
 try {
   await pool.query("SELECT 1");
@@ -12,4 +13,5 @@ try {
 
 createApp().listen(env.PORT, () => {
   console.log(`DeskHelp API ouvindo em http://localhost:${env.PORT} (${env.NODE_ENV})`);
+  startAgendaScheduler();
 });

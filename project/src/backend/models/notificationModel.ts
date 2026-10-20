@@ -2,9 +2,10 @@ import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/prom
 import { pool, type SqlParams } from "../config/database.js";
 import type { Notification, NotificationType } from "./types.js";
 
+/** Notificações de chamado ("assigned"/"comment"); as da agenda são criadas em agendaModel. */
 export interface NewNotification {
   userId: number;
-  type: NotificationType;
+  type: Exclude<NotificationType, "agenda">;
   ticketId: number;
   actorId: number;
   commentId?: number | null;
@@ -41,11 +42,14 @@ export async function listNotifications(userId: number, filters: NotificationFil
   const offset = (page - 1) * pageSize;
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT n.id, n.type, n.ticket_id, t.title AS ticket_title, n.actor_id, a.name AS actor_name,
-            n.comment_id, LEFT(cm.body, 160) AS comment_excerpt, n.read_at, n.created_at
+            n.comment_id, LEFT(cm.body, 160) AS comment_excerpt,
+            n.agenda_id, ag.title AS agenda_title, ag.scheduled_at AS agenda_scheduled_at,
+            n.read_at, n.created_at
      FROM notifications n
-     JOIN tickets t ON t.id = n.ticket_id
-     JOIN users a ON a.id = n.actor_id
+     LEFT JOIN tickets t ON t.id = n.ticket_id
+     LEFT JOIN users a ON a.id = n.actor_id
      LEFT JOIN ticket_comments cm ON cm.id = n.comment_id
+     LEFT JOIN agenda_items ag ON ag.id = n.agenda_id
      ${sql}
      ORDER BY n.created_at DESC, n.id DESC
      LIMIT ${pageSize} OFFSET ${offset}`,
@@ -61,6 +65,9 @@ export async function listNotifications(userId: number, filters: NotificationFil
     actorName: r.actor_name,
     commentId: r.comment_id,
     commentExcerpt: r.comment_excerpt,
+    agendaId: r.agenda_id,
+    agendaTitle: r.agenda_title,
+    agendaScheduledAt: r.agenda_scheduled_at,
     read: r.read_at !== null,
     readAt: r.read_at,
     createdAt: r.created_at,

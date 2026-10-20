@@ -1178,6 +1178,68 @@ table.table {
   color: var(--ink-3);
 }
 
+/* Aviso da agenda (sobre a tela, até o usuário dispensar). */
+.agenda-reminder {
+  border: 0;
+  border-radius: var(--radius);
+  padding: 0;
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  box-shadow: 0 20px 60px rgba(15, 23, 35, 0.35);
+}
+
+.agenda-reminder::backdrop {
+  background: rgba(15, 23, 35, 0.55);
+}
+
+.agenda-reminder-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.agenda-reminder-body h2 {
+  margin: 0;
+  font-size: var(--step-1);
+}
+
+.agenda-reminder-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agenda-reminder-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--petrol);
+  border-radius: var(--radius-sm);
+}
+
+.agenda-reminder-list strong,
+.agenda-reminder-list .muted {
+  display: block;
+}
+
+.agenda-reminder-list .muted {
+  color: var(--ink-3);
+  font-size: var(--step--1);
+}
+
+.agenda-reminder-list p {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* Pré-visualização de imagem anexada. */
 .image-preview {
   border: 0;
@@ -1312,6 +1374,11 @@ table.table {
   border-radius: 999px;
   background: var(--petrol-soft);
   color: var(--petrol-strong);
+}
+
+.tag-alert {
+  background: #fff4d6;
+  color: #7a5200;
 }
 
 .tag-muted {

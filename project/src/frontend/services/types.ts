@@ -116,17 +116,21 @@ export interface MachineHistoryEntry {
   createdAt: string;
 }
 
-export type NotificationType = "assigned" | "comment";
+export type NotificationType = "assigned" | "comment" | "agenda";
 
 export interface Notification {
   id: number;
   type: NotificationType;
-  ticketId: number;
-  ticketTitle: string;
-  actorId: number;
-  actorName: string;
+  /** Chamado e autor: presentes em "assigned" e "comment"; null em "agenda". */
+  ticketId: number | null;
+  ticketTitle: string | null;
+  actorId: number | null;
+  actorName: string | null;
   commentId: number | null;
   commentExcerpt: string | null;
+  agendaId: number | null;
+  agendaTitle: string | null;
+  agendaScheduledAt: string | null;
   read: boolean;
   readAt: string | null;
   createdAt: string;
@@ -174,4 +178,14 @@ export interface PeopleReport {
   };
   people: PersonReportRow[];
   categories: string[];
+}
+
+export interface AgendaItem {
+  id: number;
+  title: string;
+  description: string | null;
+  scheduledAt: string;
+  notifiedAt: string | null;
+  dismissedAt: string | null;
+  createdAt: string;
 }

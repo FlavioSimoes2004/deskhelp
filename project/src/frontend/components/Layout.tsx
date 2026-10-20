@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { useAuth } from "../hooks/useAuth";
 import { initials, ROLE_LABEL } from "../utils/format";
+import { AgendaReminder } from "./AgendaReminder";
 import { LogoMark } from "./Logo";
 import { NotificationBell } from "./NotificationBell";
 import { ThemePicker } from "./ThemePicker";
@@ -47,6 +48,9 @@ export function Layout() {
           </NavLink>
           <NavLink to="/chamados/novo" className={navClass}>
             Abrir chamado
+          </NavLink>
+          <NavLink to="/agenda" className={navClass}>
+            Agenda
           </NavLink>
           {isStaff && (
             <>
@@ -102,6 +106,7 @@ export function Layout() {
       <main className="main" id="conteudo">
         <Outlet />
       </main>
+      <AgendaReminder />
     </div>
   );
 }

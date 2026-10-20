@@ -4,7 +4,7 @@ export type Role = (typeof ROLES)[number];
 export const TICKET_STATUSES = ["aberto", "em_andamento", "aguardando", "resolvido", "fechado"] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
-export const NOTIFICATION_TYPES = ["assigned", "comment"] as const;
+export const NOTIFICATION_TYPES = ["assigned", "comment", "agenda"] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export const TICKET_PRIORITIES = ["baixa", "media", "alta", "critica"] as const;
@@ -107,14 +107,31 @@ export interface MachineHistoryEntry {
 export interface Notification {
   id: number;
   type: NotificationType;
-  ticketId: number;
-  ticketTitle: string;
-  actorId: number;
-  actorName: string;
+  /** Chamado e autor: presentes em "assigned" e "comment"; null em "agenda". */
+  ticketId: number | null;
+  ticketTitle: string | null;
+  actorId: number | null;
+  actorName: string | null;
   commentId: number | null;
   /** Início do comentário, para notificações do tipo "comment". */
   commentExcerpt: string | null;
+  /** Item da agenda, para notificações do tipo "agenda". */
+  agendaId: number | null;
+  agendaTitle: string | null;
+  agendaScheduledAt: Date | null;
   read: boolean;
   readAt: Date | null;
+  createdAt: Date;
+}
+
+export interface AgendaItem {
+  id: number;
+  title: string;
+  description: string | null;
+  scheduledAt: Date;
+  /** Quando o aviso foi gerado (chegou a hora); null se ainda não chegou. */
+  notifiedAt: Date | null;
+  /** Quando o usuário dispensou o aviso. */
+  dismissedAt: Date | null;
   createdAt: Date;
 }

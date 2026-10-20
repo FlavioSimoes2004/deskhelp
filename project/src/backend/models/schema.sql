@@ -84,16 +84,36 @@ CREATE TABLE IF NOT EXISTS ticket_comment_attachments (
   CONSTRAINT fk_attachments_ticket FOREIGN KEY (ticket_id) REFERENCES tickets (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Notificações de cada usuário. type: 'assigned' (um admin atribuiu o chamado a ele)
--- ou 'comment' (alguém comentou em um chamado que ele abriu ou do qual é responsável).
+-- Agenda pessoal: cada usuário cria lembretes com data e hora. Quando chega a hora,
+-- o sistema cria uma notificação (notified_at) e mostra um aviso na tela até o
+-- usuário dispensar (dismissed_at).
+CREATE TABLE IF NOT EXISTS agenda_items (
+  id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id      INT UNSIGNED NOT NULL,
+  title        VARCHAR(160) NOT NULL,
+  description  TEXT NULL,
+  scheduled_at DATETIME NOT NULL,
+  notified_at  DATETIME NULL,
+  dismissed_at DATETIME NULL,
+  created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_agenda_user_scheduled (user_id, scheduled_at),
+  KEY idx_agenda_pending (notified_at, scheduled_at),
+  CONSTRAINT fk_agenda_user FOREIGN KEY (user_id) REFERENCES users (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Notificações de cada usuário. type: 'assigned' (um admin atribuiu o chamado a ele),
+-- 'comment' (alguém comentou em um chamado que ele abriu ou do qual é responsável) ou
+-- 'agenda' (chegou a hora de um item da agenda dele; sem chamado nem autor).
 -- actor_id é quem gerou a notificação; read_at fica NULL enquanto não for lida.
 CREATE TABLE IF NOT EXISTS notifications (
   id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id    INT UNSIGNED NOT NULL,
-  type       ENUM('assigned', 'comment') NOT NULL,
-  ticket_id  INT UNSIGNED NOT NULL,
-  actor_id   INT UNSIGNED NOT NULL,
+  type       ENUM('assigned', 'comment', 'agenda') NOT NULL,
+  ticket_id  INT UNSIGNED NULL,
+  actor_id   INT UNSIGNED NULL,
   comment_id INT UNSIGNED NULL,
+  agenda_id  INT UNSIGNED NULL,
   read_at    DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -102,8 +122,16 @@ CREATE TABLE IF NOT EXISTS notifications (
   CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users (id),
   CONSTRAINT fk_notifications_ticket FOREIGN KEY (ticket_id) REFERENCES tickets (id) ON DELETE CASCADE,
   CONSTRAINT fk_notifications_actor FOREIGN KEY (actor_id) REFERENCES users (id),
-  CONSTRAINT fk_notifications_comment FOREIGN KEY (comment_id) REFERENCES ticket_comments (id) ON DELETE CASCADE
+  CONSTRAINT fk_notifications_comment FOREIGN KEY (comment_id) REFERENCES ticket_comments (id) ON DELETE CASCADE,
+  CONSTRAINT fk_notifications_agenda FOREIGN KEY (agenda_id) REFERENCES agenda_items (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Bancos criados antes das notificações da agenda (a chave de agenda_id é criada por migrate.ts).
+ALTER TABLE notifications
+  MODIFY type ENUM('assigned', 'comment', 'agenda') NOT NULL,
+  MODIFY ticket_id INT UNSIGNED NULL,
+  MODIFY actor_id INT UNSIGNED NULL,
+  ADD COLUMN IF NOT EXISTS agenda_id INT UNSIGNED NULL AFTER comment_id;
 
 -- Máquinas (endereço MAC, IP, descrição e o usuário que está com ela).
 CREATE TABLE IF NOT EXISTS machines (

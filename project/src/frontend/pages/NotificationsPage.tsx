@@ -10,10 +10,14 @@ import { formatDateTime, ticketNumber, timeAgo } from "../utils/format";
 
 const PAGE_SIZE = 20;
 
-const TYPE_LABEL: Record<NotificationType, string> = { assigned: "Atribuição", comment: "Comentário" };
+const TYPE_LABEL: Record<NotificationType, string> = { assigned: "Atribuição", comment: "Comentário", agenda: "Agenda" };
 
 function describe(n: Notification) {
-  const ticket = `#${ticketNumber(n.ticketId)} “${n.ticketTitle}”`;
+  if (n.type === "agenda") {
+    const when = n.agendaScheduledAt ? ` (${formatDateTime(n.agendaScheduledAt)})` : "";
+    return `Lembrete da agenda: “${n.agendaTitle ?? "item removido"}”${when}`;
+  }
+  const ticket = `#${ticketNumber(n.ticketId ?? 0)} “${n.ticketTitle ?? ""}”`;
   return n.type === "assigned" ? `atribuiu a você o chamado ${ticket}` : `comentou no chamado ${ticket}`;
 }
 
@@ -60,7 +64,7 @@ export function NotificationsPage() {
         /* abrir o chamado é o que importa; a leitura fica para depois */
       }
     }
-    navigate(`/chamados/${n.ticketId}`);
+    navigate(n.type === "agenda" ? "/agenda" : `/chamados/${n.ticketId}`);
   }
 
   const hasFilters = Boolean(status || type);
@@ -73,7 +77,8 @@ export function NotificationsPage() {
         <div>
           <h1>Notificações</h1>
           <p>
-            Atribuições de chamados e comentários nos chamados que você abriu ou dos quais é responsável.
+            Atribuições de chamados, comentários nos chamados que você abriu ou dos quais é responsável e
+            lembretes da sua agenda.
             {unread > 0 && ` Você tem ${unread} não ${unread === 1 ? "lida" : "lidas"}.`}
           </p>
         </div>
@@ -99,6 +104,7 @@ export function NotificationsPage() {
             <option value="">Todos</option>
             <option value="assigned">Atribuição</option>
             <option value="comment">Comentário</option>
+            <option value="agenda">Agenda</option>
           </select>
         </div>
         {hasFilters && (
@@ -119,7 +125,7 @@ export function NotificationsPage() {
                 <span className={n.read ? "tag tag-muted" : "tag"}>{TYPE_LABEL[n.type]}</span>
                 <div className="notification-body">
                   <p>
-                    <strong>{n.actorName}</strong> {describe(n)}
+                    {n.actorName && <strong>{n.actorName}</strong>} {describe(n)}
                   </p>
                   {n.commentExcerpt && <p className="notification-excerpt">{n.commentExcerpt}</p>}
                   <span className="notification-meta" title={formatDateTime(n.createdAt)}>
@@ -129,7 +135,7 @@ export function NotificationsPage() {
                 </div>
                 <div className="notification-actions">
                   <button type="button" className="btn btn-primary btn-sm" onClick={() => open(n)}>
-                    Abrir chamado
+                    {n.type === "agenda" ? "Abrir agenda" : "Abrir chamado"}
                   </button>
                   <button
                     type="button"

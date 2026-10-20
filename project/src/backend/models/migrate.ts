@@ -7,6 +7,7 @@ import mysql from "mysql2/promise";
 import { env } from "../config/env.js";
 import { hashPassword } from "../utils/password.js";
 import { upgradeComments } from "./upgradeComments.js";
+import { upgradeNotifications } from "./upgradeNotifications.js";
 import { upgradeTickets } from "./upgradeTickets.js";
 
 const schemaSql = await readFile(new URL("./schema.sql", import.meta.url), "utf8");
@@ -24,6 +25,7 @@ try {
   await conn.query(schemaSql);
   await upgradeComments(conn);
   await upgradeTickets(conn);
+  await upgradeNotifications(conn);
   console.log("Tabelas criadas/atualizadas.");
 
   const [admins] = await conn.query<mysql.RowDataPacket[]>("SELECT id FROM users WHERE role = 'admin' LIMIT 1");

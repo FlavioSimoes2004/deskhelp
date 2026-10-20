@@ -1,5 +1,6 @@
 import { isIP } from "node:net";
 import { z } from "zod";
+import { LOCAL_DATETIME } from "../services/agendaRules.js";
 import { NOTIFICATION_TYPES, ROLES, TICKET_PRIORITIES, TICKET_STATUSES } from "../models/types.js";
 
 const email = z.string().trim().toLowerCase().pipe(z.email("E-mail inválido").max(190));
@@ -144,6 +145,23 @@ export const notificationQuerySchema = z.object({
 });
 
 export const updateNotificationSchema = z.object({ read: z.boolean() });
+
+export const createAgendaSchema = z.object({
+  title: z.string().trim().min(3, "O título precisa ter pelo menos 3 caracteres").max(160),
+  description: z
+    .string()
+    .trim()
+    .max(2000, "A descrição pode ter no máximo 2000 caracteres")
+    .nullable()
+    .optional()
+    .transform((v) => v || null),
+  // Data e hora local, como o campo datetime-local envia (AAAA-MM-DDTHH:MM).
+  scheduledAt: z.string().regex(LOCAL_DATETIME, "Informe a data e a hora"),
+});
+
+export const agendaQuerySchema = z.object({
+  when: z.enum(["upcoming", "past"]).optional(),
+});
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use o formato AAAA-MM-DD");
 

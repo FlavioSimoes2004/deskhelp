@@ -39,11 +39,17 @@ servers:
 tags:
   - name: Autenticação
   - name: Chamados
+  - name: Agenda
+    description: |
+      Lembretes pessoais (cada usuário vê apenas os próprios). Na hora marcada, o servidor cria uma
+      notificação `agenda` (verificação a cada 30 s) e o item passa a aparecer em `/agenda/due` até
+      ser dispensado.
   - name: Notificações
     description: |
       Cada usuário vê apenas as próprias. Geradas quando um admin atribui um chamado a outra pessoa
       (`assigned`, para o novo responsável) e quando alguém comenta em um chamado do qual o usuário é
-      solicitante ou responsável (`comment`, nunca para o autor do comentário).
+      solicitante ou responsável (`comment`, nunca para o autor do comentário). Lembretes da agenda geram
+      `agenda` (sem chamado nem autor).
   - name: Usuários
     description: Administradores e suporte. O suporte não cria, promove nem altera administradores (403).
   - name: Máquinas
@@ -422,6 +428,91 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /agenda:
+    get:
+      tags: [Agenda]
+      summary: Listar itens da agenda
+      operationId: listAgenda
+      parameters:
+        - name: when
+          in: query
+          description: "`upcoming` (ainda não chegou a hora, em ordem cronológica) ou `past` (mais recentes primeiro); sem valor, todos"
+          schema: { type: string, enum: [upcoming, past] }
+      responses:
+        "200":
+          description: Itens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/AgendaItem" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [Agenda]
+      summary: Criar item na agenda
+      operationId: createAgendaItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, scheduledAt]
+              properties:
+                title: { type: string, minLength: 3, maxLength: 160 }
+                description: { type: [string, "null"], maxLength: 2000 }
+                scheduledAt:
+                  type: string
+                  pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$"
+                  description: Data e hora local (AAAA-MM-DDTHH:MM), a partir de agora
+            example: { title: "Ligar para o fornecedor", scheduledAt: "2026-10-21T09:00" }
+      responses:
+        "201":
+          description: Item criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/AgendaItem" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /agenda/due:
+    get:
+      tags: [Agenda]
+      summary: Avisos pendentes
+      description: Itens cuja hora chegou e que ainda não foram dispensados (os avisos mostrados na tela).
+      operationId: dueAgendaItems
+      responses:
+        "200":
+          description: Itens pendentes, do mais antigo para o mais novo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/AgendaItem" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /agenda/{id}/dismiss:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Agenda]
+      summary: Dispensar aviso
+      description: Tira o item dos avisos na tela e marca a notificação dele como lida.
+      operationId: dismissAgendaItem
+      responses:
+        "204": { description: Dispensado }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /notifications:
     get:
       tags: [Notificações]
@@ -429,7 +520,7 @@ paths:
       operationId: listNotifications
       parameters:
         - { name: status, in: query, schema: { type: string, enum: [unread, read] } }
-        - { name: type, in: query, schema: { type: string, enum: [assigned, comment] } }
+        - { name: type, in: query, schema: { type: string, enum: [assigned, comment, agenda] } }
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
         - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
       responses:
@@ -1059,11 +1150,14 @@ components:
       type: object
       properties:
         id: { type: integer }
-        type: { type: string, enum: [assigned, comment] }
-        ticketId: { type: integer }
-        ticketTitle: { type: string }
-        actorId: { type: integer, description: Quem gerou a notificação }
-        actorName: { type: string }
+        type: { type: string, enum: [assigned, comment, agenda] }
+        ticketId: { type: [integer, "null"], description: null em notificações da agenda }
+        ticketTitle: { type: [string, "null"] }
+        actorId: { type: [integer, "null"], description: Quem gerou a notificação (null na agenda) }
+        actorName: { type: [string, "null"] }
+        agendaId: { type: [integer, "null"] }
+        agendaTitle: { type: [string, "null"] }
+        agendaScheduledAt: { type: [string, "null"], format: date-time }
         commentId: { type: [integer, "null"] }
         commentExcerpt: { type: [string, "null"], description: Início do comentário (até 160 caracteres) }
         read: { type: boolean }
@@ -1099,6 +1193,16 @@ components:
               byStatus: { type: object, additionalProperties: { type: integer } }
               byCategory: { type: array, items: { $ref: "#/components/schemas/CountItem" } }
         categories: { type: array, items: { type: string } }
+    AgendaItem:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: [string, "null"] }
+        scheduledAt: { type: string, format: date-time }
+        notifiedAt: { type: [string, "null"], format: date-time, description: Quando o aviso foi gerado }
+        dismissedAt: { type: [string, "null"], format: date-time, description: Quando o usuário dispensou }
+        createdAt: { type: string, format: date-time }
     StatusCounts:
       type: object
       description: Quantidade por status; status sem chamados não aparecem

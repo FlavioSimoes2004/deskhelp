@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router";
 import { Loading } from "./components/Feedback";
 import { Layout } from "./components/Layout";
 import { RequireAuth } from "./components/RequireAuth";
+import { AgendaPage } from "./pages/AgendaPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { MachineReportPage } from "./pages/MachineReportPage";
@@ -42,6 +43,7 @@ export function App() {
             <Route path="chamados/:id" element={<TicketDetailPage />} />
             <Route path="perfil" element={<ProfilePage />} />
             <Route path="notificacoes" element={<NotificationsPage />} />
+            <Route path="agenda" element={<AgendaPage />} />
             <Route
               path="api-docs"
               element={
