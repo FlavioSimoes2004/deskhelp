@@ -16,7 +16,8 @@ export function createApp() {
           // A página de documentação (Swagger UI) usa estilos inline e imagens data:.
           "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
           "font-src": ["'self'", "https://fonts.gstatic.com"],
-          "img-src": ["'self'", "data:"],
+          // blob: para pré-visualizar imagens anexadas (baixadas com o token e exibidas da memória).
+          "img-src": ["'self'", "data:", "blob:"],
         },
       },
     }),

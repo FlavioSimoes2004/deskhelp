@@ -76,6 +76,7 @@ export const ticketService = {
     return api.postForm<{ data: TicketDetail }>(`/tickets/${id}/comments`, form).then((r) => r.data);
   },
   resolve: (id: number) => api.post<{ data: TicketDetail }>(`/tickets/${id}/resolve`).then((r) => r.data),
+  attachmentBlob: (attachment: TicketAttachment) => api.blob(`/attachments/${attachment.id}`),
   downloadAttachment: (attachment: TicketAttachment) =>
     api.download(`/attachments/${attachment.id}`, {}, attachment.originalName),
   categories: () => api.get<{ data: Category[] }>("/categories").then((r) => r.data),

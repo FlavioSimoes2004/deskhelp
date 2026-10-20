@@ -1178,6 +1178,56 @@ table.table {
   color: var(--ink-3);
 }
 
+/* Pré-visualização de imagem anexada. */
+.image-preview {
+  border: 0;
+  border-radius: var(--radius);
+  padding: 0;
+  max-width: min(960px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  box-shadow: 0 20px 60px rgba(15, 23, 35, 0.35);
+}
+
+.image-preview::backdrop {
+  background: rgba(15, 23, 35, 0.7);
+}
+
+.image-preview-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.image-preview-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.image-preview-head strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-preview-frame {
+  display: grid;
+  place-items: center;
+  min-width: min(320px, calc(100vw - 64px));
+  min-height: 160px;
+  background: #f6f8fa;
+  border-radius: var(--radius-sm);
+}
+
+.image-preview-frame img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100vh - 200px);
+  object-fit: contain;
+}
+
 .timeline .event {
   color: var(--ink-2);
   font-size: var(--step--1);

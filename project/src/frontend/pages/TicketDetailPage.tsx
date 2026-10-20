@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from "react-router";
 import { PriorityTag, StatusBadge } from "../components/Badges";
 import { EmptyState, ErrorAlert, Loading } from "../components/Feedback";
 import { Field } from "../components/Field";
+import { ImagePreview, isImageAttachment } from "../components/ImagePreview";
 import { TicketStub } from "../components/TicketStub";
 import { useAsync } from "../hooks/useAsync";
 import { useAuth } from "../hooks/useAuth";
@@ -501,8 +502,12 @@ function ManagePanel({
 
 function AttachmentLink({ attachment, onError }: { attachment: TicketAttachment; onError: (error: ApiError) => void }) {
   const [downloading, setDownloading] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const isImage = isImageAttachment(attachment);
 
   async function onClick() {
+    // Imagens abrem em pré-visualização; os demais arquivos são baixados.
+    if (isImage) return setPreviewing(true);
     setDownloading(true);
     try {
       await ticketService.downloadAttachment(attachment);
@@ -514,10 +519,20 @@ function AttachmentLink({ attachment, onError }: { attachment: TicketAttachment;
   }
 
   return (
-    <button type="button" className="attachment" onClick={onClick} disabled={downloading}>
-      <span aria-hidden="true">📎</span> {attachment.originalName}{" "}
-      <span className="attachment-size">({formatBytes(attachment.sizeBytes)})</span>
-    </button>
+    <>
+      <button
+        type="button"
+        className="attachment"
+        onClick={onClick}
+        disabled={downloading}
+        aria-haspopup={isImage ? "dialog" : undefined}
+        title={isImage ? "Ver imagem" : "Baixar arquivo"}
+      >
+        <span aria-hidden="true">{isImage ? "🖼️" : "📎"}</span> {attachment.originalName}{" "}
+        <span className="attachment-size">({formatBytes(attachment.sizeBytes)})</span>
+      </button>
+      {previewing && <ImagePreview attachment={attachment} onClose={() => setPreviewing(false)} />}
+    </>
   );
 }
 

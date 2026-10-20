@@ -88,6 +88,19 @@ async function request<T>(method: string, path: string, options: { body?: unknow
   return payload as T;
 }
 
+/** Busca um arquivo autenticado; erros da API viram ApiError. */
+async function fetchFile(path: string, query: Query = {}): Promise<Response> {
+  const token = tokenStore.get();
+  const response = await fetch(buildUrl(path, query), {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new ApiError(response.status, payload?.error?.code ?? "HTTP_ERROR", payload?.error?.message ?? "Falha no download");
+  }
+  return response;
+}
+
 export const api = {
   get: <T>(path: string, query?: Query) => request<T>("GET", path, { query }),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, { body }),
@@ -96,15 +109,10 @@ export const api = {
   postForm: <T>(path: string, form: FormData) => request<T>("POST", path, { body: form }),
   delete: (path: string) => request<void>("DELETE", path),
   /** Baixa um arquivo autenticado (ex. CSV) e dispara o download no navegador. */
+  /** Conteúdo de um arquivo autenticado (ex. imagem para pré-visualizar). */
+  blob: async (path: string) => (await fetchFile(path)).blob(),
   async download(path: string, query: Query, fallbackName: string) {
-    const token = tokenStore.get();
-    const response = await fetch(buildUrl(path, query), {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      throw new ApiError(response.status, payload?.error?.code ?? "HTTP_ERROR", payload?.error?.message ?? "Falha no download");
-    }
+    const response = await fetchFile(path, query);
     const disposition = response.headers.get("Content-Disposition") ?? "";
     // Prefere filename* (UTF-8), que preserva acentos no nome do arquivo.
     const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1];
