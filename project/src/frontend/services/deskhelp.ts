@@ -32,6 +32,8 @@ export const authService = {
   register: (data: { name: string; email: string; password: string }) =>
     api.post<AuthResponse>("/auth/register", data),
   me: () => api.get<{ data: User }>("/auth/me").then((r) => r.data),
+  /** Encerra a sessão no servidor (o token deixa de valer). */
+  logout: () => api.post<void>("/auth/logout"),
   updateMe: (data: { name?: string; currentPassword?: string; newPassword?: string }) =>
     api.patch<{ data: User }>("/auth/me", data).then((r) => r.data),
 };

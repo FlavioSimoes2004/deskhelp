@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { useAuth } from "../hooks/useAuth";
 import { initials, ROLE_LABEL } from "../utils/format";
 import { AgendaReminder } from "./AgendaReminder";
+import { IdleWatcher } from "./IdleWatcher";
 import { LogoMark } from "./Logo";
 import { NotificationBell } from "./NotificationBell";
 import { ThemePicker } from "./ThemePicker";
@@ -97,7 +98,7 @@ export function Layout() {
             Meu perfil
           </NavLink>
           <ThemePicker />
-          <button type="button" className="btn btn-rail btn-sm" onClick={logout}>
+          <button type="button" className="btn btn-rail btn-sm" onClick={() => logout()}>
             Sair
           </button>
         </div>
@@ -107,6 +108,7 @@ export function Layout() {
         <Outlet />
       </main>
       <AgendaReminder />
+      <IdleWatcher />
     </div>
   );
 }

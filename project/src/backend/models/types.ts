@@ -16,6 +16,11 @@ export interface AuthUser {
   role: Role;
 }
 
+/** Dados do token: o usuário e a sessão (login) em que ele foi emitido. */
+export interface TokenClaims extends AuthUser {
+  sessionId: string | null;
+}
+
 export interface PublicUser {
   id: number;
   name: string;

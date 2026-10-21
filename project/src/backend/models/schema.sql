@@ -8,12 +8,17 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255) NOT NULL,
   role          ENUM('admin', 'comum', 'support') NOT NULL DEFAULT 'comum',
   active        TINYINT(1) NOT NULL DEFAULT 1,
+  -- Sessão atual: cada login gera um id novo e derruba a sessão anterior (um login por conta).
+  session_id    CHAR(36) NULL,
   created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_users_email (email),
   KEY idx_users_role_active (role, active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Bancos criados antes do controle de sessão única.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS session_id CHAR(36) NULL AFTER active;
 
 -- Bancos criados antes do perfil 'support' recebem a nova opção.
 ALTER TABLE users MODIFY role ENUM('admin', 'comum', 'support') NOT NULL DEFAULT 'comum';

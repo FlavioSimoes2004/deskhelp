@@ -619,6 +619,12 @@ a {
   color: #7d1f1a;
 }
 
+.alert-warn {
+  background: #fff6dd;
+  border-color: #ecd28a;
+  color: #6b4b00;
+}
+
 .alert-ok {
   background: var(--ok-soft);
   border-color: color-mix(in srgb, var(--ok) 30%, white);
@@ -1194,6 +1200,35 @@ table.table {
 
 .timeline .attachment-size {
   color: var(--ink-3);
+}
+
+/* Aviso de inatividade (aos 25 min; desconecta aos 30). */
+.idle-warning {
+  border: 0;
+  border-radius: var(--radius);
+  padding: 0;
+  width: min(420px, calc(100vw - 32px));
+  box-shadow: 0 20px 60px rgba(15, 23, 35, 0.35);
+}
+
+.idle-warning::backdrop {
+  background: rgba(15, 23, 35, 0.55);
+}
+
+.idle-warning-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.idle-warning-body h2 {
+  margin: 0;
+  font-size: var(--step-1);
+}
+
+.idle-warning-body p {
+  margin: 0;
 }
 
 /* Aviso da agenda (sobre a tela, até o usuário dispensar). */

@@ -19,7 +19,8 @@ export async function createUser(actor: AuthUser, data: { name: string; email: s
 export async function getUser(id: number): Promise<PublicUser> {
   const user = await users.findUserById(id);
   if (!user) throw notFound("Usuário não encontrado");
-  const { passwordHash: _hash, ...rest } = user;
+  // Nunca devolve o hash da senha nem a sessão atual.
+  const { passwordHash: _hash, sessionId: _session, ...rest } = user;
   return rest;
 }
 

@@ -13,6 +13,10 @@ info:
     Authorization: Bearer <token>
     ```
 
+    **Uma sessão por conta:** cada login (ou cadastro) encerra a sessão anterior da mesma conta.
+    Um token de sessão substituída recebe `401` com o código `SESSION_REPLACED`.
+    `POST /api/auth/logout` encerra a sessão atual.
+
     Nesta página, clique em **Authorize** para informar o token. Se você já está logado
     no DeskHelp, o token da sua sessão é usado automaticamente.
 
@@ -132,6 +136,16 @@ paths:
                 type: object
                 properties:
                   allowSignup: { type: boolean }
+
+  /auth/logout:
+    post:
+      tags: [Autenticação]
+      summary: Sair (encerrar a sessão)
+      description: O token usado deixa de valer. Não afeta um login mais novo da mesma conta.
+      operationId: logout
+      responses:
+        "204": { description: Sessão encerrada }
+        "401": { $ref: "#/components/responses/Unauthorized" }
 
   /auth/me:
     get:

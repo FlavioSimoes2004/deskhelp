@@ -20,6 +20,11 @@ export async function updateMe(req: Request, res: Response) {
   res.json({ data: await auth.updateProfile(currentUser(req).id, res.locals.body) });
 }
 
+export async function logout(req: Request, res: Response) {
+  if (req.sessionId) await auth.endSession(currentUser(req).id, req.sessionId);
+  res.status(204).end();
+}
+
 export function config(_req: Request, res: Response) {
   res.json({ allowSignup: env.ALLOW_SIGNUP });
 }

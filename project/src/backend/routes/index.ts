@@ -62,6 +62,7 @@ apiRouter.post("/auth/register", authLimiter, validate(registerSchema), authCtrl
 apiRouter.use(authenticate);
 apiRouter.get("/auth/me", authCtrl.me);
 apiRouter.patch("/auth/me", validate(updateProfileSchema), authCtrl.updateMe);
+apiRouter.post("/auth/logout", authCtrl.logout);
 
 apiRouter.get("/categories", ticketCtrl.categories);
 apiRouter.get("/tickets/overview", ticketCtrl.overview);

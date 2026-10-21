@@ -1,11 +1,32 @@
+import { randomUUID } from "node:crypto";
 import { env } from "../config/env.js";
-import { findUserByEmail, findUserById, insertUser, updateUser } from "../models/userModel.js";
+import {
+  clearSessionId,
+  findUserByEmail,
+  findUserById,
+  insertUser,
+  setSessionId,
+  updateUser,
+} from "../models/userModel.js";
 import type { PublicUser } from "../models/types.js";
 import { HttpError } from "../utils/httpError.js";
 import { signToken } from "../utils/jwt.js";
 import { hashPassword, verifyPassword } from "../utils/password.js";
 
-const withoutHash = ({ passwordHash: _hash, ...user }: PublicUser & { passwordHash: string }): PublicUser => user;
+const withoutHash = ({
+  passwordHash: _hash,
+  sessionId: _session,
+  ...user
+}: PublicUser & { passwordHash: string; sessionId: string | null }): PublicUser => user;
+
+/** Abre uma sessão nova para a conta; qualquer sessão anterior (outro navegador) cai. */
+async function startSession(user: PublicUser) {
+  const sessionId = randomUUID();
+  await setSessionId(user.id, sessionId);
+  return signToken(user, sessionId);
+}
+
+export const endSession = clearSessionId;
 
 const invalidCredentials = () => new HttpError(401, "INVALID_CREDENTIALS", "E-mail ou senha incorretos");
 
@@ -18,7 +39,7 @@ export async function login(email: string, password: string) {
   const ok = await verifyPassword(password, user?.passwordHash ?? (await dummyHash));
   if (!user || !ok) throw invalidCredentials();
   if (!user.active) throw new HttpError(403, "USER_INACTIVE", "Sua conta está desativada. Fale com um administrador.");
-  return { token: signToken(user), user: withoutHash(user) };
+  return { token: await startSession(user), user: withoutHash(user) };
 }
 
 export async function register(data: { name: string; email: string; password: string }) {
@@ -34,7 +55,7 @@ export async function register(data: { name: string; email: string; password: st
   });
   const user = await findUserById(id);
   if (!user) throw new Error("Usuário recém-criado não encontrado");
-  return { token: signToken(user), user: withoutHash(user) };
+  return { token: await startSession(user), user: withoutHash(user) };
 }
 
 export async function getProfile(id: number): Promise<PublicUser> {

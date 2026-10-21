@@ -9,6 +9,7 @@ interface UserRow extends RowDataPacket {
   password_hash: string;
   role: Role;
   active: number;
+  session_id: string | null;
   created_at: Date;
 }
 
@@ -24,13 +25,13 @@ const toPublic = (row: UserRow): PublicUser => ({
 export async function findUserByEmail(email: string) {
   const [rows] = await pool.execute<UserRow[]>("SELECT * FROM users WHERE email = ?", [email]);
   const row = rows[0];
-  return row ? { ...toPublic(row), passwordHash: row.password_hash } : null;
+  return row ? { ...toPublic(row), passwordHash: row.password_hash, sessionId: row.session_id } : null;
 }
 
 export async function findUserById(id: number) {
   const [rows] = await pool.execute<UserRow[]>("SELECT * FROM users WHERE id = ?", [id]);
   const row = rows[0];
-  return row ? { ...toPublic(row), passwordHash: row.password_hash } : null;
+  return row ? { ...toPublic(row), passwordHash: row.password_hash, sessionId: row.session_id } : null;
 }
 
 export async function listUsers(filters: { search?: string; role?: Role; active?: boolean }): Promise<PublicUser[]> {
@@ -92,4 +93,14 @@ export async function updateUser(
 export async function countUsers(): Promise<number> {
   const [rows] = await pool.query<RowDataPacket[]>("SELECT COUNT(*) AS total FROM users");
   return Number(rows[0]?.total ?? 0);
+}
+
+/** Define a sessão atual da conta (novo login); a anterior deixa de valer. */
+export async function setSessionId(id: number, sessionId: string): Promise<void> {
+  await pool.execute("UPDATE users SET session_id = ? WHERE id = ?", [sessionId, id]);
+}
+
+/** Encerra a sessão, se ainda for a atual (um logout antigo não derruba um login mais novo). */
+export async function clearSessionId(id: number, sessionId: string): Promise<void> {
+  await pool.execute("UPDATE users SET session_id = NULL WHERE id = ? AND session_id = ?", [id, sessionId]);
 }

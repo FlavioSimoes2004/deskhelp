@@ -40,7 +40,10 @@ export const tokenStore = {
   },
 };
 
-/** Disparado quando a API responde 401, para o AuthContext encerrar a sessão. */
+/**
+ * Disparado quando a API responde 401, para o AuthContext encerrar a sessão.
+ * É um CustomEvent cujo detail é o código do erro (ex.: "SESSION_REPLACED").
+ */
 export const SESSION_EXPIRED_EVENT = "deskhelp:session-expired";
 
 type Query = Record<string, string | number | boolean | null | undefined>;
@@ -77,7 +80,9 @@ async function request<T>(method: string, path: string, options: { body?: unknow
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const error = payload?.error ?? {};
-    if (response.status === 401 && token) window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    if (response.status === 401 && token) {
+      window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT, { detail: error.code ?? "UNAUTHORIZED" }));
+    }
     throw new ApiError(
       response.status,
       error.code ?? "HTTP_ERROR",

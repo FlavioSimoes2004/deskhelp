@@ -23,6 +23,8 @@ Regras importantes:
 - A solução do chamado é registrada pelo responsável ou por um admin, com o chamado "resolvido".
 - Um admin não pode tirar o próprio perfil de admin nem desativar a própria conta.
 - Conta desativada perde o acesso na hora (o token é revalidado no banco a cada requisição).
+- Uma conta só fica conectada em um lugar: um login novo encerra a sessão anterior.
+- Após 25 minutos sem atividade aparece um aviso; aos 30 minutos o usuário é desconectado.
 - Chamado fechado só aceita comentários de administrador.
 - Toda alteração de chamado fica registrada no histórico.
 
