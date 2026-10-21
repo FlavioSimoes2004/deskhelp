@@ -103,6 +103,19 @@ export const userService = {
     api.patch<{ data: User }>(`/users/${id}`, data).then((r) => r.data),
 };
 
+export interface MachineFilters {
+  /** Busca geral (nome, MAC, IP, descrição, configuração, usuário). */
+  search?: string;
+  name?: string;
+  cpu?: string;
+  gpu?: string;
+  ramType?: string;
+  /** Mínimo em GB. */
+  ramGbMin?: number | "";
+  storageGbMin?: number | "";
+  storageType?: StorageType | "";
+}
+
 export interface MachineInput {
   name: string | null;
   macAddress: string;
@@ -118,7 +131,8 @@ export interface MachineInput {
 }
 
 export const machineService = {
-  list: (search = "") => api.get<{ data: Machine[] }>("/machines", { search }).then((r) => r.data),
+  list: (filters: MachineFilters = {}) =>
+    api.get<{ data: Machine[] }>("/machines", { ...filters }).then((r) => r.data),
   create: (data: MachineInput) => api.post<{ data: Machine }>("/machines", data).then((r) => r.data),
   update: (id: number, data: Partial<MachineInput>) =>
     api.patch<{ data: Machine }>(`/machines/${id}`, data).then((r) => r.data),

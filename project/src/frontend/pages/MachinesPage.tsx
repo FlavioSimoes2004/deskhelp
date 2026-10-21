@@ -1,16 +1,42 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { EmptyState, ErrorAlert, Loading } from "../components/Feedback";
 import { Field } from "../components/Field";
 import { useAsync } from "../hooks/useAsync";
 import { ApiError } from "../services/api";
-import { machineService, userService } from "../services/deskhelp";
+import { machineService, userService, type MachineFilters } from "../services/deskhelp";
 import type { Machine, MachineHistoryEntry, StorageType, User } from "../services/types";
 import { formatDateTime, timeAgo } from "../utils/format";
 import { formatGb, machineLabel, machineSpecs, STORAGE_LABEL } from "../utils/machine";
 
+const NO_FILTERS = {
+  search: "",
+  name: "",
+  cpu: "",
+  gpu: "",
+  ramType: "",
+  ramGbMin: "",
+  storageGbMin: "",
+  storageType: "",
+};
+type FilterForm = typeof NO_FILTERS;
+
 export function MachinesPage() {
-  const [search, setSearch] = useState("");
-  const machines = useAsync(() => machineService.list(search), [search]);
+  // O que está nos campos; a busca roda 300 ms depois da última digitação.
+  const [draft, setDraft] = useState<FilterForm>(NO_FILTERS);
+  const [filters, setFilters] = useState<FilterForm>(NO_FILTERS);
+  useEffect(() => {
+    const timer = setTimeout(() => setFilters(draft), 300);
+    return () => clearTimeout(timer);
+  }, [draft]);
+  const query: MachineFilters = {
+    ...filters,
+    ramGbMin: filters.ramGbMin ? Number(filters.ramGbMin) : "",
+    storageGbMin: filters.storageGbMin ? Number(filters.storageGbMin) : "",
+    storageType: filters.storageType as MachineFilters["storageType"],
+  };
+  const machines = useAsync(() => machineService.list(query), [JSON.stringify(filters)]);
+  const hasFilters = Object.values(draft).some(Boolean);
+  const set = (key: keyof FilterForm) => (e: { target: { value: string } }) => setDraft({ ...draft, [key]: e.target.value });
   const users = useAsync(() => userService.list(), []);
   const [editing, setEditing] = useState<Machine | "new" | null>(null);
   const [historyOf, setHistoryOf] = useState<Machine | null>(null);
@@ -74,11 +100,75 @@ export function MachinesPage() {
             id="m-search"
             className="input"
             type="search"
-            placeholder="Nome, MAC, IP, descrição, processador ou usuário"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Nome, MAC, IP, descrição, configuração ou usuário"
+            value={draft.search}
+            onChange={set("search")}
           />
         </div>
+        <div className="field">
+          <label htmlFor="m-name">Nome</label>
+          <input id="m-name" className="input" type="search" value={draft.name} onChange={set("name")} />
+        </div>
+        <div className="field">
+          <label htmlFor="m-cpu">Processador</label>
+          <input id="m-cpu" className="input" type="search" placeholder="Ex.: i5" value={draft.cpu} onChange={set("cpu")} />
+        </div>
+        <div className="field">
+          <label htmlFor="m-gpu">Placa de vídeo</label>
+          <input id="m-gpu" className="input" type="search" value={draft.gpu} onChange={set("gpu")} />
+        </div>
+      </div>
+      <div className="filters">
+        <div className="field">
+          <label htmlFor="m-ram-type">Tipo de memória</label>
+          <input
+            id="m-ram-type"
+            className="input"
+            type="search"
+            placeholder="Ex.: DDR4"
+            value={draft.ramType}
+            onChange={set("ramType")}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="m-ram">RAM mínima (GB)</label>
+          <input
+            id="m-ram"
+            className="input"
+            type="number"
+            min={1}
+            step={1}
+            inputMode="numeric"
+            value={draft.ramGbMin}
+            onChange={set("ramGbMin")}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="m-storage">Armazenamento mínimo (GB)</label>
+          <input
+            id="m-storage"
+            className="input"
+            type="number"
+            min={1}
+            step={1}
+            inputMode="numeric"
+            value={draft.storageGbMin}
+            onChange={set("storageGbMin")}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="m-storage-type">Tipo de armazenamento</label>
+          <select id="m-storage-type" className="select" value={draft.storageType} onChange={set("storageType")}>
+            <option value="">Todos</option>
+            <option value="ssd">SSD</option>
+            <option value="hd">HD</option>
+          </select>
+        </div>
+        {hasFilters && (
+          <button type="button" className="btn btn-ghost" onClick={() => setDraft(NO_FILTERS)}>
+            Limpar filtros
+          </button>
+        )}
       </div>
 
       <ErrorAlert error={machines.error} onRetry={machines.reload} />
@@ -148,7 +238,7 @@ export function MachinesPage() {
       ) : (
         <div className="panel">
           <EmptyState title="Nenhuma máquina encontrada">
-            <p>{search ? "Ajuste a busca." : "Cadastre a primeira máquina."}</p>
+            <p>{hasFilters ? "Ajuste a busca ou os filtros." : "Cadastre a primeira máquina."}</p>
           </EmptyState>
         </div>
       )}

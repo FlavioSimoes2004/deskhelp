@@ -811,7 +811,14 @@ paths:
       summary: Listar máquinas
       operationId: listMachines
       parameters:
-        - { name: search, in: query, description: "Nome, MAC, IP, descrição, processador ou nome do usuário", schema: { type: string } }
+        - { name: search, in: query, description: "Busca geral: nome, MAC, IP, descrição, processador, placa de vídeo, tipo de memória ou nome do usuário", schema: { type: string } }
+        - { name: name, in: query, description: Nome contém, schema: { type: string } }
+        - { name: cpu, in: query, description: Processador contém, schema: { type: string } }
+        - { name: gpu, in: query, description: Placa de vídeo contém, schema: { type: string } }
+        - { name: ramType, in: query, description: Tipo de memória contém, schema: { type: string } }
+        - { name: ramGbMin, in: query, description: RAM mínima em GB, schema: { type: integer, minimum: 1 } }
+        - { name: storageGbMin, in: query, description: Armazenamento mínimo em GB, schema: { type: integer, minimum: 1 } }
+        - { name: storageType, in: query, schema: { type: string, enum: [ssd, hd] } }
       responses:
         "200":
           description: Máquinas

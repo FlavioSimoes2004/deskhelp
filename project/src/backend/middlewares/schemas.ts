@@ -179,9 +179,22 @@ export const updateMachineSchema = z
   })
   .refine((data) => Object.keys(data).length > 0, { message: "Nenhum campo para atualizar" });
 
+const textFilter = z.string().trim().max(100).optional();
+const minGb = z.coerce.number().int().min(1).optional();
+
 export const machineQuerySchema = z.object({
-  search: z.string().trim().max(100).optional(),
+  search: textFilter,
+  // Filtros por coluna: texto contém; GB = mínimo.
+  name: textFilter,
+  cpu: textFilter,
+  gpu: textFilter,
+  ramType: textFilter,
+  ramGbMin: minGb,
+  storageGbMin: minGb,
+  storageType: z.enum(STORAGE_TYPES).optional(),
 });
+
+export type MachineQuery = z.infer<typeof machineQuerySchema>;
 
 export const notificationQuerySchema = z.object({
   status: z.enum(["unread", "read"]).optional(),

@@ -62,15 +62,47 @@ const COLUMNS: Record<keyof MachineFields, string> = {
 };
 const FIELDS = Object.keys(COLUMNS) as (keyof MachineFields)[];
 
-export async function listMachines(filters: { search?: string }): Promise<Machine[]> {
+export interface MachineFilters {
+  /** Busca geral em vários campos. */
+  search?: string;
+  name?: string;
+  cpu?: string;
+  gpu?: string;
+  ramType?: string;
+  ramGbMin?: number;
+  storageGbMin?: number;
+  storageType?: StorageType;
+}
+
+// Filtros de texto por coluna (contém) e de quantidade (mínimo); nomes de coluna fixos.
+const TEXT_FILTERS = { name: "m.name", cpu: "m.cpu", gpu: "m.gpu", ramType: "m.ram_type" } as const;
+const MIN_FILTERS = { ramGbMin: "m.ram_gb", storageGbMin: "m.storage_gb" } as const;
+
+export async function listMachines(filters: MachineFilters): Promise<Machine[]> {
+  const where: string[] = [];
   const params: SqlParams = {};
-  let where = "";
   if (filters.search) {
-    where = `WHERE (m.name LIKE :search OR m.mac_address LIKE :search OR m.ip_address LIKE :search
-              OR m.description LIKE :search OR m.cpu LIKE :search OR u.name LIKE :search)`;
+    where.push(`(m.name LIKE :search OR m.mac_address LIKE :search OR m.ip_address LIKE :search
+              OR m.description LIKE :search OR m.cpu LIKE :search OR m.gpu LIKE :search
+              OR m.ram_type LIKE :search OR u.name LIKE :search)`);
     params.search = `%${filters.search}%`;
   }
-  const [rows] = await pool.query<MachineRow[]>(`${SELECT_MACHINE} ${where} ORDER BY m.name IS NULL, m.name, m.mac_address`, params);
+  for (const [key, column] of Object.entries(TEXT_FILTERS) as [keyof typeof TEXT_FILTERS, string][]) {
+    if (!filters[key]) continue;
+    where.push(`${column} LIKE :${key}`);
+    params[key] = `%${filters[key]}%`;
+  }
+  for (const [key, column] of Object.entries(MIN_FILTERS) as [keyof typeof MIN_FILTERS, string][]) {
+    if (filters[key] === undefined) continue;
+    where.push(`${column} >= :${key}`);
+    params[key] = filters[key];
+  }
+  if (filters.storageType) {
+    where.push("m.storage_type = :storageType");
+    params.storageType = filters.storageType;
+  }
+  const sql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  const [rows] = await pool.query<MachineRow[]>(`${SELECT_MACHINE} ${sql} ORDER BY m.name IS NULL, m.name, m.mac_address`, params);
   return rows.map(toMachine);
 }
 

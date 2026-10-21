@@ -416,6 +416,12 @@ function ManagePanel({
   // Suporte só assume chamado sem responsável; a API ajusta o status ao assumir.
   const canAssume = isAdmin ? ticket.assigneeId !== currentUserId : ticket.assigneeId === null;
 
+  // Máquinas que podem ser vinculadas: as que estão com quem abriu o chamado ou sem usuário.
+  // A máquina já vinculada continua na lista, para o campo não ficar em branco.
+  const machineOptions = machines.filter(
+    (m) => m.userId === null || m.userId === ticket.requesterId || m.id === ticket.machineId,
+  );
+
   return (
     <section className="panel" aria-labelledby="manage-title">
       <div className="panel-head">
@@ -496,12 +502,18 @@ function ManagePanel({
         </Field>
         <Field
           label="Máquina"
-          hint={form.machineId ? undefined : "Obrigatória para marcar o chamado como resolvido."}
+          hint={
+            machineOptions.length === 0
+              ? `Nenhuma máquina com ${ticket.requesterName} ou sem usuário. Cadastre ou ajuste em Máquinas.`
+              : form.machineId
+                ? "Só aparecem máquinas de quem abriu o chamado ou sem usuário."
+                : "Obrigatória para marcar o chamado como resolvido. Só aparecem máquinas de quem abriu o chamado ou sem usuário."
+          }
           error={error?.fieldError("machineId")}
         >
           <select className="select" value={form.machineId} onChange={(e) => setForm({ ...form, machineId: e.target.value })}>
             <option value="">Nenhuma máquina</option>
-            {machines.map((m) => (
+            {machineOptions.map((m) => (
               <option key={m.id} value={m.id}>
                 {machineLabel(m)}
                 {m.userName ? ` - ${m.userName}` : ""}
