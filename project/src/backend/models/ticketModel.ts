@@ -14,7 +14,7 @@ import type {
 
 const SELECT_TICKET = `
   SELECT t.*, c.name AS category_name, r.name AS requester_name, a.name AS assignee_name,
-         m.mac_address AS machine_mac_address, m.description AS machine_description
+         m.name AS machine_name, m.mac_address AS machine_mac_address, m.description AS machine_description
   FROM tickets t
   JOIN categories c ON c.id = t.category_id
   JOIN users r ON r.id = t.requester_id
@@ -34,6 +34,7 @@ interface TicketRow extends RowDataPacket {
   assignee_id: number | null;
   assignee_name: string | null;
   machine_id: number | null;
+  machine_name: string | null;
   machine_mac_address: string | null;
   machine_description: string | null;
   solution: string | null;
@@ -56,6 +57,7 @@ const toTicket = (row: TicketRow): Ticket => ({
   assigneeId: row.assignee_id,
   assigneeName: row.assignee_name,
   machineId: row.machine_id,
+  machineName: row.machine_name,
   machineMacAddress: row.machine_mac_address,
   machineDescription: row.machine_description,
   solution: row.solution,

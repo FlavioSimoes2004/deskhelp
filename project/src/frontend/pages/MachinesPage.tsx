@@ -4,8 +4,9 @@ import { Field } from "../components/Field";
 import { useAsync } from "../hooks/useAsync";
 import { ApiError } from "../services/api";
 import { machineService, userService } from "../services/deskhelp";
-import type { Machine, MachineHistoryEntry, User } from "../services/types";
+import type { Machine, MachineHistoryEntry, StorageType, User } from "../services/types";
 import { formatDateTime, timeAgo } from "../utils/format";
+import { formatGb, machineLabel, machineSpecs, STORAGE_LABEL } from "../utils/machine";
 
 export function MachinesPage() {
   const [search, setSearch] = useState("");
@@ -26,7 +27,7 @@ export function MachinesPage() {
       <div className="page-head">
         <div>
           <h1>Máquinas</h1>
-          <p>Cadastre as máquinas pelo endereço MAC, registre o IP e quem está com cada uma.</p>
+          <p>Cadastre as máquinas com nome, endereço MAC, IP, configuração e quem está com cada uma.</p>
         </div>
         <button
           type="button"
@@ -73,7 +74,7 @@ export function MachinesPage() {
             id="m-search"
             className="input"
             type="search"
-            placeholder="MAC, IP, descrição ou nome do usuário"
+            placeholder="Nome, MAC, IP, descrição, processador ou usuário"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -88,9 +89,9 @@ export function MachinesPage() {
           <table className="table">
             <thead>
               <tr>
-                <th scope="col">Endereço MAC</th>
+                <th scope="col">Máquina</th>
                 <th scope="col">IP</th>
-                <th scope="col">Descrição</th>
+                <th scope="col">Configuração</th>
                 <th scope="col">Usuário</th>
                 <th scope="col">Atualizado em</th>
                 <th scope="col">
@@ -102,10 +103,15 @@ export function MachinesPage() {
               {machines.data.map((m) => (
                 <tr key={m.id}>
                   <td>
-                    <strong>{m.macAddress}</strong>
+                    <strong>{m.name ?? m.macAddress}</strong>
+                    {(m.name || m.description) && (
+                      <span className="muted" style={{ display: "block" }}>
+                        {[m.name ? m.macAddress : null, m.description].filter(Boolean).join(" · ")}
+                      </span>
+                    )}
                   </td>
                   <td>{m.ipAddress ?? <span className="muted">Sem IP</span>}</td>
-                  <td>{m.description ?? <span className="muted">Sem descrição</span>}</td>
+                  <td>{machineSpecs(m) ?? <span className="muted">Não informada</span>}</td>
                   <td>{m.userName ?? <span className="muted">Sem usuário</span>}</td>
                   <td className="muted">{formatDateTime(m.updatedAt)}</td>
                   <td className="num">
@@ -162,11 +168,20 @@ function MachineForm({
   onSaved: (message: string) => void;
 }) {
   const [form, setForm] = useState({
+    name: machine?.name ?? "",
     macAddress: machine?.macAddress ?? "",
     ipAddress: machine?.ipAddress ?? "",
     description: machine?.description ?? "",
+    ramGb: machine?.ramGb ? String(machine.ramGb) : "",
+    ramType: machine?.ramType ?? "",
+    cpu: machine?.cpu ?? "",
+    storageGb: machine?.storageGb ? String(machine.storageGb) : "",
+    storageType: (machine?.storageType ?? "") as StorageType | "",
+    gpu: machine?.gpu ?? "",
     userId: machine?.userId ? String(machine.userId) : "",
   });
+  const text = (value: string) => value.trim() || null;
+  const number = (value: string) => (value.trim() ? Number(value) : null);
   const [error, setError] = useState<ApiError | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -178,18 +193,25 @@ function MachineForm({
     setSaving(true);
     setError(null);
     const data = {
+      name: text(form.name),
       macAddress: form.macAddress,
-      ipAddress: form.ipAddress.trim() || null,
-      description: form.description.trim() || null,
+      ipAddress: text(form.ipAddress),
+      description: text(form.description),
+      ramGb: number(form.ramGb),
+      ramType: text(form.ramType),
+      cpu: text(form.cpu),
+      storageGb: number(form.storageGb),
+      storageType: form.storageType || null,
+      gpu: text(form.gpu),
       userId: form.userId ? Number(form.userId) : null,
     };
     try {
       if (machine) {
         const saved = await machineService.update(machine.id, data);
-        onSaved(`Máquina ${saved.macAddress} atualizada.`);
+        onSaved(`Máquina ${machineLabel(saved)} atualizada.`);
       } else {
         const saved = await machineService.create(data);
-        onSaved(`Máquina ${saved.macAddress} cadastrada.`);
+        onSaved(`Máquina ${machineLabel(saved)} cadastrada.`);
       }
     } catch (err) {
       setError(err as ApiError);
@@ -200,19 +222,29 @@ function MachineForm({
   return (
     <form className="panel form" onSubmit={onSubmit} style={{ marginBottom: 16 }} noValidate>
       <div className="panel-head">
-        <h2>{machine ? `Editar ${machine.macAddress}` : "Cadastrar máquina"}</h2>
+        <h2>{machine ? `Editar ${machineLabel(machine)}` : "Cadastrar máquina"}</h2>
       </div>
       <ErrorAlert error={error && !error.details.length ? error : null} />
       <div className="form-row">
+        <Field label="Nome" hint="Ex.: RECEPCAO-01. Opcional." error={error?.fieldError("name")}>
+          <input
+            className="input"
+            value={form.name}
+            maxLength={80}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            autoFocus
+          />
+        </Field>
         <Field label="Endereço MAC" hint="Ex.: AA:BB:CC:DD:EE:FF" error={error?.fieldError("macAddress")}>
           <input
             className="input"
             value={form.macAddress}
             onChange={(e) => setForm({ ...form, macAddress: e.target.value })}
-            autoFocus
             spellCheck={false}
           />
         </Field>
+      </div>
+      <div className="form-row">
         <Field label="Endereço IP" hint="IPv4 ou IPv6. Deixe em branco se não houver." error={error?.fieldError("ipAddress")}>
           <input
             className="input"
@@ -221,19 +253,74 @@ function MachineForm({
             spellCheck={false}
           />
         </Field>
+        <Field
+          label="Descrição"
+          hint="Ex.: Notebook da recepção. Deixe em branco se não houver."
+          error={error?.fieldError("description")}
+        >
+          <input
+            className="input"
+            value={form.description}
+            maxLength={255}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
+        </Field>
       </div>
-      <Field
-        label="Descrição"
-        hint="Ex.: Notebook da recepção. Deixe em branco se não houver."
-        error={error?.fieldError("description")}
-      >
-        <input
-          className="input"
-          value={form.description}
-          maxLength={255}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-        />
-      </Field>
+
+      <fieldset className="fieldset">
+        <legend>Configuração (opcional)</legend>
+        <div className="form-row">
+          <Field label="Memória RAM (GB)" error={error?.fieldError("ramGb")}>
+            <input
+              className="input"
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
+              value={form.ramGb}
+              onChange={(e) => setForm({ ...form, ramGb: e.target.value })}
+            />
+          </Field>
+          <Field label="Tipo de memória" hint="Ex.: DDR4 3200 MHz" error={error?.fieldError("ramType")}>
+            <input
+              className="input"
+              value={form.ramType}
+              maxLength={120}
+              onChange={(e) => setForm({ ...form, ramType: e.target.value })}
+            />
+          </Field>
+        </div>
+        <Field label="Processador" hint="Ex.: Intel Core i5-10400" error={error?.fieldError("cpu")}>
+          <input className="input" value={form.cpu} maxLength={120} onChange={(e) => setForm({ ...form, cpu: e.target.value })} />
+        </Field>
+        <div className="form-row">
+          <Field label="Armazenamento (GB)" hint="Ex.: 512 ou 1024 (1 TB)" error={error?.fieldError("storageGb")}>
+            <input
+              className="input"
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
+              value={form.storageGb}
+              onChange={(e) => setForm({ ...form, storageGb: e.target.value })}
+            />
+          </Field>
+          <Field label="Tipo de armazenamento" error={error?.fieldError("storageType")}>
+            <select
+              className="select"
+              value={form.storageType}
+              onChange={(e) => setForm({ ...form, storageType: e.target.value as StorageType | "" })}
+            >
+              <option value="">Não informado</option>
+              <option value="ssd">SSD</option>
+              <option value="hd">HD</option>
+            </select>
+          </Field>
+        </div>
+        <Field label="Placa de vídeo" hint="Ex.: NVIDIA GeForce GTX 1650 ou integrada" error={error?.fieldError("gpu")}>
+          <input className="input" value={form.gpu} maxLength={120} onChange={(e) => setForm({ ...form, gpu: e.target.value })} />
+        </Field>
+      </fieldset>
       <Field label="Usuário" error={error?.fieldError("userId")}>
         <select className="select" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}>
           <option value="">Sem usuário</option>
@@ -256,9 +343,27 @@ function MachineForm({
   );
 }
 
+/** Rótulo e formatação do valor de cada campo de texto/configuração no histórico. */
+const FIELD_TEXT: Partial<Record<MachineHistoryEntry["field"], { label: string; format?: (v: string) => string }>> = {
+  name: { label: "o nome" },
+  ramGb: { label: "a memória RAM", format: (v) => formatGb(Number(v)) },
+  ramType: { label: "o tipo de memória" },
+  cpu: { label: "o processador" },
+  storageGb: { label: "o armazenamento", format: (v) => formatGb(Number(v)) },
+  storageType: { label: "o tipo de armazenamento", format: (v) => STORAGE_LABEL[v as StorageType] ?? v },
+  gpu: { label: "a placa de vídeo" },
+};
+
 function describeMachineChange(entry: MachineHistoryEntry, users: User[]): string {
   const userName = (id: string) => users.find((u) => String(u.id) === id)?.name ?? `usuário #${id}`;
   const { oldValue: from, newValue: to } = entry;
+  const field = FIELD_TEXT[entry.field];
+  if (field) {
+    const show = (v: string) => `“${field.format ? field.format(v) : v}”`;
+    if (!from) return `definiu ${field.label} como ${show(to ?? "")}`;
+    if (!to) return `removeu ${field.label} ${show(from)}`;
+    return `alterou ${field.label} de ${show(from)} para ${show(to)}`;
+  }
   switch (entry.field) {
     case "created":
       return `cadastrou a máquina com o MAC ${to}`;
@@ -276,6 +381,8 @@ function describeMachineChange(entry: MachineHistoryEntry, users: User[]): strin
       if (!from) return `entregou a máquina para ${userName(to ?? "")}`;
       if (!to) return `retirou a máquina de ${userName(from)}`;
       return `passou a máquina de ${userName(from)} para ${userName(to)}`;
+    default:
+      return `alterou ${entry.field}`;
   }
 }
 
@@ -285,7 +392,7 @@ function MachineHistory({ machine, users, onClose }: { machine: Machine; users: 
   return (
     <section className="panel" aria-labelledby="machine-history-title" style={{ marginBottom: 16 }}>
       <div className="panel-head">
-        <h2 id="machine-history-title">Histórico de {machine.macAddress}</h2>
+        <h2 id="machine-history-title">Histórico de {machineLabel(machine)}</h2>
         <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
           Fechar
         </button>

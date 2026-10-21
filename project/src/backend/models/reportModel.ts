@@ -70,7 +70,7 @@ export async function ticketsForExport(period: Period) {
 /** Chamados do período com máquina vinculada, agrupados por máquina, status e categoria. */
 export async function ticketsByMachine(period: Period) {
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT m.id AS machine_id, m.mac_address, m.description, u.name AS user_name,
+    `SELECT m.id AS machine_id, m.name, m.mac_address, m.description, u.name AS user_name,
             t.status, c.name AS category, COUNT(*) AS total
      FROM tickets t
      JOIN machines m ON m.id = t.machine_id
@@ -82,6 +82,7 @@ export async function ticketsByMachine(period: Period) {
   );
   return rows.map((r) => ({
     machineId: Number(r.machine_id),
+    name: r.name === null ? null : String(r.name),
     macAddress: String(r.mac_address),
     description: r.description === null ? null : String(r.description),
     userName: r.user_name === null ? null : String(r.user_name),

@@ -29,6 +29,7 @@ export interface Ticket {
   assigneeId: number | null;
   assigneeName: string | null;
   machineId: number | null;
+  machineName: string | null;
   machineMacAddress: string | null;
   machineDescription: string | null;
   solution: string | null;
@@ -95,11 +96,22 @@ export interface ReportSummary {
   perDay: { day: string; total: number }[];
 }
 
+export type StorageType = "ssd" | "hd";
+
 export interface Machine {
   id: number;
+  name: string | null;
   macAddress: string;
   ipAddress: string | null;
   description: string | null;
+  /** Memória RAM: quantidade em GB e qual é. */
+  ramGb: number | null;
+  ramType: string | null;
+  cpu: string | null;
+  /** Armazenamento: quantidade em GB e tipo. */
+  storageGb: number | null;
+  storageType: StorageType | null;
+  gpu: string | null;
   userId: number | null;
   userName: string | null;
   createdAt: string;
@@ -111,7 +123,19 @@ export interface MachineHistoryEntry {
   machineId: number;
   userId: number;
   userName: string;
-  field: "created" | "macAddress" | "ipAddress" | "description" | "userId";
+  field:
+    | "created"
+    | "name"
+    | "macAddress"
+    | "ipAddress"
+    | "description"
+    | "ramGb"
+    | "ramType"
+    | "cpu"
+    | "storageGb"
+    | "storageType"
+    | "gpu"
+    | "userId";
   oldValue: string | null;
   newValue: string | null;
   createdAt: string;
@@ -139,6 +163,7 @@ export interface Notification {
 
 export interface MachineReportRow {
   machineId: number;
+  name: string | null;
   macAddress: string;
   description: string | null;
   userName: string | null;

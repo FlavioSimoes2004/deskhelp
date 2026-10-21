@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { creationEntries, diffMachine } from "./machineRules.js";
 
-const machine = { macAddress: "AA:BB:CC:DD:EE:FF", ipAddress: "10.0.0.1", description: null, userId: 2 };
+const machine = {
+  name: null,
+  macAddress: "AA:BB:CC:DD:EE:FF",
+  ipAddress: "10.0.0.1",
+  description: null,
+  ramGb: null,
+  ramType: null,
+  cpu: null,
+  storageGb: null,
+  storageType: null,
+  gpu: null,
+  userId: 2,
+};
 
 describe("diffMachine", () => {
   it("returns only the fields that actually change", () => {
@@ -43,6 +55,13 @@ describe("creationEntries", () => {
       oldValue: null,
       newValue: "Desktop do RH",
     });
+  });
+
+  it("records the initial name and configuration", () => {
+    const entries = creationEntries({ ...machine, name: "RECEPCAO-01", ramGb: 16, storageType: "ssd" });
+    expect(entries).toContainEqual({ field: "name", oldValue: null, newValue: "RECEPCAO-01" });
+    expect(entries).toContainEqual({ field: "ramGb", oldValue: null, newValue: "16" });
+    expect(entries).toContainEqual({ field: "storageType", oldValue: null, newValue: "ssd" });
   });
 
   it("skips initial values that were left empty", () => {

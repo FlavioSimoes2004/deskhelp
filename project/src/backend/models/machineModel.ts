@@ -1,7 +1,7 @@
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { pool, type SqlParams } from "../config/database.js";
-import type { MachineChange } from "../services/machineRules.js";
-import type { Machine, MachineHistoryEntry } from "./types.js";
+import type { MachineChange, MachineEditableFields } from "../services/machineRules.js";
+import type { Machine, MachineHistoryEntry, StorageType } from "./types.js";
 
 const SELECT_MACHINE = `
   SELECT m.*, u.name AS user_name
@@ -10,9 +10,16 @@ const SELECT_MACHINE = `
 
 interface MachineRow extends RowDataPacket {
   id: number;
+  name: string | null;
   mac_address: string;
   ip_address: string | null;
   description: string | null;
+  ram_gb: number | null;
+  ram_type: string | null;
+  cpu: string | null;
+  storage_gb: number | null;
+  storage_type: StorageType | null;
+  gpu: string | null;
   user_id: number | null;
   user_name: string | null;
   created_at: Date;
@@ -21,31 +28,49 @@ interface MachineRow extends RowDataPacket {
 
 const toMachine = (row: MachineRow): Machine => ({
   id: row.id,
+  name: row.name,
   macAddress: row.mac_address,
   ipAddress: row.ip_address,
   description: row.description,
+  ramGb: row.ram_gb,
+  ramType: row.ram_type,
+  cpu: row.cpu,
+  storageGb: row.storage_gb,
+  storageType: row.storage_type,
+  gpu: row.gpu,
   userId: row.user_id,
   userName: row.user_name,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
 
-export interface MachineFields {
-  macAddress: string;
-  ipAddress: string | null;
-  description: string | null;
-  userId: number | null;
-}
+export type MachineFields = MachineEditableFields;
+
+/** Campo da aplicação -> coluna da tabela machines. */
+const COLUMNS: Record<keyof MachineFields, string> = {
+  name: "name",
+  macAddress: "mac_address",
+  ipAddress: "ip_address",
+  description: "description",
+  ramGb: "ram_gb",
+  ramType: "ram_type",
+  cpu: "cpu",
+  storageGb: "storage_gb",
+  storageType: "storage_type",
+  gpu: "gpu",
+  userId: "user_id",
+};
+const FIELDS = Object.keys(COLUMNS) as (keyof MachineFields)[];
 
 export async function listMachines(filters: { search?: string }): Promise<Machine[]> {
   const params: SqlParams = {};
   let where = "";
   if (filters.search) {
-    where =
-      "WHERE (m.mac_address LIKE :search OR m.ip_address LIKE :search OR m.description LIKE :search OR u.name LIKE :search)";
+    where = `WHERE (m.name LIKE :search OR m.mac_address LIKE :search OR m.ip_address LIKE :search
+              OR m.description LIKE :search OR m.cpu LIKE :search OR u.name LIKE :search)`;
     params.search = `%${filters.search}%`;
   }
-  const [rows] = await pool.query<MachineRow[]>(`${SELECT_MACHINE} ${where} ORDER BY m.mac_address`, params);
+  const [rows] = await pool.query<MachineRow[]>(`${SELECT_MACHINE} ${where} ORDER BY m.name IS NULL, m.name, m.mac_address`, params);
   return rows.map(toMachine);
 }
 
@@ -97,8 +122,8 @@ export async function insertMachine(data: MachineFields, userId: number, changes
     userId,
     async (conn) => {
       const [result] = await conn.execute<ResultSetHeader>(
-        `INSERT INTO machines (mac_address, ip_address, description, user_id)
-         VALUES (:macAddress, :ipAddress, :description, :userId)`,
+        `INSERT INTO machines (${FIELDS.map((f) => COLUMNS[f]).join(", ")})
+         VALUES (${FIELDS.map((f) => `:${f}`).join(", ")})`,
         { ...data },
       );
       return result.insertId;
@@ -113,17 +138,11 @@ export async function updateMachine(
   userId: number,
   changes: MachineChange[],
 ): Promise<void> {
-  const columns: Record<keyof MachineFields, string> = {
-    macAddress: "mac_address",
-    ipAddress: "ip_address",
-    description: "description",
-    userId: "user_id",
-  };
   const sets: string[] = [];
   const params: SqlParams = { id };
-  for (const key of Object.keys(columns) as (keyof MachineFields)[]) {
+  for (const key of FIELDS) {
     if (data[key] === undefined) continue;
-    sets.push(`${columns[key]} = :${key}`);
+    sets.push(`${COLUMNS[key]} = :${key}`);
     params[key] = data[key];
   }
   if (sets.length === 0) return;

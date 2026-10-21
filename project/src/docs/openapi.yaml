@@ -811,7 +811,7 @@ paths:
       summary: Listar máquinas
       operationId: listMachines
       parameters:
-        - { name: search, in: query, description: MAC, IP, descrição ou nome do usuário, schema: { type: string } }
+        - { name: search, in: query, description: "Nome, MAC, IP, descrição, processador ou nome do usuário", schema: { type: string } }
       responses:
         "200":
           description: Máquinas
@@ -1147,6 +1147,7 @@ components:
         assigneeId: { type: [integer, "null"] }
         assigneeName: { type: [string, "null"] }
         machineId: { type: [integer, "null"] }
+        machineName: { type: [string, "null"] }
         machineMacAddress: { type: [string, "null"] }
         machineDescription: { type: [string, "null"] }
         solution: { type: [string, "null"], description: Solução registrada pelo responsável ou por um admin }
@@ -1200,9 +1201,16 @@ components:
       type: object
       properties:
         id: { type: integer }
+        name: { type: [string, "null"], maxLength: 80, example: "RECEPCAO-01" }
         macAddress: { type: string, example: "AA:BB:CC:DD:EE:FF" }
         ipAddress: { type: [string, "null"], example: "192.168.0.10" }
         description: { type: [string, "null"], maxLength: 255, example: "Notebook da recepção" }
+        ramGb: { type: [integer, "null"], description: Memória RAM em GB, example: 16 }
+        ramType: { type: [string, "null"], maxLength: 120, example: "DDR4 3200 MHz" }
+        cpu: { type: [string, "null"], maxLength: 120, example: "Intel Core i5-10400" }
+        storageGb: { type: [integer, "null"], description: Armazenamento em GB, example: 512 }
+        storageType: { type: [string, "null"], enum: [ssd, hd, null] }
+        gpu: { type: [string, "null"], maxLength: 120, example: "NVIDIA GeForce GTX 1650" }
         userId: { type: [integer, "null"] }
         userName: { type: [string, "null"] }
         createdAt: { type: string, format: date-time }
@@ -1214,7 +1222,9 @@ components:
         machineId: { type: integer }
         userId: { type: integer, description: Quem fez a alteração }
         userName: { type: string }
-        field: { type: string, enum: [created, macAddress, ipAddress, description, userId] }
+        field:
+          type: string
+          enum: [created, name, macAddress, ipAddress, description, ramGb, ramType, cpu, storageGb, storageType, gpu, userId]
         oldValue: { type: [string, "null"] }
         newValue: { type: [string, "null"] }
         createdAt: { type: string, format: date-time }
@@ -1225,6 +1235,13 @@ components:
         macAddress: { type: string }
         ipAddress: { type: [string, "null"], description: IPv4 ou IPv6 }
         description: { type: [string, "null"], maxLength: 255, description: Vazio vira null }
+        name: { type: [string, "null"], maxLength: 80, description: Nome da máquina; vazio vira null }
+        ramGb: { type: [integer, "null"], minimum: 1, description: Memória RAM em GB }
+        ramType: { type: [string, "null"], maxLength: 120 }
+        cpu: { type: [string, "null"], maxLength: 120 }
+        storageGb: { type: [integer, "null"], minimum: 1, description: Armazenamento em GB }
+        storageType: { type: [string, "null"], enum: [ssd, hd, null] }
+        gpu: { type: [string, "null"], maxLength: 120 }
         userId: { type: [integer, "null"] }
     Notification:
       type: object

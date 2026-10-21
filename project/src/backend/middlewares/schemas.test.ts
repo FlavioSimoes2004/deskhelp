@@ -77,6 +77,13 @@ describe("createMachineSchema", () => {
       ipAddress: null,
       description: null,
       userId: null,
+      name: null,
+      ramGb: null,
+      ramType: null,
+      cpu: null,
+      storageGb: null,
+      storageType: null,
+      gpu: null,
     });
   });
 });
@@ -91,6 +98,23 @@ describe("machine description", () => {
 
   it("rejects descriptions longer than 255 characters", () => {
     expect(updateMachineSchema.safeParse({ description: "x".repeat(256) }).success).toBe(false);
+  });
+});
+
+describe("machine configuration", () => {
+  it("accepts RAM, storage and the storage type", () => {
+    const parsed = updateMachineSchema.parse({ ramGb: 16, storageGb: 512, storageType: "ssd", cpu: " Core i5 " });
+    expect(parsed).toEqual({ ramGb: 16, storageGb: 512, storageType: "ssd", cpu: "Core i5" });
+  });
+
+  it("rejects fractional or zero sizes and unknown storage types", () => {
+    expect(updateMachineSchema.safeParse({ ramGb: 7.5 }).success).toBe(false);
+    expect(updateMachineSchema.safeParse({ storageGb: 0 }).success).toBe(false);
+    expect(updateMachineSchema.safeParse({ storageType: "nvme" }).success).toBe(false);
+  });
+
+  it("turns an empty name into null", () => {
+    expect(updateMachineSchema.parse({ name: "  " })).toEqual({ name: null });
   });
 });
 

@@ -5,13 +5,16 @@ import { useAsync } from "../hooks/useAsync";
 import { reportService } from "../services/deskhelp";
 import type { MachineReportRow } from "../services/types";
 import { isoDay } from "../utils/format";
+import { machineLabel } from "../utils/machine";
 
-/** MAC e, abaixo, a descrição e com quem a máquina está. */
+/** Nome (ou MAC) e, abaixo, MAC, descrição e com quem a máquina está. */
 function MachineCell({ machine }: { machine: MachineReportRow }) {
-  const details = [machine.description, machine.userName].filter(Boolean).join(" · ");
+  const details = [machine.name ? machine.macAddress : null, machine.description, machine.userName]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <>
-      <strong>{machine.macAddress}</strong>
+      <strong>{machine.name ?? machine.macAddress}</strong>
       {details && (
         <span className="muted" style={{ display: "block" }}>
           {details}
@@ -84,7 +87,7 @@ export function MachineReportPage() {
             <BarList
               items={data.machines.map((m) => ({
                 key: String(m.machineId),
-                label: m.description ? `${m.macAddress} (${m.description})` : m.macAddress,
+                label: machineLabel(m),
                 total: m.total,
               }))}
             />

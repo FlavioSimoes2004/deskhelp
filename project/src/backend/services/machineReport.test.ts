@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { aggregateMachineReport, type MachineTicketCount } from "./machineReport.js";
 
-const base = { description: null, userName: null };
+const base = { name: null, description: null, userName: null };
 const counts: MachineTicketCount[] = [
   { ...base, machineId: 1, macAddress: "AA:00:00:00:00:01", status: "aberto", category: "Hardware", total: 2 },
   { ...base, machineId: 1, macAddress: "AA:00:00:00:00:01", status: "resolvido", category: "Hardware", total: 1 },

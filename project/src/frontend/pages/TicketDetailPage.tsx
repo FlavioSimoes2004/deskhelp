@@ -30,9 +30,8 @@ import {
   STATUS_ORDER,
   timeAgo,
 } from "../utils/format";
+import { machineLabel } from "../utils/machine";
 
-/** "AA:BB:CC:DD:EE:FF (descrição)", para mostrar a máquina vinculada. */
-const machineLabel = (mac: string, description: string | null) => (description ? `${mac} (${description})` : mac);
 
 function describeChange(
   entry: TicketHistoryEntry,
@@ -45,9 +44,13 @@ function describeChange(
   // Usuário comum não lista máquinas; ainda assim reconhece a máquina atual do chamado.
   const machineName = (id: string) => {
     const machine = machines.find((m) => String(m.id) === id);
-    if (machine) return machineLabel(machine.macAddress, machine.description);
+    if (machine) return machineLabel(machine);
     if (id === String(ticket.machineId) && ticket.machineMacAddress) {
-      return machineLabel(ticket.machineMacAddress, ticket.machineDescription);
+      return machineLabel({
+        name: ticket.machineName,
+        macAddress: ticket.machineMacAddress,
+        description: ticket.machineDescription,
+      });
     }
     return `#${id}`;
   };
@@ -185,7 +188,11 @@ export function TicketDetailPage() {
               <dt>Responsável</dt>
               <dd>{t.assigneeName ?? "Ainda não atribuído"}</dd>
               <dt>Máquina</dt>
-              <dd>{t.machineMacAddress ? machineLabel(t.machineMacAddress, t.machineDescription) : "Não vinculada"}</dd>
+              <dd>
+                {t.machineMacAddress
+                  ? machineLabel({ name: t.machineName, macAddress: t.machineMacAddress, description: t.machineDescription })
+                  : "Não vinculada"}
+              </dd>
               <dt>Aberto em</dt>
               <dd>{formatDateTime(t.createdAt)}</dd>
               <dt>Última atividade</dt>
@@ -496,7 +503,7 @@ function ManagePanel({
             <option value="">Nenhuma máquina</option>
             {machines.map((m) => (
               <option key={m.id} value={m.id}>
-                {machineLabel(m.macAddress, m.description)}
+                {machineLabel(m)}
                 {m.userName ? ` - ${m.userName}` : ""}
               </option>
             ))}

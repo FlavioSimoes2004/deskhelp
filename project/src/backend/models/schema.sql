@@ -141,12 +141,19 @@ ALTER TABLE notifications
   MODIFY actor_id INT UNSIGNED NULL,
   ADD COLUMN IF NOT EXISTS agenda_id INT UNSIGNED NULL AFTER comment_id;
 
--- Máquinas (endereço MAC, IP, descrição e o usuário que está com ela).
+-- Máquinas (nome, endereço MAC, IP, descrição, configuração e o usuário que está com ela).
 CREATE TABLE IF NOT EXISTS machines (
-  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  mac_address CHAR(17) NOT NULL,
-  ip_address  VARCHAR(45) NULL,
-  description VARCHAR(255) NULL,
+  id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name         VARCHAR(80) NULL,
+  mac_address  CHAR(17) NOT NULL,
+  ip_address   VARCHAR(45) NULL,
+  description  VARCHAR(255) NULL,
+  ram_gb       SMALLINT UNSIGNED NULL,
+  ram_type     VARCHAR(120) NULL,
+  cpu          VARCHAR(120) NULL,
+  storage_gb   INT UNSIGNED NULL,
+  storage_type ENUM('ssd', 'hd') NULL,
+  gpu          VARCHAR(120) NULL,
   user_id     INT UNSIGNED NULL,
   created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -164,6 +171,16 @@ ALTER TABLE tickets ADD COLUMN IF NOT EXISTS machine_id INT UNSIGNED NULL AFTER 
 
 -- Bancos criados antes da coluna machines.description.
 ALTER TABLE machines ADD COLUMN IF NOT EXISTS description VARCHAR(255) NULL AFTER ip_address;
+
+-- Bancos criados antes do nome e da configuração das máquinas.
+ALTER TABLE machines
+  ADD COLUMN IF NOT EXISTS name VARCHAR(80) NULL AFTER id,
+  ADD COLUMN IF NOT EXISTS ram_gb SMALLINT UNSIGNED NULL AFTER description,
+  ADD COLUMN IF NOT EXISTS ram_type VARCHAR(120) NULL AFTER ram_gb,
+  ADD COLUMN IF NOT EXISTS cpu VARCHAR(120) NULL AFTER ram_type,
+  ADD COLUMN IF NOT EXISTS storage_gb INT UNSIGNED NULL AFTER cpu,
+  ADD COLUMN IF NOT EXISTS storage_type ENUM('ssd', 'hd') NULL AFTER storage_gb,
+  ADD COLUMN IF NOT EXISTS gpu VARCHAR(120) NULL AFTER storage_type;
 
 -- Histórico das máquinas: cadastro (field = 'created') e cada campo alterado.
 CREATE TABLE IF NOT EXISTS machine_history (

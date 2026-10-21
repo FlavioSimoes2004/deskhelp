@@ -11,6 +11,7 @@ import type {
   PeopleReport,
   ReportSummary,
   Role,
+  StorageType,
   StatusCounts,
   Ticket,
   TicketAttachment,
@@ -103,9 +104,16 @@ export const userService = {
 };
 
 export interface MachineInput {
+  name: string | null;
   macAddress: string;
   ipAddress: string | null;
   description: string | null;
+  ramGb: number | null;
+  ramType: string | null;
+  cpu: string | null;
+  storageGb: number | null;
+  storageType: StorageType | null;
+  gpu: string | null;
   userId: number | null;
 }
 

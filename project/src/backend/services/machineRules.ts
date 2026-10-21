@@ -1,9 +1,32 @@
+import type { StorageType } from "../models/types.js";
+
 export interface MachineEditableFields {
+  name: string | null;
   macAddress: string;
   ipAddress: string | null;
   description: string | null;
+  ramGb: number | null;
+  ramType: string | null;
+  cpu: string | null;
+  storageGb: number | null;
+  storageType: StorageType | null;
+  gpu: string | null;
   userId: number | null;
 }
+
+/** Máquina sem nada preenchido além do MAC: base para registrar os valores do cadastro. */
+const EMPTY: Omit<MachineEditableFields, "macAddress"> = {
+  name: null,
+  ipAddress: null,
+  description: null,
+  ramGb: null,
+  ramType: null,
+  cpu: null,
+  storageGb: null,
+  storageType: null,
+  gpu: null,
+  userId: null,
+};
 
 export interface MachineChange {
   field: keyof MachineEditableFields | "created";
@@ -26,12 +49,9 @@ export function diffMachine(current: MachineEditableFields, patch: Partial<Machi
 
 /** Entradas do cadastro: o evento "created" e os valores iniciais preenchidos. */
 export function creationEntries(data: MachineEditableFields): MachineChange[] {
+  const { macAddress, ...initial } = data;
   return [
-    { field: "created", oldValue: null, newValue: data.macAddress },
-    ...diffMachine({ macAddress: data.macAddress, ipAddress: null, description: null, userId: null }, {
-      ipAddress: data.ipAddress,
-      description: data.description,
-      userId: data.userId,
-    }),
+    { field: "created", oldValue: null, newValue: macAddress },
+    ...diffMachine({ macAddress, ...EMPTY }, initial),
   ];
 }

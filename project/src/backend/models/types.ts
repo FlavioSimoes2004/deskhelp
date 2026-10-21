@@ -38,6 +38,7 @@ export interface Ticket {
   assigneeId: number | null;
   assigneeName: string | null;
   machineId: number | null;
+  machineName: string | null;
   machineMacAddress: string | null;
   machineDescription: string | null;
   solution: string | null;
@@ -83,11 +84,23 @@ export interface TicketHistoryEntry {
   createdAt: Date;
 }
 
+export const STORAGE_TYPES = ["ssd", "hd"] as const;
+export type StorageType = (typeof STORAGE_TYPES)[number];
+
 export interface Machine {
   id: number;
+  name: string | null;
   macAddress: string;
   ipAddress: string | null;
   description: string | null;
+  /** Memória RAM: quantidade em GB e qual é (ex.: "DDR4 3200 MHz"). */
+  ramGb: number | null;
+  ramType: string | null;
+  cpu: string | null;
+  /** Armazenamento: quantidade em GB e tipo (SSD ou HD). */
+  storageGb: number | null;
+  storageType: StorageType | null;
+  gpu: string | null;
   userId: number | null;
   userName: string | null;
   createdAt: Date;

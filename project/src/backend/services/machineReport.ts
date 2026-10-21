@@ -3,6 +3,7 @@ import { aggregateByGroup, type Breakdown } from "./reportAggregation.js";
 
 export interface MachineTicketCount {
   machineId: number;
+  name: string | null;
   macAddress: string;
   description: string | null;
   userName: string | null;
@@ -13,6 +14,7 @@ export interface MachineTicketCount {
 
 export interface MachineReportRow extends Breakdown {
   machineId: number;
+  name: string | null;
   macAddress: string;
   description: string | null;
   userName: string | null;
@@ -28,6 +30,7 @@ export function aggregateMachineReport(counts: MachineTicketCount[]) {
   const machines: MachineReportRow[] = groups
     .map(({ sample, breakdown }) => ({
       machineId: sample.machineId,
+      name: sample.name,
       macAddress: sample.macAddress,
       description: sample.description,
       userName: sample.userName,

@@ -1,7 +1,7 @@
 import { isIP } from "node:net";
 import { z } from "zod";
 import { LOCAL_DATETIME } from "../services/agendaRules.js";
-import { NOTIFICATION_TYPES, ROLES, TICKET_PRIORITIES, TICKET_STATUSES } from "../models/types.js";
+import { NOTIFICATION_TYPES, ROLES, STORAGE_TYPES, TICKET_PRIORITIES, TICKET_STATUSES } from "../models/types.js";
 
 const email = z.string().trim().toLowerCase().pipe(z.email("E-mail inválido").max(190));
 const password = z.string().min(8, "A senha precisa ter pelo menos 8 caracteres").max(128);
@@ -126,11 +126,41 @@ const machineDescription = z
   .nullable()
   .transform((v) => v || null);
 
+/** Texto opcional da máquina: vazio vira null. */
+const machineText = (max: number, label: string) =>
+  z
+    .string()
+    .trim()
+    .max(max, `${label} pode ter no máximo ${max} caracteres`)
+    .nullable()
+    .transform((v) => v || null);
+
+/** Quantidade em GB (inteiro positivo) ou null. */
+const gigabytes = (max: number, label: string) =>
+  z.number().int(`${label}: use um número inteiro de GB`).min(1, `${label}: informe ao menos 1 GB`).max(max).nullable();
+
+const machineSpecs = {
+  name: machineText(80, "O nome"),
+  ramGb: gigabytes(65_535, "Memória RAM"),
+  ramType: machineText(120, "O tipo de memória"),
+  cpu: machineText(120, "O processador"),
+  storageGb: gigabytes(10_000_000, "Armazenamento"),
+  storageType: z.enum(STORAGE_TYPES).nullable(),
+  gpu: machineText(120, "A placa de vídeo"),
+};
+
 export const createMachineSchema = z.object({
   macAddress,
   ipAddress: ipAddress.default(null),
   description: machineDescription.default(null),
   userId: id.nullable().default(null),
+  name: machineSpecs.name.default(null),
+  ramGb: machineSpecs.ramGb.default(null),
+  ramType: machineSpecs.ramType.default(null),
+  cpu: machineSpecs.cpu.default(null),
+  storageGb: machineSpecs.storageGb.default(null),
+  storageType: machineSpecs.storageType.default(null),
+  gpu: machineSpecs.gpu.default(null),
 });
 
 export const updateMachineSchema = z
@@ -139,6 +169,13 @@ export const updateMachineSchema = z
     ipAddress: ipAddress.optional(),
     description: machineDescription.optional(),
     userId: id.nullable().optional(),
+    name: machineSpecs.name.optional(),
+    ramGb: machineSpecs.ramGb.optional(),
+    ramType: machineSpecs.ramType.optional(),
+    cpu: machineSpecs.cpu.optional(),
+    storageGb: machineSpecs.storageGb.optional(),
+    storageType: machineSpecs.storageType.optional(),
+    gpu: machineSpecs.gpu.optional(),
   })
   .refine((data) => Object.keys(data).length > 0, { message: "Nenhum campo para atualizar" });
 
