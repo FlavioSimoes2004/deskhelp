@@ -24,6 +24,7 @@ Regras importantes:
 - Admin e suporte podem deixar notas internas no chamado, que quem abriu não vê.
 - Quem abriu avalia o atendimento (1 a 5) uma vez, com o chamado resolvido ou fechado.
 - Abrir um chamado marca as notificações dele como lidas.
+- A tela se atualiza sozinha a cada 15 segundos (e ao voltar para a aba): sino, avisos da agenda, notificações, chamados e a conversa do chamado. O intervalo fica em `LIVE_REFRESH_MS` (`src/frontend/hooks/useLiveRefresh.ts`).
 - Um admin não pode tirar o próprio perfil de admin nem desativar a própria conta.
 - Conta desativada perde o acesso na hora (o token é revalidado no banco a cada requisição).
 - Uma conta só fica conectada em um lugar: um login novo encerra a sessão anterior.

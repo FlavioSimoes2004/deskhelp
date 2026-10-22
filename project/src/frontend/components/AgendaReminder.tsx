@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
+import { useLiveRefresh } from "../hooks/useLiveRefresh";
 import { notifyNotificationsChanged } from "../hooks/useUnreadNotifications";
 import { agendaService } from "../services/deskhelp";
 import type { AgendaItem } from "../services/types";
@@ -9,12 +10,10 @@ import { formatDateTime, ticketNumber } from "../utils/format";
 export const AGENDA_CHANGED_EVENT = "deskhelp:agenda-changed";
 export const notifyAgendaChanged = () => window.dispatchEvent(new Event(AGENDA_CHANGED_EVENT));
 
-const POLL_MS = 30_000;
-
 /**
  * Aviso da agenda sobre a tela: quando chega a hora de um item, ele aparece aqui e
- * só some quando o usuário dispensa (Esc não fecha). Confere a cada 30 s, ao trocar
- * de página e quando um item é criado.
+ * só some quando o usuário dispensa (Esc não fecha). Confere a cada LIVE_REFRESH_MS,
+ * ao voltar para a aba, ao trocar de página e quando um item é criado.
  */
 export function AgendaReminder() {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -36,16 +35,11 @@ export function AgendaReminder() {
   }, []);
 
   useEffect(refresh, [refresh, pathname]);
+  useLiveRefresh(refresh);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      if (document.visibilityState === "visible") refresh();
-    }, POLL_MS);
     window.addEventListener(AGENDA_CHANGED_EVENT, refresh);
-    return () => {
-      clearInterval(timer);
-      window.removeEventListener(AGENDA_CHANGED_EVENT, refresh);
-    };
+    return () => window.removeEventListener(AGENDA_CHANGED_EVENT, refresh);
   }, [refresh]);
 
   useEffect(() => {

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router";
 import { EmptyState, ErrorAlert, Loading } from "../components/Feedback";
 import { TicketTable } from "../components/TicketTable";
 import { useAsync } from "../hooks/useAsync";
+import { useLiveRefresh } from "../hooks/useLiveRefresh";
 import { useAuth } from "../hooks/useAuth";
 import { ticketService, userService } from "../services/deskhelp";
 import type { TicketPriority, TicketStatus } from "../services/types";
@@ -59,6 +60,8 @@ export function TicketsPage() {
           }),
     [status, priority, categoryId, assigneeId, search, from, to, page, waitingDefault],
   );
+  // Chamados novos e mudanças de status aparecem sem recarregar a página.
+  useLiveRefresh(list.refresh, !waitingDefault);
 
   function update(changes: Record<string, string>) {
     const next = new URLSearchParams(params);

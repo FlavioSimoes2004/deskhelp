@@ -3,6 +3,7 @@ import { EmptyState, ErrorAlert, Loading } from "../components/Feedback";
 import { StatusStrip } from "../components/StatusStrip";
 import { TicketTable } from "../components/TicketTable";
 import { useAsync } from "../hooks/useAsync";
+import { useLiveRefresh } from "../hooks/useLiveRefresh";
 import { useAuth } from "../hooks/useAuth";
 import { ticketService } from "../services/deskhelp";
 
@@ -21,6 +22,11 @@ export function HomePage() {
     () => (isStaff && user ? ticketService.list({ assigneeId: user.id, pageSize: 6 }) : Promise.resolve(null)),
     [isStaff, user?.id],
   );
+  useLiveRefresh(() => {
+    void overview.refresh();
+    void recent.refresh();
+    void mine.refresh();
+  });
 
   const firstName = user?.name.split(" ")[0] ?? "";
   const openForMe = mine.data?.data.filter((t) => t.status !== "resolvido" && t.status !== "fechado") ?? [];

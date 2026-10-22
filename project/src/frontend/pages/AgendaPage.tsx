@@ -4,6 +4,7 @@ import { AgendaForm, agendaStatus, isAgendaEditable } from "../components/Agenda
 import { notifyAgendaChanged } from "../components/AgendaReminder";
 import { EmptyState, ErrorAlert, Loading } from "../components/Feedback";
 import { useAsync } from "../hooks/useAsync";
+import { useLiveRefresh } from "../hooks/useLiveRefresh";
 import { notifyNotificationsChanged } from "../hooks/useUnreadNotifications";
 import { ApiError } from "../services/api";
 import { agendaService } from "../services/deskhelp";
@@ -16,6 +17,8 @@ type When = "upcoming" | "past" | "";
 export function AgendaPage() {
   const [when, setWhen] = useState<When>("upcoming");
   const items = useAsync(() => agendaService.list({ when }), [when]);
+  // A situação dos lembretes muda quando a hora chega.
+  useLiveRefresh(items.refresh);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [editing, setEditing] = useState<AgendaItem | null>(null);

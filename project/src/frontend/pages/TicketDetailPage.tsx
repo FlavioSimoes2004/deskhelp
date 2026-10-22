@@ -7,6 +7,7 @@ import { ImagePreview, isImageAttachment } from "../components/ImagePreview";
 import { TicketAgendaPanel } from "../components/TicketAgendaPanel";
 import { TicketStub } from "../components/TicketStub";
 import { useAsync } from "../hooks/useAsync";
+import { useLiveRefresh } from "../hooks/useLiveRefresh";
 import { useAuth } from "../hooks/useAuth";
 import { notifyNotificationsChanged } from "../hooks/useUnreadNotifications";
 import { ApiError } from "../services/api";
@@ -84,6 +85,8 @@ export function TicketDetailPage() {
   const justCreated = Boolean((useLocation().state as { created?: boolean } | null)?.created);
 
   const ticket = useAsync(() => ticketService.get(id), [id]);
+  // Mensagens novas, mudanças de status e do histórico aparecem sem recarregar a página.
+  useLiveRefresh(ticket.refresh);
   const categories = useAsync(() => ticketService.categories(), []);
   const staff = useAsync(() => (isStaff ? userService.staff() : Promise.resolve([])), [isStaff]);
   const machines = useAsync(() => (isStaff ? machineService.list() : Promise.resolve([])), [isStaff]);
@@ -414,7 +417,9 @@ function ManagePanel({
       assigneeId: ticket.assigneeId ? String(ticket.assigneeId) : "",
       machineId: ticket.machineId ? String(ticket.machineId) : "",
     }),
-    [ticket],
+    // Pelos valores, não pelo objeto: a atualização automática traz um objeto novo a cada
+    // 15 s e não deve apagar o que o usuário está editando se nada mudou no servidor.
+    [ticket.status, ticket.priority, ticket.categoryId, ticket.assigneeId, ticket.machineId],
   );
   const [form, setForm] = useState(initial);
   const [error, setError] = useState<ApiError | null>(null);

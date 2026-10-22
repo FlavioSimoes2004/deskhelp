@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { EmptyState, ErrorAlert, Loading } from "../components/Feedback";
 import { useAsync } from "../hooks/useAsync";
+import { useLiveRefresh } from "../hooks/useLiveRefresh";
 import { notifyNotificationsChanged } from "../hooks/useUnreadNotifications";
 import { ApiError } from "../services/api";
 import { notificationService } from "../services/deskhelp";
@@ -33,6 +34,8 @@ export function NotificationsPage() {
     () => notificationService.list({ status, type, page, pageSize: PAGE_SIZE }),
     [status, type, page],
   );
+  // Novas notificações aparecem sem recarregar a página.
+  useLiveRefresh(list.refresh);
 
   function update(changes: Record<string, string>) {
     const next = new URLSearchParams(params);

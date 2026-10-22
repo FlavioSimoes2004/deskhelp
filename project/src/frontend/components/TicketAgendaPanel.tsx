@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { useAsync } from "../hooks/useAsync";
+import { useLiveRefresh } from "../hooks/useLiveRefresh";
 import { notifyNotificationsChanged } from "../hooks/useUnreadNotifications";
 import { ApiError } from "../services/api";
 import { agendaService } from "../services/deskhelp";
@@ -13,6 +14,7 @@ import { ErrorAlert, Loading } from "./Feedback";
 /** Lembretes do usuário vinculados ao chamado, com a opção de criar e excluir. */
 export function TicketAgendaPanel({ ticketId }: { ticketId: number }) {
   const items = useAsync(() => agendaService.list({ ticketId }), [ticketId]);
+  useLiveRefresh(items.refresh);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
 
