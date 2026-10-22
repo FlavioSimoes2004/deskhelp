@@ -1,6 +1,7 @@
 import { api } from "./api";
 import type {
   AgendaItem,
+  AppSettings,
   Category,
   Machine,
   MachineHistoryEntry,
@@ -176,6 +177,12 @@ export const agendaService = {
   /** Itens cuja hora chegou e ainda não foram dispensados (avisos na tela). */
   due: () => api.get<{ data: AgendaItem[] }>("/agenda/due").then((r) => r.data),
   dismiss: (id: number) => api.post<void>(`/agenda/${id}/dismiss`),
+};
+
+export const settingsService = {
+  get: () => api.get<{ data: AppSettings }>("/settings").then((r) => r.data),
+  /** Só admin. */
+  update: (data: Partial<AppSettings>) => api.put<{ data: AppSettings }>("/settings", data).then((r) => r.data),
 };
 
 export const reportService = {

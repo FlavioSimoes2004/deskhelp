@@ -88,6 +88,21 @@ export const commentSchema = z.object({
   internal: boolField.default(false),
 });
 
+export const settingsSchema = z
+  .object({
+    hidePriorityForComum: z.boolean().optional(),
+    commentsLocked: z.boolean().optional(),
+    // null = sem limite.
+    maxOpenTicketsPerUser: z
+      .number()
+      .int("Use um número inteiro")
+      .min(1, "O limite precisa ser de pelo menos 1 chamado")
+      .max(1000)
+      .nullable()
+      .optional(),
+  })
+  .refine((data) => Object.values(data).some((v) => v !== undefined), { message: "Nenhuma configuração para alterar" });
+
 export const ratingSchema = z.object({
   rating: z.number().int().min(1, "Escolha de 1 a 5 estrelas").max(5, "Escolha de 1 a 5 estrelas"),
   comment: z

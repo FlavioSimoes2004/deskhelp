@@ -43,6 +43,13 @@ servers:
 tags:
   - name: Autenticação
   - name: Chamados
+  - name: Configurações
+    description: |
+      Regras gerais da aplicação. Todos os usuários leem (as telas se ajustam); só admin altera.
+      `hidePriorityForComum`: usuários `comum` recebem `priority: null`, sem histórico de prioridade, e
+      não escolhem nem filtram por prioridade. `commentsLocked`: `POST /tickets/{id}/comments` retorna
+      409 `COMMENTS_LOCKED` para todos. `maxOpenTicketsPerUser`: `POST /tickets` retorna 409
+      `OPEN_TICKET_LIMIT` quando quem abre já tem esse número de chamados `aberto`/`em_andamento`.
   - name: Agenda
     description: |
       Lembretes pessoais (cada usuário vê apenas os próprios). Na hora marcada, o servidor cria uma
@@ -544,6 +551,51 @@ paths:
               schema: { type: string, format: binary }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
+
+  /settings:
+    get:
+      tags: [Configurações]
+      summary: Ler as configurações
+      operationId: getSettings
+      responses:
+        "200":
+          description: Configurações atuais
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/AppSettings" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    put:
+      tags: [Configurações]
+      summary: Alterar configurações (admin)
+      description: Envie apenas as configurações a alterar.
+      operationId: updateSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                hidePriorityForComum: { type: boolean }
+                commentsLocked: { type: boolean }
+                maxOpenTicketsPerUser: { type: [integer, "null"], minimum: 1, maximum: 1000, description: null = sem limite }
+            example: { commentsLocked: false, maxOpenTicketsPerUser: 3 }
+      responses:
+        "200":
+          description: Configurações após a alteração
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/AppSettings" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
 
   /agenda:
     get:
@@ -1287,7 +1339,11 @@ components:
         title: { type: string }
         description: { type: string }
         status: { $ref: "#/components/schemas/TicketStatus" }
-        priority: { $ref: "#/components/schemas/TicketPriority" }
+        priority:
+          description: null para usuários comuns quando a configuração esconde a prioridade
+          oneOf:
+            - $ref: "#/components/schemas/TicketPriority"
+            - type: "null"
         categoryId: { type: integer }
         categoryName: { type: string }
         requesterId: { type: integer }
@@ -1446,6 +1502,12 @@ components:
               byStatus: { type: object, additionalProperties: { type: integer } }
               byCategory: { type: array, items: { $ref: "#/components/schemas/CountItem" } }
         categories: { type: array, items: { type: string } }
+    AppSettings:
+      type: object
+      properties:
+        hidePriorityForComum: { type: boolean, description: Esconde a prioridade de usuários comuns }
+        commentsLocked: { type: boolean, description: Bloqueia novos comentários para todos }
+        maxOpenTicketsPerUser: { type: [integer, "null"], description: Máximo de chamados aberto/em andamento por usuário }
     AgendaItem:
       type: object
       properties:

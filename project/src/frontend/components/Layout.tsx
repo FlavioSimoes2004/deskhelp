@@ -82,6 +82,9 @@ export function Layout() {
               <NavLink to="/relatorios/responsaveis" className={navClass}>
                 Relatório de responsáveis
               </NavLink>
+              <NavLink to="/configuracoes" className={navClass}>
+                Configurações
+              </NavLink>
             </>
           )}
         </nav>

@@ -8,6 +8,8 @@ import type { UploadedFile } from "../middlewares/upload.js";
 import { removeStored, resolveStored, saveFile } from "../utils/fileStorage.js";
 import { forbidden, HttpError, notFound } from "../utils/httpError.js";
 import { assignmentRecipient, commentRecipients } from "./notificationRules.js";
+import { getSettings } from "./settingsService.js";
+import { assertBelowOpenTicketLimit, assertCommentsOpen, hidesPriority } from "./settingsRules.js";
 import {
   applySupportRules,
   assertCanAddComment,
@@ -36,8 +38,22 @@ async function assertCategory(categoryId: number) {
   }
 }
 
+/** Prioridade dada a chamados abertos por quem não pode escolhê-la (a mesma padrão do cadastro). */
+const DEFAULT_PRIORITY: TicketPriority = "media";
+
+/**
+ * Chamado como o usuário pode vê-lo: sem prioridade quando a configuração esconde a
+ * prioridade de usuários "comum".
+ */
+function present<T extends { priority: TicketPriority }>(ticket: T, hidePriority: boolean) {
+  return hidePriority ? { ...ticket, priority: null } : { ...ticket, priority: ticket.priority as TicketPriority | null };
+}
+
 export async function listTickets(user: AuthUser, query: TicketQuery) {
-  const { page, pageSize, ...filters } = query;
+  const hide = hidesPriority(user, await getSettings());
+  const { page, pageSize, ...requested } = query;
+  // Prioridade escondida: o filtro por prioridade também não vale (revelaria a prioridade).
+  const filters = hide ? { ...requested, priority: undefined } : requested;
   if (filters.from && filters.to && filters.from > filters.to) {
     throw new HttpError(400, "VALIDATION_ERROR", "A data inicial deve ser anterior à final", [
       { field: "from", message: "A data inicial deve ser anterior à final" },
@@ -45,16 +61,23 @@ export async function listTickets(user: AuthUser, query: TicketQuery) {
   }
   const scoped = isStaff(user.role) ? filters : { ...filters, requesterId: user.id };
   const { items, total } = await tickets.listTickets(scoped, page, pageSize);
-  return { data: items, pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) } };
+  return { data: items.map((t) => present(t, hide)), pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) } };
 }
 
 export async function getTicketDetail(user: AuthUser, id: number) {
   const ticket = await getVisibleTicket(user, id);
-  const [comments, history] = await Promise.all([
+  const [comments, history, settings] = await Promise.all([
     tickets.listComments(id, isStaff(user.role)),
     tickets.listHistory(id),
+    getSettings(),
   ]);
-  return { ...ticket, comments, history };
+  const hide = hidesPriority(user, settings);
+  return {
+    ...present(ticket, hide),
+    comments,
+    // O histórico também não mostra mudanças de prioridade a quem não pode vê-la.
+    history: hide ? history.filter((h) => h.field !== "priority") : history,
+  };
 }
 
 export async function createTicket(
@@ -62,8 +85,13 @@ export async function createTicket(
   data: { title: string; description: string; priority: TicketPriority; categoryId: number },
 ) {
   await assertCategory(data.categoryId);
-  const id = await tickets.insertTicket({ ...data, requesterId: user.id });
-  return getVisibleTicket(user, id);
+  const settings = await getSettings();
+  assertBelowOpenTicketLimit(await tickets.countOpenTickets(user.id), settings);
+  const hide = hidesPriority(user, settings);
+  // Quem não vê a prioridade também não a escolhe: fica a padrão.
+  const priority = hide ? DEFAULT_PRIORITY : data.priority;
+  const id = await tickets.insertTicket({ ...data, priority, requesterId: user.id });
+  return present(await getVisibleTicket(user, id), hide);
 }
 
 export async function updateTicket(user: AuthUser, id: number, requested: Partial<TicketEditableFields>) {
@@ -145,6 +173,7 @@ export async function addComment(
   internal = false,
 ) {
   const ticket = await getVisibleTicket(user, id);
+  assertCommentsOpen(await getSettings());
   assertCanAddComment(user, ticket, internal);
   // Nota interna não avisa quem abriu, a não ser que seja da equipe.
   const requester = internal ? await findUserById(ticket.requesterId) : null;

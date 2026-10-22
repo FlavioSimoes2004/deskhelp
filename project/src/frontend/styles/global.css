@@ -712,6 +712,26 @@ a {
   }
 }
 
+/* Opção liga/desliga com título e explicação (página Configurações). */
+.setting-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.setting-toggle input {
+  margin-top: 4px;
+}
+
+.setting-toggle small {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-3);
+  font-size: var(--step--1);
+  line-height: 1.5;
+}
+
 /* Grupo de campos com título (ex.: configuração da máquina). */
 .fieldset {
   border: 1px solid var(--line);

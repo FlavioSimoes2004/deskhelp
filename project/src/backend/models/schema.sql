@@ -230,6 +230,17 @@ CREATE TABLE IF NOT EXISTS ticket_history (
   CONSTRAINT fk_history_user FOREIGN KEY (user_id) REFERENCES users (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Configurações gerais da aplicação (alteradas por admins na página Configurações).
+-- Chaves: hide_priority_for_comum, comments_locked, max_open_tickets_per_user.
+CREATE TABLE IF NOT EXISTS app_settings (
+  setting_key VARCHAR(60) NOT NULL,
+  value       VARCHAR(255) NOT NULL,
+  updated_by  INT UNSIGNED NULL,
+  updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (setting_key),
+  CONSTRAINT fk_settings_user FOREIGN KEY (updated_by) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 INSERT IGNORE INTO categories (name) VALUES
   ('Acesso e senhas'),
   ('Hardware'),

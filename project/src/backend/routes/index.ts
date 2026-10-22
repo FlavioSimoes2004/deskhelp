@@ -6,6 +6,7 @@ import * as docsCtrl from "../controllers/docsController.js";
 import * as machineCtrl from "../controllers/machineController.js";
 import * as notificationCtrl from "../controllers/notificationController.js";
 import * as reportCtrl from "../controllers/reportController.js";
+import * as settingsCtrl from "../controllers/settingsController.js";
 import * as ticketCtrl from "../controllers/ticketController.js";
 import * as userCtrl from "../controllers/userController.js";
 import { authenticate, requireRole } from "../middlewares/auth.js";
@@ -24,6 +25,7 @@ import {
   registerSchema,
   ratingSchema,
   reportQuerySchema,
+  settingsSchema,
   solutionSchema,
   ticketQuerySchema,
   updateMachineSchema,
@@ -67,6 +69,8 @@ apiRouter.patch("/auth/me", validate(updateProfileSchema), authCtrl.updateMe);
 apiRouter.post("/auth/logout", authCtrl.logout);
 
 apiRouter.get("/categories", ticketCtrl.categories);
+// Configurações: todos leem (as telas se ajustam a elas); só admin altera.
+apiRouter.get("/settings", settingsCtrl.get);
 apiRouter.get("/tickets/overview", ticketCtrl.overview);
 apiRouter.get("/tickets/oldest-open", ticketCtrl.oldestOpen);
 apiRouter.get("/tickets", validate(ticketQuerySchema, "query"), ticketCtrl.list);
@@ -111,6 +115,7 @@ apiRouter.patch("/machines/:id", staffOnly, byId, validate(updateMachineSchema),
 apiRouter.get("/machines/:id/history", staffOnly, byId, machineCtrl.history);
 
 // Somente administradores
+apiRouter.put("/settings", adminOnly, validate(settingsSchema), settingsCtrl.update);
 apiRouter.get("/reports/summary", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.summary);
 apiRouter.get("/reports/machines", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.machines);
 apiRouter.get("/reports/requesters", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.requesters);

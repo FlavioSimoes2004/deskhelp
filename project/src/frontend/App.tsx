@@ -13,6 +13,7 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { PeopleReportPage } from "./pages/PeopleReportPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { SignupPage } from "./pages/SignupPage";
 import { TicketDetailPage } from "./pages/TicketDetailPage";
 import { TicketsPage } from "./pages/TicketsPage";
@@ -97,6 +98,14 @@ export function App() {
               element={
                 <RequireAuth admin>
                   <PeopleReportPage key="assignees" kind="assignees" />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="configuracoes"
+              element={
+                <RequireAuth admin>
+                  <SettingsPage />
                 </RequireAuth>
               }
             />

@@ -6,6 +6,7 @@ import { Field } from "../components/Field";
 import { ImagePreview, isImageAttachment } from "../components/ImagePreview";
 import { TicketAgendaPanel } from "../components/TicketAgendaPanel";
 import { TicketStub } from "../components/TicketStub";
+import { useAppSettings } from "../hooks/useAppSettings";
 import { useAsync } from "../hooks/useAsync";
 import { useLiveRefresh } from "../hooks/useLiveRefresh";
 import { useAuth } from "../hooks/useAuth";
@@ -85,6 +86,7 @@ export function TicketDetailPage() {
   const justCreated = Boolean((useLocation().state as { created?: boolean } | null)?.created);
 
   const ticket = useAsync(() => ticketService.get(id), [id]);
+  const settings = useAppSettings();
   // Mensagens novas, mudanças de status e do histórico aparecem sem recarregar a página.
   useLiveRefresh(ticket.refresh);
   const categories = useAsync(() => ticketService.categories(), []);
@@ -117,7 +119,9 @@ export function TicketDetailPage() {
 
   const t = ticket.data;
   const isParticipant = user !== null && (t.requesterId === user.id || t.assigneeId === user.id);
-  const commentBlocked = !isParticipant
+  const commentBlocked = settings?.commentsLocked
+    ? "A conversa nos chamados está bloqueada pela administração."
+    : !isParticipant
     ? isStaff && t.assigneeId === null
       ? "Assuma o chamado para poder responder."
       : "Somente quem abriu o chamado e o responsável por ele podem responder."
@@ -125,7 +129,7 @@ export function TicketDetailPage() {
       ? "Este chamado foi fechado. Se o problema voltou, abra um novo chamado."
       : null;
   // Nota interna: qualquer admin ou suporte (em chamado fechado, só admin).
-  const canInternal = isStaff && (isAdmin || t.status !== "fechado");
+  const canInternal = isStaff && !settings?.commentsLocked && (isAdmin || t.status !== "fechado");
   return (
     <div className="page">
       <p style={{ marginBottom: 12 }}>
@@ -140,7 +144,7 @@ export function TicketDetailPage() {
         <h1>{t.title}</h1>
         <div className="stub-meta">
           <StatusBadge status={t.status} />
-          <PriorityTag priority={t.priority} />
+          {t.priority && <PriorityTag priority={t.priority} />}
           <span>{t.categoryName}</span>
           <span>
             Aberto por {t.requesterName} {timeAgo(t.createdAt)}
@@ -412,7 +416,8 @@ function ManagePanel({
   const initial = useMemo(
     () => ({
       status: ticket.status,
-      priority: ticket.priority,
+      // Admin e suporte sempre recebem a prioridade; o padrão só cobre o tipo.
+      priority: ticket.priority ?? "media",
       categoryId: String(ticket.categoryId),
       assigneeId: ticket.assigneeId ? String(ticket.assigneeId) : "",
       machineId: ticket.machineId ? String(ticket.machineId) : "",

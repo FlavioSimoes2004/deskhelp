@@ -2,7 +2,9 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
 import { ErrorAlert } from "../components/Feedback";
 import { Field } from "../components/Field";
+import { useAppSettings } from "../hooks/useAppSettings";
 import { useAsync } from "../hooks/useAsync";
+import { useAuth } from "../hooks/useAuth";
 import { ApiError } from "../services/api";
 import { ticketService } from "../services/deskhelp";
 import type { TicketPriority } from "../services/types";
@@ -17,7 +19,11 @@ const PRIORITY_HINT: Record<TicketPriority, string> = {
 
 export function NewTicketPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const settings = useAppSettings();
   const categories = useAsync(() => ticketService.categories(), []);
+  // Configuração: usuário comum não escolhe a prioridade (o servidor usa a padrão).
+  const choosePriority = !(settings?.hidePriorityForComum && user?.role === "comum");
   const [form, setForm] = useState({ title: "", description: "", categoryId: "", priority: "media" as TicketPriority });
   const [error, setError] = useState<ApiError | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -50,6 +56,12 @@ export function NewTicketPage() {
       </div>
 
       <form className="panel form" onSubmit={onSubmit} noValidate>
+        {settings?.maxOpenTicketsPerUser && (
+          <p className="muted" style={{ margin: 0 }}>
+            Cada pessoa pode ter até {settings.maxOpenTicketsPerUser}{" "}
+            {settings.maxOpenTicketsPerUser === 1 ? "chamado" : "chamados"} aberto(s) ou em andamento ao mesmo tempo.
+          </p>
+        )}
         <ErrorAlert error={error && !error.details.length ? error : null} />
         <ErrorAlert error={categories.error} onRetry={categories.reload} />
         <Field label="Assunto" hint="Um resumo curto, ex.: “Outlook não envia e-mails”." error={error?.fieldError("title")}>
@@ -80,19 +92,21 @@ export function NewTicketPage() {
               ))}
             </select>
           </Field>
-          <Field label="Prioridade" hint={PRIORITY_HINT[form.priority]} error={error?.fieldError("priority")}>
-            <select
-              className="select"
-              value={form.priority}
-              onChange={(e) => setForm({ ...form, priority: e.target.value as TicketPriority })}
-            >
-              {PRIORITY_ORDER.map((p) => (
-                <option key={p} value={p}>
-                  {PRIORITY_LABEL[p]}
-                </option>
-              ))}
-            </select>
-          </Field>
+          {choosePriority && (
+            <Field label="Prioridade" hint={PRIORITY_HINT[form.priority]} error={error?.fieldError("priority")}>
+              <select
+                className="select"
+                value={form.priority}
+                onChange={(e) => setForm({ ...form, priority: e.target.value as TicketPriority })}
+              >
+                {PRIORITY_ORDER.map((p) => (
+                  <option key={p} value={p}>
+                    {PRIORITY_LABEL[p]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
         </div>
         <Field
           label="Descrição"

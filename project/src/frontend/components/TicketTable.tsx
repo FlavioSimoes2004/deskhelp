@@ -6,6 +6,8 @@ import { PriorityTag, StatusBadge } from "./Badges";
 
 export function TicketTable({ tickets, showRequester }: { tickets: Ticket[]; showRequester: boolean }) {
   const navigate = useNavigate();
+  // Prioridade escondida pela configuração vem como null: a coluna some.
+  const showPriority = tickets.some((t) => t.priority !== null);
   return (
     <div className="table-wrap">
       <table className="table">
@@ -14,7 +16,7 @@ export function TicketTable({ tickets, showRequester }: { tickets: Ticket[]; sho
             <th scope="col">Nº</th>
             <th scope="col">Assunto</th>
             <th scope="col">Status</th>
-            <th scope="col">Prioridade</th>
+            {showPriority && <th scope="col">Prioridade</th>}
             {showRequester && <th scope="col">Solicitante</th>}
             <th scope="col">Responsável</th>
             <th scope="col">Atualizado</th>
@@ -41,9 +43,7 @@ export function TicketTable({ tickets, showRequester }: { tickets: Ticket[]; sho
               <td>
                 <StatusBadge status={t.status} />
               </td>
-              <td>
-                <PriorityTag priority={t.priority} />
-              </td>
+              {showPriority && <td>{t.priority && <PriorityTag priority={t.priority} />}</td>}
               {showRequester && <td>{t.requesterName}</td>}
               <td>{t.assigneeName ?? <span className="muted">Sem responsável</span>}</td>
               <td className="muted" title={formatDateTime(t.updatedAt)}>

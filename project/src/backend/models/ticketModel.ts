@@ -366,3 +366,12 @@ export async function setRating(ticketId: number, rating: number, comment: strin
   );
   return result.affectedRows > 0;
 }
+
+/** Chamados "aberto" ou "em andamento" de quem abriu (para o limite por usuário). */
+export async function countOpenTickets(requesterId: number): Promise<number> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    "SELECT COUNT(*) AS total FROM tickets WHERE requester_id = ? AND status IN ('aberto', 'em_andamento')",
+    [requesterId],
+  );
+  return Number(rows[0]?.total ?? 0);
+}

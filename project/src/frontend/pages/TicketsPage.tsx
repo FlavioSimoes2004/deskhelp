@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { EmptyState, ErrorAlert, Loading } from "../components/Feedback";
 import { TicketTable } from "../components/TicketTable";
+import { useAppSettings } from "../hooks/useAppSettings";
 import { useAsync } from "../hooks/useAsync";
 import { useLiveRefresh } from "../hooks/useLiveRefresh";
 import { useAuth } from "../hooks/useAuth";
@@ -13,6 +14,9 @@ const PAGE_SIZE = 20;
 
 export function TicketsPage() {
   const { isStaff } = useAuth();
+  // Configuração: usuário comum não vê a prioridade, então também não filtra por ela.
+  const settings = useAppSettings();
+  const showPriority = isStaff || !settings?.hidePriorityForComum;
   const [params, setParams] = useSearchParams();
   const status = (params.get("status") ?? "") as TicketStatus | "";
   const priority = (params.get("priority") ?? "") as TicketPriority | "";
@@ -114,22 +118,24 @@ export function TicketsPage() {
             ))}
           </select>
         </div>
-        <div className="field">
-          <label htmlFor="f-priority">Prioridade</label>
-          <select
-            id="f-priority"
-            className="select"
-            value={priority}
-            onChange={(e) => update({ priority: e.target.value })}
-          >
-            <option value="">Todas</option>
-            {PRIORITY_ORDER.map((p) => (
-              <option key={p} value={p}>
-                {PRIORITY_LABEL[p]}
-              </option>
-            ))}
-          </select>
-        </div>
+        {showPriority && (
+          <div className="field">
+            <label htmlFor="f-priority">Prioridade</label>
+            <select
+              id="f-priority"
+              className="select"
+              value={priority}
+              onChange={(e) => update({ priority: e.target.value })}
+            >
+              <option value="">Todas</option>
+              {PRIORITY_ORDER.map((p) => (
+                <option key={p} value={p}>
+                  {PRIORITY_LABEL[p]}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="field">
           <label htmlFor="f-category">Categoria</label>
           <select
