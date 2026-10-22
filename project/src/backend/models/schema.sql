@@ -30,12 +30,21 @@ CREATE TABLE IF NOT EXISTS categories (
   UNIQUE KEY uq_categories_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Nome da categoria sempre em maiúsculas, ao cadastrar e ao alterar (inclusive por SQL direto).
+CREATE TRIGGER IF NOT EXISTS trg_categories_upper_insert BEFORE INSERT ON categories
+  FOR EACH ROW SET NEW.name = UPPER(NEW.name);
+CREATE TRIGGER IF NOT EXISTS trg_categories_upper_update BEFORE UPDATE ON categories
+  FOR EACH ROW SET NEW.name = UPPER(NEW.name);
+-- Categorias criadas antes da regra (BINARY: a comparação comum ignora maiúsculas).
+UPDATE categories SET name = UPPER(name) WHERE BINARY name <> BINARY UPPER(name);
+
 CREATE TABLE IF NOT EXISTS tickets (
   id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
   title        VARCHAR(160) NOT NULL,
   description  TEXT NOT NULL,
   status       ENUM('aberto', 'em_andamento', 'aguardando', 'resolvido', 'fechado') NOT NULL DEFAULT 'aberto',
-  priority     ENUM('baixa', 'media', 'alta', 'critica') NOT NULL DEFAULT 'media',
+  -- NULL = sem prioridade definida (quando só o suporte define a prioridade).
+  priority     ENUM('baixa', 'media', 'alta', 'critica') NULL DEFAULT 'media',
   category_id  INT UNSIGNED NOT NULL,
   requester_id INT UNSIGNED NOT NULL,
   assignee_id  INT UNSIGNED NULL,
@@ -174,6 +183,9 @@ CREATE TABLE IF NOT EXISTS machines (
   CONSTRAINT fk_machines_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Bancos criados antes de chamados sem prioridade.
+ALTER TABLE tickets MODIFY priority ENUM('baixa', 'media', 'alta', 'critica') NULL DEFAULT 'media';
+
 -- Bancos criados antes das notas internas e da avaliação do atendimento.
 ALTER TABLE ticket_comments ADD COLUMN IF NOT EXISTS is_internal TINYINT(1) NOT NULL DEFAULT 0 AFTER body;
 ALTER TABLE tickets
@@ -231,7 +243,7 @@ CREATE TABLE IF NOT EXISTS ticket_history (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Configurações gerais da aplicação (alteradas por admins na página Configurações).
--- Chaves: hide_priority_for_comum, comments_locked, max_open_tickets_per_user.
+-- Chaves: hide_priority_for_comum, priority_by_staff_only, comments_locked, max_open_tickets_per_user.
 CREATE TABLE IF NOT EXISTS app_settings (
   setting_key VARCHAR(60) NOT NULL,
   value       VARCHAR(255) NOT NULL,

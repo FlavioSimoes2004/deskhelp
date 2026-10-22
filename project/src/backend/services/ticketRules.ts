@@ -94,7 +94,7 @@ export interface TicketEditableFields {
   title: string;
   description: string;
   status: TicketStatus;
-  priority: TicketPriority;
+  priority: TicketPriority | null;
   categoryId: number;
   assigneeId: number | null;
   machineId: number | null;

@@ -19,7 +19,7 @@ export function TicketsPage() {
   const showPriority = isStaff || !settings?.hidePriorityForComum;
   const [params, setParams] = useSearchParams();
   const status = (params.get("status") ?? "") as TicketStatus | "";
-  const priority = (params.get("priority") ?? "") as TicketPriority | "";
+  const priority = (params.get("priority") ?? "") as TicketPriority | "none" | "";
   const categoryId = params.get("categoryId") ?? "";
   const assigneeId = params.get("assigneeId") ?? "";
   const search = params.get("search") ?? "";
@@ -128,6 +128,7 @@ export function TicketsPage() {
               onChange={(e) => update({ priority: e.target.value })}
             >
               <option value="">Todas</option>
+              <option value="none">Sem prioridade</option>
               {PRIORITY_ORDER.map((p) => (
                 <option key={p} value={p}>
                   {PRIORITY_LABEL[p]}
@@ -204,7 +205,7 @@ export function TicketsPage() {
         <Loading />
       ) : list.data?.data.length ? (
         <>
-          <TicketTable tickets={list.data.data} showRequester={isStaff} />
+          <TicketTable tickets={list.data.data} showRequester={isStaff} showPriority={showPriority} />
           {pagination && (
             <div className="pager">
               <span>

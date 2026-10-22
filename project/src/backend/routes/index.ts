@@ -2,6 +2,7 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import * as agendaCtrl from "../controllers/agendaController.js";
 import * as authCtrl from "../controllers/authController.js";
+import * as categoryCtrl from "../controllers/categoryController.js";
 import * as docsCtrl from "../controllers/docsController.js";
 import * as machineCtrl from "../controllers/machineController.js";
 import * as notificationCtrl from "../controllers/notificationController.js";
@@ -14,6 +15,7 @@ import {
   agendaQuerySchema,
   commentSchema,
   createAgendaSchema,
+  createCategorySchema,
   updateAgendaSchema,
   createMachineSchema,
   createTicketSchema,
@@ -68,7 +70,7 @@ apiRouter.get("/auth/me", authCtrl.me);
 apiRouter.patch("/auth/me", validate(updateProfileSchema), authCtrl.updateMe);
 apiRouter.post("/auth/logout", authCtrl.logout);
 
-apiRouter.get("/categories", ticketCtrl.categories);
+apiRouter.get("/categories", categoryCtrl.list);
 // Configurações: todos leem (as telas se ajustam a elas); só admin altera.
 apiRouter.get("/settings", settingsCtrl.get);
 apiRouter.get("/tickets/overview", ticketCtrl.overview);
@@ -116,6 +118,7 @@ apiRouter.get("/machines/:id/history", staffOnly, byId, machineCtrl.history);
 
 // Somente administradores
 apiRouter.put("/settings", adminOnly, validate(settingsSchema), settingsCtrl.update);
+apiRouter.post("/categories", adminOnly, validate(createCategorySchema), categoryCtrl.create);
 apiRouter.get("/reports/summary", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.summary);
 apiRouter.get("/reports/machines", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.machines);
 apiRouter.get("/reports/requesters", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.requesters);

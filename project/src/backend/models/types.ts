@@ -35,7 +35,8 @@ export interface Ticket {
   title: string;
   description: string;
   status: TicketStatus;
-  priority: TicketPriority;
+  /** null = sem prioridade definida (o suporte define depois). */
+  priority: TicketPriority | null;
   categoryId: number;
   categoryName: string;
   requesterId: number;

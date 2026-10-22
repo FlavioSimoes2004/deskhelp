@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import { EmptyState, ErrorAlert, Loading } from "../components/Feedback";
 import { StatusStrip } from "../components/StatusStrip";
 import { TicketTable } from "../components/TicketTable";
+import { useAppSettings } from "../hooks/useAppSettings";
 import { useAsync } from "../hooks/useAsync";
 import { useLiveRefresh } from "../hooks/useLiveRefresh";
 import { useAuth } from "../hooks/useAuth";
@@ -16,6 +17,9 @@ function greeting() {
 
 export function HomePage() {
   const { user, isStaff } = useAuth();
+  // Configuração: usuário comum pode não ver a prioridade.
+  const settings = useAppSettings();
+  const showPriority = isStaff || !settings?.hidePriorityForComum;
   const overview = useAsync(() => ticketService.overview(), []);
   const recent = useAsync(() => ticketService.list({ pageSize: 6 }), []);
   const mine = useAsync(
@@ -85,7 +89,7 @@ export function HomePage() {
         {recent.loading ? (
           <Loading />
         ) : recent.data?.data.length ? (
-          <TicketTable tickets={recent.data.data} showRequester={isStaff} />
+          <TicketTable tickets={recent.data.data} showRequester={isStaff} showPriority={showPriority} />
         ) : (
           <EmptyState
             title="Nenhum chamado ainda"

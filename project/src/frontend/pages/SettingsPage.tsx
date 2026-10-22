@@ -8,7 +8,13 @@ import { settingsService } from "../services/deskhelp";
 /** Configurações gerais da aplicação (só admin). Valem na hora, para todos. */
 export function SettingsPage() {
   const settings = useAsync(() => settingsService.get(), []);
-  const [form, setForm] = useState({ hidePriorityForComum: false, commentsLocked: false, limitEnabled: false, limit: "3" });
+  const [form, setForm] = useState({
+    hidePriorityForComum: false,
+    priorityByStaffOnly: false,
+    commentsLocked: false,
+    limitEnabled: false,
+    limit: "3",
+  });
   const [error, setError] = useState<ApiError | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -19,6 +25,7 @@ export function SettingsPage() {
     if (!s) return;
     setForm({
       hidePriorityForComum: s.hidePriorityForComum,
+      priorityByStaffOnly: s.priorityByStaffOnly,
       commentsLocked: s.commentsLocked,
       limitEnabled: s.maxOpenTicketsPerUser !== null,
       limit: String(s.maxOpenTicketsPerUser ?? 3),
@@ -34,6 +41,7 @@ export function SettingsPage() {
       settings.setData(
         await settingsService.update({
           hidePriorityForComum: form.hidePriorityForComum,
+          priorityByStaffOnly: form.priorityByStaffOnly,
           commentsLocked: form.commentsLocked,
           maxOpenTicketsPerUser: form.limitEnabled ? Number(form.limit) : null,
         }),
@@ -80,6 +88,20 @@ export function SettingsPage() {
                 <small>
                   Eles deixam de ver a prioridade nos chamados e na lista, e de escolhê-la ao abrir um chamado (fica
                   “Média”). Admin e suporte continuam vendo e alterando.
+                </small>
+              </span>
+            </label>
+            <label className="setting-toggle">
+              <input
+                type="checkbox"
+                checked={form.priorityByStaffOnly}
+                onChange={(e) => setForm({ ...form, priorityByStaffOnly: e.target.checked })}
+              />
+              <span>
+                <strong>Só o suporte define a prioridade</strong>
+                <small>
+                  Usuários comuns abrem chamados sem prioridade; admin ou suporte define depois, no painel “Atendimento”.
+                  Esses chamados aparecem como “Sem prioridade” e podem ser filtrados assim na lista.
                 </small>
               </span>
             </label>

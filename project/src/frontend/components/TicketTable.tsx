@@ -2,12 +2,22 @@ import type { CSSProperties } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Ticket } from "../services/types";
 import { ticketNumber, timeAgo, formatDateTime } from "../utils/format";
-import { PriorityTag, StatusBadge } from "./Badges";
+import { PriorityOrNone, StatusBadge } from "./Badges";
 
-export function TicketTable({ tickets, showRequester }: { tickets: Ticket[]; showRequester: boolean }) {
+/**
+ * showPriority = false quando a configuração esconde a prioridade de quem está vendo.
+ * Com a coluna visível, chamado sem prioridade aparece como "Sem prioridade".
+ */
+export function TicketTable({
+  tickets,
+  showRequester,
+  showPriority = true,
+}: {
+  tickets: Ticket[];
+  showRequester: boolean;
+  showPriority?: boolean;
+}) {
   const navigate = useNavigate();
-  // Prioridade escondida pela configuração vem como null: a coluna some.
-  const showPriority = tickets.some((t) => t.priority !== null);
   return (
     <div className="table-wrap">
       <table className="table">
@@ -43,7 +53,11 @@ export function TicketTable({ tickets, showRequester }: { tickets: Ticket[]; sho
               <td>
                 <StatusBadge status={t.status} />
               </td>
-              {showPriority && <td>{t.priority && <PriorityTag priority={t.priority} />}</td>}
+              {showPriority && (
+                <td>
+                  <PriorityOrNone priority={t.priority} />
+                </td>
+              )}
               {showRequester && <td>{t.requesterName}</td>}
               <td>{t.assigneeName ?? <span className="muted">Sem responsável</span>}</td>
               <td className="muted" title={formatDateTime(t.updatedAt)}>

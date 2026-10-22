@@ -4,6 +4,7 @@ import {
   assertCommentsOpen,
   DEFAULT_SETTINGS,
   hidesPriority,
+  newTicketPriority,
   parseSettings,
   serializeSetting,
 } from "./settingsRules.js";
@@ -16,7 +17,7 @@ describe("parseSettings", () => {
   it("reads saved values", () => {
     expect(
       parseSettings({ hide_priority_for_comum: "1", comments_locked: "1", max_open_tickets_per_user: "3" }),
-    ).toEqual({ hidePriorityForComum: true, commentsLocked: true, maxOpenTicketsPerUser: 3 });
+    ).toEqual({ hidePriorityForComum: true, priorityByStaffOnly: false, commentsLocked: true, maxOpenTicketsPerUser: 3 });
   });
 
   it("treats 0 or invalid limits as no limit", () => {
@@ -30,7 +31,12 @@ describe("parseSettings", () => {
       comments_locked: serializeSetting(false),
       max_open_tickets_per_user: serializeSetting(null),
     };
-    expect(parseSettings(rows)).toEqual({ hidePriorityForComum: true, commentsLocked: false, maxOpenTicketsPerUser: null });
+    expect(parseSettings(rows)).toEqual({
+      hidePriorityForComum: true,
+      priorityByStaffOnly: false,
+      commentsLocked: false,
+      maxOpenTicketsPerUser: null,
+    });
   });
 });
 
@@ -65,5 +71,28 @@ describe("assertBelowOpenTicketLimit", () => {
 
   it("never blocks without a limit", () => {
     expect(() => assertBelowOpenTicketLimit(500, DEFAULT_SETTINGS)).not.toThrow();
+  });
+});
+
+describe("newTicketPriority", () => {
+  const comum = { id: 2, role: "comum" as const };
+  const support = { id: 7, role: "support" as const };
+
+  it("keeps the chosen priority by default and for staff", () => {
+    expect(newTicketPriority(comum, DEFAULT_SETTINGS, "alta", "media")).toBe("alta");
+    expect(newTicketPriority(support, { ...DEFAULT_SETTINGS, priorityByStaffOnly: true }, "alta", "media")).toBe("alta");
+  });
+
+  it("leaves common users' tickets without priority when only staff sets it", () => {
+    expect(newTicketPriority(comum, { ...DEFAULT_SETTINGS, priorityByStaffOnly: true }, "alta", "media")).toBeNull();
+  });
+
+  it("uses the default priority when it is only hidden", () => {
+    expect(newTicketPriority(comum, { ...DEFAULT_SETTINGS, hidePriorityForComum: true }, "alta", "media")).toBe("media");
+  });
+
+  it("prefers 'no priority' when both settings are on", () => {
+    const both = { ...DEFAULT_SETTINGS, hidePriorityForComum: true, priorityByStaffOnly: true };
+    expect(newTicketPriority(comum, both, "alta", "media")).toBeNull();
   });
 });

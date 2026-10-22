@@ -41,7 +41,8 @@ export const authService = {
 
 export interface TicketFilters {
   status?: TicketStatus | "";
-  priority?: TicketPriority | "";
+  /** "none" = chamados sem prioridade definida. */
+  priority?: TicketPriority | "none" | "";
   categoryId?: number | "";
   assigneeId?: number | "";
   search?: string;
@@ -177,6 +178,12 @@ export const agendaService = {
   /** Itens cuja hora chegou e ainda não foram dispensados (avisos na tela). */
   due: () => api.get<{ data: AgendaItem[] }>("/agenda/due").then((r) => r.data),
   dismiss: (id: number) => api.post<void>(`/agenda/${id}/dismiss`),
+};
+
+export const categoryService = {
+  list: () => api.get<{ data: Category[] }>("/categories").then((r) => r.data),
+  /** Só admin. O nome é gravado em maiúsculas. */
+  create: (name: string) => api.post<{ data: Category }>("/categories", { name }).then((r) => r.data),
 };
 
 export const settingsService = {

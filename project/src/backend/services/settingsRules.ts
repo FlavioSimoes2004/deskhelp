@@ -4,6 +4,8 @@ import { HttpError } from "../utils/httpError.js";
 export interface AppSettings {
   /** Usuários "comum" não veem (nem escolhem) a prioridade dos chamados. */
   hidePriorityForComum: boolean;
+  /** Usuários "comum" abrem chamados sem prioridade; admin/suporte definem depois. */
+  priorityByStaffOnly: boolean;
   /** Ninguém consegue enviar comentários (nem notas internas). */
   commentsLocked: boolean;
   /** Máximo de chamados "aberto"/"em andamento" por usuário; null = sem limite. */
@@ -12,6 +14,7 @@ export interface AppSettings {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   hidePriorityForComum: false,
+  priorityByStaffOnly: false,
   commentsLocked: false,
   maxOpenTicketsPerUser: null,
 };
@@ -19,6 +22,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 /** Nome de cada configuração na tabela app_settings. */
 export const SETTING_KEYS: Record<keyof AppSettings, string> = {
   hidePriorityForComum: "hide_priority_for_comum",
+  priorityByStaffOnly: "priority_by_staff_only",
   commentsLocked: "comments_locked",
   maxOpenTicketsPerUser: "max_open_tickets_per_user",
 };
@@ -32,6 +36,7 @@ export function parseSettings(rows: Record<string, string>): AppSettings {
   const limit = Number(rows[SETTING_KEYS.maxOpenTicketsPerUser]);
   return {
     hidePriorityForComum: bool("hidePriorityForComum"),
+    priorityByStaffOnly: bool("priorityByStaffOnly"),
     commentsLocked: bool("commentsLocked"),
     maxOpenTicketsPerUser: Number.isInteger(limit) && limit > 0 ? limit : null,
   };
@@ -41,6 +46,17 @@ export function parseSettings(rows: Record<string, string>): AppSettings {
 export function serializeSetting(value: AppSettings[keyof AppSettings]): string {
   if (typeof value === "boolean") return value ? "1" : "0";
   return value === null ? "0" : String(value);
+}
+
+/**
+ * Prioridade de um chamado novo: sem prioridade quando só o suporte a define; a padrão
+ * quando a prioridade está escondida; senão, a escolhida. Vale só para usuários "comum".
+ */
+export function newTicketPriority<P>(user: AuthUser, settings: AppSettings, chosen: P, fallback: P): P | null {
+  if (user.role !== "comum") return chosen;
+  if (settings.priorityByStaffOnly) return null;
+  if (settings.hidePriorityForComum) return fallback;
+  return chosen;
 }
 
 export const hidesPriority = (user: AuthUser, settings: AppSettings) =>

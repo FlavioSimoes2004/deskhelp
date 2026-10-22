@@ -137,7 +137,15 @@ export function TicketReportPage() {
               <div className="panel-head">
                 <h2 id="by-priority-title">Por prioridade</h2>
               </div>
-              <BarList items={inOrder<TicketPriority>(data.byPriority, PRIORITY_ORDER, PRIORITY_LABEL)} />
+              <BarList
+                items={[
+                  ...inOrder<TicketPriority>(data.byPriority, PRIORITY_ORDER, PRIORITY_LABEL),
+                  // Chamados ainda sem prioridade (definida depois pelo suporte).
+                  ...data.byPriority
+                    .filter((p) => p.label === null)
+                    .map((p) => ({ key: "__none", label: "Sem prioridade", total: p.total })),
+                ]}
+              />
             </section>
             <section className="panel" aria-labelledby="by-category-title" style={{ marginTop: 0 }}>
               <div className="panel-head">

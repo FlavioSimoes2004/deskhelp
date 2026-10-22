@@ -26,7 +26,7 @@ interface TicketRow extends RowDataPacket {
   title: string;
   description: string;
   status: TicketStatus;
-  priority: TicketPriority;
+  priority: TicketPriority | null;
   category_id: number;
   category_name: string;
   requester_id: number;
@@ -75,7 +75,8 @@ const toTicket = (row: TicketRow): Ticket => ({
 
 export interface TicketFilters {
   status?: TicketStatus;
-  priority?: TicketPriority;
+  /** "none" = chamados sem prioridade definida. */
+  priority?: TicketPriority | "none";
   categoryId?: number;
   assigneeId?: number;
   requesterId?: number;
@@ -98,6 +99,10 @@ function buildWhere(filters: TicketFilters) {
   ];
   for (const [key, column] of exact) {
     if (filters[key] === undefined) continue;
+    if (key === "priority" && filters.priority === "none") {
+      where.push("t.priority IS NULL");
+      continue;
+    }
     where.push(`${column} = :${key}`);
     params[key] = filters[key];
   }
@@ -137,7 +142,7 @@ export async function findTicketById(id: number): Promise<Ticket | null> {
 export async function insertTicket(data: {
   title: string;
   description: string;
-  priority: TicketPriority;
+  priority: TicketPriority | null;
   categoryId: number;
   requesterId: number;
 }): Promise<number> {

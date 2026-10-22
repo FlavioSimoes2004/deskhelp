@@ -4,6 +4,7 @@ import { Loading } from "./components/Feedback";
 import { Layout } from "./components/Layout";
 import { RequireAuth } from "./components/RequireAuth";
 import { AgendaPage } from "./pages/AgendaPage";
+import { CategoriesPage } from "./pages/CategoriesPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { MachineReportPage } from "./pages/MachineReportPage";
@@ -98,6 +99,14 @@ export function App() {
               element={
                 <RequireAuth admin>
                   <PeopleReportPage key="assignees" kind="assignees" />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="categorias"
+              element={
+                <RequireAuth admin>
+                  <CategoriesPage />
                 </RequireAuth>
               }
             />

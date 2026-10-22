@@ -22,8 +22,10 @@ export function NewTicketPage() {
   const { user } = useAuth();
   const settings = useAppSettings();
   const categories = useAsync(() => ticketService.categories(), []);
-  // Configuração: usuário comum não escolhe a prioridade (o servidor usa a padrão).
-  const choosePriority = !(settings?.hidePriorityForComum && user?.role === "comum");
+  // Configuração: usuário comum pode não escolher a prioridade (fica sem, ou a padrão).
+  const isComum = user?.role === "comum";
+  const staffSetsPriority = isComum && Boolean(settings?.priorityByStaffOnly);
+  const choosePriority = isComum ? !settings?.priorityByStaffOnly && !settings?.hidePriorityForComum : true;
   const [form, setForm] = useState({ title: "", description: "", categoryId: "", priority: "media" as TicketPriority });
   const [error, setError] = useState<ApiError | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -92,6 +94,11 @@ export function NewTicketPage() {
               ))}
             </select>
           </Field>
+          {staffSetsPriority && (
+            <p className="muted" style={{ alignSelf: "end", margin: 0 }}>
+              A prioridade será definida pela equipe de suporte.
+            </p>
+          )}
           {choosePriority && (
             <Field label="Prioridade" hint={PRIORITY_HINT[form.priority]} error={error?.fieldError("priority")}>
               <select

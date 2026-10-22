@@ -1,6 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
 import { currentUser } from "../middlewares/auth.js";
-import { listCategories } from "../models/categoryModel.js";
 import { markTicketRead } from "../services/notificationService.js";
 import * as tickets from "../services/ticketService.js";
 import { notFound } from "../utils/httpError.js";
@@ -62,8 +61,4 @@ export async function downloadAttachment(req: Request, res: Response, next: Next
   res.download(file.path, file.name, (error) => {
     if (error && !res.headersSent) next(notFound("Arquivo do anexo não encontrado"));
   });
-}
-
-export async function categories(_req: Request, res: Response) {
-  res.json({ data: await listCategories() });
 }

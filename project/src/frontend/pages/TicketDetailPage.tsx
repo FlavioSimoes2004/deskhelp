@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useLocation, useParams } from "react-router";
-import { PriorityTag, StatusBadge } from "../components/Badges";
+import { PriorityOrNone, StatusBadge } from "../components/Badges";
 import { EmptyState, ErrorAlert, Loading } from "../components/Feedback";
 import { Field } from "../components/Field";
 import { ImagePreview, isImageAttachment } from "../components/ImagePreview";
@@ -61,7 +61,9 @@ function describeChange(
     case "status":
       return `mudou o status de ${STATUS_LABEL[entry.oldValue as TicketStatus]} para ${STATUS_LABEL[entry.newValue as TicketStatus]}`;
     case "priority":
-      return `mudou a prioridade de ${PRIORITY_LABEL[entry.oldValue as TicketPriority]} para ${PRIORITY_LABEL[entry.newValue as TicketPriority]}`;
+      return entry.oldValue
+        ? `mudou a prioridade de ${PRIORITY_LABEL[entry.oldValue as TicketPriority]} para ${PRIORITY_LABEL[entry.newValue as TicketPriority]}`
+        : `definiu a prioridade como ${PRIORITY_LABEL[entry.newValue as TicketPriority]}`;
     case "assigneeId":
       return entry.newValue ? `atribuiu o chamado a ${userName(entry.newValue)}` : "removeu o responsável";
     case "categoryId": {
@@ -144,7 +146,8 @@ export function TicketDetailPage() {
         <h1>{t.title}</h1>
         <div className="stub-meta">
           <StatusBadge status={t.status} />
-          {t.priority && <PriorityTag priority={t.priority} />}
+          {/* Escondida pela configuração: não mostra nada; sem definir: "Sem prioridade". */}
+          {(isStaff || !settings?.hidePriorityForComum) && <PriorityOrNone priority={t.priority} />}
           <span>{t.categoryName}</span>
           <span>
             Aberto por {t.requesterName} {timeAgo(t.createdAt)}
@@ -416,8 +419,8 @@ function ManagePanel({
   const initial = useMemo(
     () => ({
       status: ticket.status,
-      // Admin e suporte sempre recebem a prioridade; o padrão só cobre o tipo.
-      priority: ticket.priority ?? "media",
+      // "" = chamado ainda sem prioridade (aberto por usuário comum com a configuração ligada).
+      priority: (ticket.priority ?? "") as TicketPriority | "",
       categoryId: String(ticket.categoryId),
       assigneeId: ticket.assigneeId ? String(ticket.assigneeId) : "",
       machineId: ticket.machineId ? String(ticket.machineId) : "",
@@ -451,7 +454,8 @@ function ManagePanel({
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     const editable = {
-      priority: form.priority,
+      // Sem prioridade escolhida: não altera (continua sem).
+      ...(form.priority ? { priority: form.priority } : {}),
       categoryId: Number(form.categoryId),
       machineId: form.machineId ? Number(form.machineId) : null,
     };
@@ -527,12 +531,17 @@ function ManagePanel({
             </Field>
           </>
         )}
-        <Field label="Prioridade">
+        <Field label="Prioridade" hint={form.priority ? undefined : "Este chamado ainda não tem prioridade."}>
           <select
             className="select"
             value={form.priority}
             onChange={(e) => setForm({ ...form, priority: e.target.value as TicketPriority })}
           >
+            {!form.priority && (
+              <option value="" disabled>
+                Definir prioridade…
+              </option>
+            )}
             {PRIORITY_ORDER.map((p) => (
               <option key={p} value={p}>
                 {PRIORITY_LABEL[p]}

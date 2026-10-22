@@ -21,7 +21,10 @@ export interface Ticket {
   title: string;
   description: string;
   status: TicketStatus;
-  /** null quando a configuração esconde a prioridade de usuários "comum". */
+  /**
+   * null quando o chamado ainda não tem prioridade (o suporte define) ou quando a
+   * configuração esconde a prioridade de usuários "comum".
+   */
   priority: TicketPriority | null;
   categoryId: number;
   categoryName: string;
@@ -234,6 +237,8 @@ export interface AgendaItem {
 export interface AppSettings {
   /** Usuários "comum" não veem (nem escolhem) a prioridade dos chamados. */
   hidePriorityForComum: boolean;
+  /** Usuários "comum" abrem chamados sem prioridade; admin/suporte definem depois. */
+  priorityByStaffOnly: boolean;
   /** Conversa bloqueada: ninguém envia comentários. */
   commentsLocked: boolean;
   /** Máximo de chamados "aberto"/"em andamento" por usuário; null = sem limite. */

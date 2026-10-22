@@ -9,7 +9,7 @@ import { removeStored, resolveStored, saveFile } from "../utils/fileStorage.js";
 import { forbidden, HttpError, notFound } from "../utils/httpError.js";
 import { assignmentRecipient, commentRecipients } from "./notificationRules.js";
 import { getSettings } from "./settingsService.js";
-import { assertBelowOpenTicketLimit, assertCommentsOpen, hidesPriority } from "./settingsRules.js";
+import { assertBelowOpenTicketLimit, assertCommentsOpen, hidesPriority, newTicketPriority } from "./settingsRules.js";
 import {
   applySupportRules,
   assertCanAddComment,
@@ -45,8 +45,8 @@ const DEFAULT_PRIORITY: TicketPriority = "media";
  * Chamado como o usuário pode vê-lo: sem prioridade quando a configuração esconde a
  * prioridade de usuários "comum".
  */
-function present<T extends { priority: TicketPriority }>(ticket: T, hidePriority: boolean) {
-  return hidePriority ? { ...ticket, priority: null } : { ...ticket, priority: ticket.priority as TicketPriority | null };
+function present<T extends { priority: TicketPriority | null }>(ticket: T, hidePriority: boolean): T {
+  return hidePriority ? { ...ticket, priority: null } : ticket;
 }
 
 export async function listTickets(user: AuthUser, query: TicketQuery) {
@@ -88,8 +88,8 @@ export async function createTicket(
   const settings = await getSettings();
   assertBelowOpenTicketLimit(await tickets.countOpenTickets(user.id), settings);
   const hide = hidesPriority(user, settings);
-  // Quem não vê a prioridade também não a escolhe: fica a padrão.
-  const priority = hide ? DEFAULT_PRIORITY : data.priority;
+  // Usuário comum: sem prioridade quando só o suporte define; a padrão quando ela está escondida.
+  const priority = newTicketPriority(user, settings, data.priority, DEFAULT_PRIORITY);
   const id = await tickets.insertTicket({ ...data, priority, requesterId: user.id });
   return present(await getVisibleTicket(user, id), hide);
 }

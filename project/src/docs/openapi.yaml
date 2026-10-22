@@ -47,7 +47,8 @@ tags:
     description: |
       Regras gerais da aplicação. Todos os usuários leem (as telas se ajustam); só admin altera.
       `hidePriorityForComum`: usuários `comum` recebem `priority: null`, sem histórico de prioridade, e
-      não escolhem nem filtram por prioridade. `commentsLocked`: `POST /tickets/{id}/comments` retorna
+      não escolhem nem filtram por prioridade. `priorityByStaffOnly`: chamados abertos por usuários
+      `comum` são criados sem prioridade (`null`); admin ou suporte define depois. `commentsLocked`: `POST /tickets/{id}/comments` retorna
       409 `COMMENTS_LOCKED` para todos. `maxOpenTicketsPerUser`: `POST /tickets` retorna 409
       `OPEN_TICKET_LIMIT` quando quem abre já tem esse número de chamados `aberto`/`em_andamento`.
   - name: Agenda
@@ -207,6 +208,36 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/Category" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [Chamados]
+      summary: Cadastrar categoria (admin)
+      description: |
+        O nome é gravado em maiúsculas (inclusive letras acentuadas), sem espaços sobrando. Nome repetido,
+        sem diferenciar maiúsculas nem acentos, retorna 409 `CATEGORY_EXISTS`.
+      operationId: createCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 80 }
+            example: { name: "Telefonia" }
+      responses:
+        "201":
+          description: Categoria cadastrada (nome em maiúsculas)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Category" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /tickets:
     get:
@@ -216,7 +247,10 @@ paths:
       operationId: listTickets
       parameters:
         - { name: status, in: query, schema: { $ref: "#/components/schemas/TicketStatus" } }
-        - { name: priority, in: query, schema: { $ref: "#/components/schemas/TicketPriority" } }
+        - name: priority
+          in: query
+          description: "`none` = chamados sem prioridade definida"
+          schema: { type: string, enum: [baixa, media, alta, critica, none] }
         - { name: categoryId, in: query, schema: { type: integer } }
         - { name: assigneeId, in: query, schema: { type: integer } }
         - name: search
@@ -581,6 +615,7 @@ paths:
               minProperties: 1
               properties:
                 hidePriorityForComum: { type: boolean }
+                priorityByStaffOnly: { type: boolean }
                 commentsLocked: { type: boolean }
                 maxOpenTicketsPerUser: { type: [integer, "null"], minimum: 1, maximum: 1000, description: null = sem limite }
             example: { commentsLocked: false, maxOpenTicketsPerUser: 3 }
@@ -1340,7 +1375,9 @@ components:
         description: { type: string }
         status: { $ref: "#/components/schemas/TicketStatus" }
         priority:
-          description: null para usuários comuns quando a configuração esconde a prioridade
+          description: |
+            null quando o chamado ainda não tem prioridade (configuração "só o suporte define") ou, para
+            usuários comuns, quando a configuração esconde a prioridade
           oneOf:
             - $ref: "#/components/schemas/TicketPriority"
             - type: "null"
@@ -1506,6 +1543,7 @@ components:
       type: object
       properties:
         hidePriorityForComum: { type: boolean, description: Esconde a prioridade de usuários comuns }
+        priorityByStaffOnly: { type: boolean, description: Usuários comuns abrem chamados sem prioridade }
         commentsLocked: { type: boolean, description: Bloqueia novos comentários para todos }
         maxOpenTicketsPerUser: { type: [integer, "null"], description: Máximo de chamados aberto/em andamento por usuário }
     AgendaItem:

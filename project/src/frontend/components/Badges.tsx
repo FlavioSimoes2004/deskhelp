@@ -24,3 +24,8 @@ export function PriorityTag({ priority }: { priority: TicketPriority }) {
     </span>
   );
 }
+
+/** Prioridade do chamado ou "Sem prioridade" quando ainda não foi definida. */
+export function PriorityOrNone({ priority }: { priority: TicketPriority | null }) {
+  return priority ? <PriorityTag priority={priority} /> : <span className="muted">Sem prioridade</span>;
+}

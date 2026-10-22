@@ -88,9 +88,14 @@ export const commentSchema = z.object({
   internal: boolField.default(false),
 });
 
+export const createCategorySchema = z.object({
+  name: z.string().trim().min(2, "O nome precisa ter pelo menos 2 caracteres").max(80),
+});
+
 export const settingsSchema = z
   .object({
     hidePriorityForComum: z.boolean().optional(),
+    priorityByStaffOnly: z.boolean().optional(),
     commentsLocked: z.boolean().optional(),
     // null = sem limite.
     maxOpenTicketsPerUser: z
@@ -116,7 +121,8 @@ export const ratingSchema = z.object({
 
 export const ticketQuerySchema = z.object({
   status: z.enum(TICKET_STATUSES).optional(),
-  priority: z.enum(TICKET_PRIORITIES).optional(),
+  // "none" = chamados sem prioridade definida.
+  priority: z.enum([...TICKET_PRIORITIES, "none"]).optional(),
   categoryId: id.optional(),
   assigneeId: id.optional(),
   search: z.string().trim().max(100).optional(),
