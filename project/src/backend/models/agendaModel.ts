@@ -84,6 +84,39 @@ export async function deleteAgendaItem(userId: number, id: number): Promise<bool
   return result.affectedRows > 0;
 }
 
+/**
+ * Altera título, descrição e/ou data e hora, só se o lembrete ainda não tocou
+ * (a condição fica no próprio UPDATE, para não disputar com a rotina de avisos).
+ * Devolve false se o item não for do usuário ou já tiver tocado.
+ */
+export async function updateAgendaItem(
+  userId: number,
+  id: number,
+  data: { title?: string; description?: string | null; scheduledAt?: Date },
+): Promise<boolean> {
+  const sets: string[] = [];
+  const params: SqlParams = { id, userId };
+  if (data.title !== undefined) {
+    sets.push("title = :title");
+    params.title = data.title;
+  }
+  if (data.description !== undefined) {
+    sets.push("description = :description");
+    params.description = data.description;
+  }
+  if (data.scheduledAt !== undefined) {
+    sets.push("scheduled_at = :scheduledAt");
+    params.scheduledAt = data.scheduledAt;
+  }
+  if (sets.length === 0) return true;
+  const [result] = await pool.query<ResultSetHeader>(
+    `UPDATE agenda_items SET ${sets.join(", ")}
+     WHERE id = :id AND user_id = :userId AND notified_at IS NULL AND scheduled_at > NOW()`,
+    params,
+  );
+  return result.affectedRows > 0;
+}
+
 /** Dispensa o aviso e marca a notificação dele como lida; false se o item não for do usuário. */
 export async function dismissAgendaItem(userId: number, id: number): Promise<boolean> {
   const conn: PoolConnection = await pool.getConnection();

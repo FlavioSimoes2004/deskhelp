@@ -21,6 +21,9 @@ Regras importantes:
 - Chamados não podem ser excluídos.
 - Admin e suporte vinculam a máquina do chamado; um chamado só pode ficar "resolvido" com máquina vinculada.
 - A solução do chamado é registrada pelo responsável ou por um admin, com o chamado "resolvido".
+- Admin e suporte podem deixar notas internas no chamado, que quem abriu não vê.
+- Quem abriu avalia o atendimento (1 a 5) uma vez, com o chamado resolvido ou fechado.
+- Abrir um chamado marca as notificações dele como lidas.
 - Um admin não pode tirar o próprio perfil de admin nem desativar a própria conta.
 - Conta desativada perde o acesso na hora (o token é revalidado no banco a cada requisição).
 - Uma conta só fica conectada em um lugar: um login novo encerra a sessão anterior.

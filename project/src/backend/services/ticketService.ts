@@ -10,9 +10,10 @@ import { forbidden, HttpError, notFound } from "../utils/httpError.js";
 import { assignmentRecipient, commentRecipients } from "./notificationRules.js";
 import {
   applySupportRules,
+  assertCanAddComment,
+  assertCanRate,
   assertCanSetSolution,
   assertMachineWhenResolved,
-  canComment,
   canViewTicket,
   diffTicket,
   isStaff,
@@ -49,7 +50,10 @@ export async function listTickets(user: AuthUser, query: TicketQuery) {
 
 export async function getTicketDetail(user: AuthUser, id: number) {
   const ticket = await getVisibleTicket(user, id);
-  const [comments, history] = await Promise.all([tickets.listComments(id), tickets.listHistory(id)]);
+  const [comments, history] = await Promise.all([
+    tickets.listComments(id, isStaff(user.role)),
+    tickets.listHistory(id),
+  ]);
   return { ...ticket, comments, history };
 }
 
@@ -99,6 +103,16 @@ export async function setSolution(user: AuthUser, id: number, solution: string |
   return getTicketDetail(user, id);
 }
 
+/** Quem abriu avalia o atendimento (1 a 5), com o chamado resolvido ou fechado, uma vez. */
+export async function rateTicket(user: AuthUser, id: number, rating: number, comment: string | null) {
+  const ticket = await getVisibleTicket(user, id);
+  assertCanRate(user, ticket);
+  if (!(await tickets.setRating(id, rating, comment))) {
+    throw new HttpError(409, "ALREADY_RATED", "Este atendimento já foi avaliado");
+  }
+  return getTicketDetail(user, id);
+}
+
 /** Usuário comum marca o próprio chamado como resolvido. */
 export async function resolveOwnTicket(user: AuthUser, id: number) {
   const current = await getVisibleTicket(user, id);
@@ -123,21 +137,29 @@ export async function resolveOwnTicket(user: AuthUser, id: number) {
 
 const attachmentFolder = (ticketId: number) => `tickets/${ticketId}`;
 
-export async function addComment(user: AuthUser, id: number, body: string, files: UploadedFile[] = []) {
+export async function addComment(
+  user: AuthUser,
+  id: number,
+  body: string,
+  files: UploadedFile[] = [],
+  internal = false,
+) {
   const ticket = await getVisibleTicket(user, id);
-  if (!canComment(user, ticket)) {
-    throw forbidden("Somente quem abriu o chamado e o responsável por ele podem comentar");
-  }
-  if (user.role !== "admin" && ticket.status === "fechado") {
-    throw new HttpError(409, "TICKET_CLOSED", "Este chamado está fechado e não aceita novos comentários");
-  }
+  assertCanAddComment(user, ticket, internal);
+  // Nota interna não avisa quem abriu, a não ser que seja da equipe.
+  const requester = internal ? await findUserById(ticket.requesterId) : null;
+  const recipients = commentRecipients(
+    user.id,
+    ticket,
+    internal ? { requesterIsStaff: requester !== null && isStaff(requester.role) } : null,
+  );
   const saved: tickets.NewAttachment[] = [];
   try {
     for (const file of files) {
       const filePath = await saveFile(attachmentFolder(id), file.extension, file.data);
       saved.push({ originalName: file.originalName, filePath, mimeType: file.mimeType, sizeBytes: file.sizeBytes });
     }
-    await tickets.insertComment(id, user.id, body, saved, commentRecipients(user.id, ticket));
+    await tickets.insertComment(id, user.id, body, saved, recipients, internal);
   } catch (error) {
     // Não deixa arquivos órfãos se a gravação no banco falhar.
     await Promise.all(saved.map((f) => removeStored(f.filePath).catch(() => undefined)));
@@ -149,7 +171,8 @@ export async function addComment(user: AuthUser, id: number, body: string, files
 /** Localiza o arquivo de um anexo, respeitando quem pode ver o chamado. */
 export async function getAttachmentFile(user: AuthUser, attachmentId: number) {
   const attachment = await tickets.findAttachmentById(attachmentId);
-  if (!attachment) throw notFound("Anexo não encontrado");
+  // Anexo de nota interna: 404 para quem não é da equipe (não revela que existe).
+  if (!attachment || (attachment.internal && !isStaff(user.role))) throw notFound("Anexo não encontrado");
   await getVisibleTicket(user, attachment.ticketId);
   return { path: resolveStored(attachment.filePath), name: attachment.originalName };
 }

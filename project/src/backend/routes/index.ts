@@ -13,6 +13,7 @@ import {
   agendaQuerySchema,
   commentSchema,
   createAgendaSchema,
+  updateAgendaSchema,
   createMachineSchema,
   createTicketSchema,
   createUserSchema,
@@ -21,6 +22,7 @@ import {
   machineQuerySchema,
   notificationQuerySchema,
   registerSchema,
+  ratingSchema,
   reportQuerySchema,
   solutionSchema,
   ticketQuerySchema,
@@ -74,6 +76,8 @@ apiRouter.post("/tickets/:id/comments", byId, parseMultipart, validate(commentSc
 apiRouter.post("/tickets/:id/resolve", requireRole("comum"), byId, ticketCtrl.resolve);
 // Solução: responsável ou admin, com o chamado resolvido (regras no ticketService)
 apiRouter.put("/tickets/:id/solution", byId, validate(solutionSchema), ticketCtrl.setSolution);
+// Avaliação do atendimento: quem abriu, com o chamado resolvido ou fechado (regras no ticketService)
+apiRouter.post("/tickets/:id/rating", byId, validate(ratingSchema), ticketCtrl.rate);
 apiRouter.get("/attachments/:id", byId, ticketCtrl.downloadAttachment);
 
 // Agenda: cada usuário só vê e altera os próprios itens
@@ -81,6 +85,7 @@ apiRouter.get("/agenda", validate(agendaQuerySchema, "query"), agendaCtrl.list);
 apiRouter.post("/agenda", validate(createAgendaSchema), agendaCtrl.create);
 apiRouter.get("/agenda/due", agendaCtrl.due);
 apiRouter.post("/agenda/:id/dismiss", byId, agendaCtrl.dismiss);
+apiRouter.patch("/agenda/:id", byId, validate(updateAgendaSchema), agendaCtrl.update);
 apiRouter.delete("/agenda/:id", byId, agendaCtrl.remove);
 
 // Notificações: cada usuário só vê e altera as próprias
@@ -110,4 +115,7 @@ apiRouter.get("/reports/summary", adminOnly, validate(reportQuerySchema, "query"
 apiRouter.get("/reports/machines", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.machines);
 apiRouter.get("/reports/requesters", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.requesters);
 apiRouter.get("/reports/assignees", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.assignees);
+apiRouter.get("/reports/machines.csv", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.machinesCsv);
+apiRouter.get("/reports/requesters.csv", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.requestersCsv);
+apiRouter.get("/reports/assignees.csv", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.assigneesCsv);
 apiRouter.get("/reports/tickets.csv", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.exportCsv);

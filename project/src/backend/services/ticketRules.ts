@@ -15,6 +15,39 @@ export function canComment(user: AuthUser, ticket: { requesterId: number; assign
 }
 
 /**
+ * Pode enviar o comentário? Comentário normal: quem abriu ou o responsável. Nota interna
+ * (visível só para a equipe): qualquer admin ou suporte. Em chamado fechado, só admin.
+ */
+export function assertCanAddComment(
+  user: AuthUser,
+  ticket: { requesterId: number; assigneeId: number | null; status: TicketStatus },
+  internal: boolean,
+): void {
+  if (internal ? !isStaff(user.role) : !canComment(user, ticket)) {
+    throw forbidden(
+      internal
+        ? "Somente administradores e suporte podem escrever notas internas"
+        : "Somente quem abriu o chamado e o responsável por ele podem comentar",
+    );
+  }
+  if (user.role !== "admin" && ticket.status === "fechado") {
+    throw new HttpError(409, "TICKET_CLOSED", "Este chamado está fechado e não aceita novos comentários");
+  }
+}
+
+/** Avaliação do atendimento: só quem abriu, com o chamado resolvido ou fechado, uma vez. */
+export function assertCanRate(
+  user: AuthUser,
+  ticket: { requesterId: number; status: TicketStatus; rating: number | null },
+): void {
+  if (ticket.requesterId !== user.id) throw forbidden("Somente quem abriu o chamado pode avaliar o atendimento");
+  if (ticket.status !== "resolvido" && ticket.status !== "fechado") {
+    throw new HttpError(409, "TICKET_NOT_RESOLVED", "O atendimento só pode ser avaliado com o chamado resolvido ou fechado");
+  }
+  if (ticket.rating !== null) throw new HttpError(409, "ALREADY_RATED", "Este atendimento já foi avaliado");
+}
+
+/**
  * Regras do perfil suporte ao alterar um chamado:
  * - altera prioridade, categoria e a máquina vinculada;
  * - não altera assunto, descrição nem status;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { EmptyState, ErrorAlert, Loading } from "../components/Feedback";
-import { BarList, BreakdownTables, Count, daysAgo, PeriodFilter } from "../components/ReportWidgets";
+import { BarList, BreakdownTables, Count, daysAgo, ExportCsvButton, PeriodFilter } from "../components/ReportWidgets";
 import { useAsync } from "../hooks/useAsync";
 import { reportService } from "../services/deskhelp";
 import type { PersonReportRow } from "../services/types";
@@ -25,6 +25,7 @@ const TEXT: Record<Kind, { title: string; intro: string; column: string; people:
 
 const nameOf = (p: PersonReportRow) => p.userName ?? "Sem responsável";
 const hours = (h: number | null) => (h === null ? "—" : `${h.toLocaleString("pt-BR")} h`);
+const stars = (r: number | null) => (r === null ? "—" : `${r.toLocaleString("pt-BR")} ★`);
 
 /** Relatório por pessoa: quem abriu o chamado (requesters) ou o responsável (assignees). */
 export function PeopleReportPage({ kind }: { kind: Kind }) {
@@ -41,6 +42,7 @@ export function PeopleReportPage({ kind }: { kind: Kind }) {
           <h1>{text.title}</h1>
           <p>{text.intro}</p>
         </div>
+        <ExportCsvButton onExport={() => reportService.exportPeopleCsv(kind, from, to)} />
       </div>
 
       <PeriodFilter
@@ -88,6 +90,10 @@ export function PeopleReportPage({ kind }: { kind: Kind }) {
                 <span>Tempo médio até resolver</span>
                 <strong>{hours(data.totals.avgResolutionHours)}</strong>
               </div>
+              <div>
+                <span>Avaliação média ({data.totals.rated} {data.totals.rated === 1 ? "avaliação" : "avaliações"})</span>
+                <strong>{stars(data.totals.avgRating)}</strong>
+              </div>
             </div>
           </section>
 
@@ -121,6 +127,9 @@ export function PeopleReportPage({ kind }: { kind: Kind }) {
                     <th scope="col" className="num">
                       Tempo médio até resolver
                     </th>
+                    <th scope="col" className="num">
+                      Avaliação média
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -131,6 +140,10 @@ export function PeopleReportPage({ kind }: { kind: Kind }) {
                       <Count value={p.resolved} />
                       <td className="num">{Math.round((p.resolved / p.total) * 100)}%</td>
                       <td className="num">{hours(p.avgResolutionHours)}</td>
+                      <td className="num" title={`${p.rated} ${p.rated === 1 ? "avaliação" : "avaliações"}`}>
+                        {stars(p.avgRating)}
+                        {p.rated > 0 && <span className="muted"> ({p.rated})</span>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

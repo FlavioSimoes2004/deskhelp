@@ -25,6 +25,9 @@ export async function setRead(user: AuthUser, id: number, read: boolean) {
   return { unread: await notifications.countUnread(user.id) };
 }
 
+/** Ao abrir um chamado, as notificações dele ficam lidas. */
+export const markTicketRead = (user: AuthUser, ticketId: number) => notifications.markTicketRead(user.id, ticketId);
+
 export async function markAllRead(user: AuthUser) {
   await notifications.markAllRead(user.id);
   return { unread: 0 };

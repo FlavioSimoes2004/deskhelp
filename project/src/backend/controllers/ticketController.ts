@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { currentUser } from "../middlewares/auth.js";
 import { listCategories } from "../models/categoryModel.js";
+import { markTicketRead } from "../services/notificationService.js";
 import * as tickets from "../services/ticketService.js";
 import { notFound } from "../utils/httpError.js";
 
@@ -17,7 +18,16 @@ export async function overview(req: Request, res: Response) {
 }
 
 export async function get(req: Request, res: Response) {
-  res.json({ data: await tickets.getTicketDetail(currentUser(req), res.locals.params.id) });
+  const user = currentUser(req);
+  const detail = await tickets.getTicketDetail(user, res.locals.params.id);
+  // Abrir o chamado conta como ler as notificações dele.
+  await markTicketRead(user, detail.id);
+  res.json({ data: detail });
+}
+
+export async function rate(req: Request, res: Response) {
+  const { rating, comment } = res.locals.body;
+  res.json({ data: await tickets.rateTicket(currentUser(req), res.locals.params.id, rating, comment) });
 }
 
 export async function create(req: Request, res: Response) {
@@ -34,6 +44,7 @@ export async function addComment(req: Request, res: Response) {
     res.locals.params.id,
     res.locals.body.body,
     res.locals.files ?? [],
+    res.locals.body.internal,
   );
   res.status(201).json({ data: ticket });
 }

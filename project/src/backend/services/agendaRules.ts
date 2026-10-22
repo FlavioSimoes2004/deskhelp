@@ -18,3 +18,7 @@ export function parseLocalDateTime(value: string): Date | null {
 const SLACK_MS = 60_000;
 
 export const isNotInPast = (date: Date, now: Date) => date.getTime() >= now.getTime() - SLACK_MS;
+
+/** Lembrete editável: a hora ainda não chegou e o aviso não foi gerado. */
+export const isAgendaEditable = (item: { scheduledAt: Date; notifiedAt: Date | null }, now: Date) =>
+  item.notifiedAt === null && item.scheduledAt.getTime() > now.getTime();

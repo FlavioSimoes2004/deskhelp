@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { AgendaForm, agendaStatus } from "../components/AgendaForm";
+import { AgendaForm, agendaStatus, isAgendaEditable } from "../components/AgendaForm";
 import { notifyAgendaChanged } from "../components/AgendaReminder";
 import { EmptyState, ErrorAlert, Loading } from "../components/Feedback";
 import { useAsync } from "../hooks/useAsync";
@@ -18,12 +18,14 @@ export function AgendaPage() {
   const items = useAsync(() => agendaService.list({ when }), [when]);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
+  const [editing, setEditing] = useState<AgendaItem | null>(null);
 
   async function onDelete(item: AgendaItem) {
     if (!window.confirm(`Excluir o lembrete “${item.title}”?`)) return;
     setError(null);
     try {
       await agendaService.remove(item.id);
+      if (editing?.id === item.id) setEditing(null);
       setNotice(`Lembrete “${item.title}” excluído.`);
       notifyAgendaChanged();
       notifyNotificationsChanged();
@@ -42,13 +44,28 @@ export function AgendaPage() {
         </div>
       </div>
 
-      <AgendaForm
-        onCreated={(item) => {
-          setNotice(`Lembrete “${item.title}” agendado para ${formatDateTime(item.scheduledAt)}.`);
-          notifyAgendaChanged();
-          void items.reload();
-        }}
-      />
+      {/* Editando: o formulário mostra o lembrete escolhido; senão, cria um novo. */}
+      {editing ? (
+        <AgendaForm
+          key={editing.id}
+          item={editing}
+          onCancel={() => setEditing(null)}
+          onCreated={(item) => {
+            setEditing(null);
+            setNotice(`Lembrete “${item.title}” atualizado para ${formatDateTime(item.scheduledAt)}.`);
+            notifyAgendaChanged();
+            void items.reload();
+          }}
+        />
+      ) : (
+        <AgendaForm
+          onCreated={(item) => {
+            setNotice(`Lembrete “${item.title}” agendado para ${formatDateTime(item.scheduledAt)}.`);
+            notifyAgendaChanged();
+            void items.reload();
+          }}
+        />
+      )}
 
       {notice && (
         <div className="alert alert-ok" role="status" style={{ margin: "16px 0" }}>
@@ -120,6 +137,19 @@ export function AgendaPage() {
                           }}
                         >
                           Dispensar
+                        </button>
+                      )}{" "}
+                      {isAgendaEditable(item) && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => {
+                            setNotice(null);
+                            setEditing(item);
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                        >
+                          Editar
                         </button>
                       )}{" "}
                       <button type="button" className="btn btn-danger btn-sm" onClick={() => onDelete(item)}>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { EmptyState, ErrorAlert, Loading } from "../components/Feedback";
-import { BarList, BreakdownTables, daysAgo, PeriodFilter } from "../components/ReportWidgets";
+import { BarList, BreakdownTables, daysAgo, ExportCsvButton, PeriodFilter } from "../components/ReportWidgets";
 import { useAsync } from "../hooks/useAsync";
 import { reportService } from "../services/deskhelp";
 import type { MachineReportRow } from "../services/types";
@@ -37,6 +37,7 @@ export function MachineReportPage() {
           <h1>Relatório de máquinas</h1>
           <p>Quantos chamados abertos no período estão vinculados a cada máquina, por status e por categoria.</p>
         </div>
+        <ExportCsvButton onExport={() => reportService.exportMachinesCsv(from, to)} />
       </div>
 
       <PeriodFilter

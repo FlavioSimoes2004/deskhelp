@@ -64,3 +64,21 @@ describe("minutesToHours", () => {
     expect(minutesToHours(null)).toBeNull();
   });
 });
+
+describe("aggregatePeopleReport ratings", () => {
+  it("adds the average rating, rounded to one decimal, and how many were rated", () => {
+    const { people } = aggregatePeopleReport(
+      [{ userId: 1, userName: "Bruno", status: "resolvido", category: "Rede", total: 3 }],
+      [{ userId: 1, resolved: 3, avgMinutes: 60, avgRating: 4.333, rated: 3 }],
+    );
+    expect(people[0]).toMatchObject({ avgRating: 4.3, rated: 3 });
+  });
+
+  it("leaves the average empty when nobody rated", () => {
+    const { people } = aggregatePeopleReport(
+      [{ userId: 1, userName: "Bruno", status: "aberto", category: "Rede", total: 1 }],
+      [{ userId: 1, resolved: 0, avgMinutes: null }],
+    );
+    expect(people[0]).toMatchObject({ avgRating: null, rated: 0 });
+  });
+});

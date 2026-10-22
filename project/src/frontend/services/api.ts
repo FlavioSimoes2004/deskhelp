@@ -1,4 +1,5 @@
-const TOKEN_KEY = "deskhelp.token";
+/** Chave do token no localStorage (compartilhada entre as abas do navegador). */
+export const TOKEN_KEY = "deskhelp.token";
 
 export class ApiError extends Error {
   constructor(

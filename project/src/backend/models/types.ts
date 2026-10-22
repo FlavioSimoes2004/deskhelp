@@ -47,6 +47,10 @@ export interface Ticket {
   machineMacAddress: string | null;
   machineDescription: string | null;
   solution: string | null;
+  /** Avaliação do atendimento (1 a 5) e comentário de quem abriu o chamado. */
+  rating: number | null;
+  ratingComment: string | null;
+  ratedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   resolvedAt: Date | null;
@@ -59,6 +63,8 @@ export interface TicketComment {
   userId: number;
   userName: string;
   body: string;
+  /** Nota interna: visível só para admin e suporte. */
+  internal: boolean;
   createdAt: Date;
   attachments: TicketAttachment[];
 }
@@ -76,6 +82,8 @@ export interface TicketAttachment {
 /** Anexo com o caminho do arquivo no servidor (uso interno, não vai para a API). */
 export interface StoredAttachment extends TicketAttachment {
   filePath: string;
+  /** O anexo é de uma nota interna (só a equipe pode baixar). */
+  internal: boolean;
 }
 
 export interface TicketHistoryEntry {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isNotInPast, parseLocalDateTime } from "./agendaRules.js";
+import { isAgendaEditable, isNotInPast, parseLocalDateTime } from "./agendaRules.js";
 
 describe("parseLocalDateTime", () => {
   it("reads the date and time from the form field", () => {
@@ -24,5 +24,18 @@ describe("isNotInPast", () => {
 
   it("rejects times in the past", () => {
     expect(isNotInPast(new Date(2026, 9, 20, 14, 28), now)).toBe(false);
+  });
+});
+
+describe("isAgendaEditable", () => {
+  const now = new Date(2026, 9, 22, 10, 0);
+
+  it("allows editing reminders that have not gone off", () => {
+    expect(isAgendaEditable({ scheduledAt: new Date(2026, 9, 22, 11, 0), notifiedAt: null }, now)).toBe(true);
+  });
+
+  it("blocks reminders whose time came or that were already notified", () => {
+    expect(isAgendaEditable({ scheduledAt: new Date(2026, 9, 22, 9, 0), notifiedAt: null }, now)).toBe(false);
+    expect(isAgendaEditable({ scheduledAt: new Date(2026, 9, 22, 11, 0), notifiedAt: now }, now)).toBe(false);
   });
 });

@@ -17,10 +17,25 @@ export async function assignees(_req: Request, res: Response) {
   res.json({ data: await reports.getPeopleReport(res.locals.query, "assignee") });
 }
 
-export async function exportCsv(_req: Request, res: Response) {
-  const { filename, csv } = await reports.exportCsv(res.locals.query);
+function sendCsv(res: Response, { filename, csv }: { filename: string; csv: string }) {
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
   // BOM para o Excel reconhecer UTF-8 (acentos).
-  res.send(`﻿${csv}`);
+  res.send(`\uFEFF${csv}`);
+}
+
+export async function exportCsv(_req: Request, res: Response) {
+  sendCsv(res, await reports.exportCsv(res.locals.query));
+}
+
+export async function machinesCsv(_req: Request, res: Response) {
+  sendCsv(res, await reports.exportMachineCsv(res.locals.query));
+}
+
+export async function requestersCsv(_req: Request, res: Response) {
+  sendCsv(res, await reports.exportPeopleCsv(res.locals.query, "requester"));
+}
+
+export async function assigneesCsv(_req: Request, res: Response) {
+  sendCsv(res, await reports.exportPeopleCsv(res.locals.query, "assignee"));
 }

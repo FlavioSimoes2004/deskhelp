@@ -67,6 +67,58 @@ export async function getPeopleReport(query: ReportQuery, role: reports.PersonRo
   };
 }
 
+// Cabeçalhos das colunas de status no CSV (mesma ordem do relatório).
+const STATUS_COLUMNS = ["aberto", "em_andamento", "aguardando", "resolvido", "fechado"] as const;
+
+/** CSV do relatório de máquinas: uma linha por máquina, com status e categorias. */
+export async function exportMachineCsv(query: ReportQuery) {
+  const { period, machines, categories } = await getMachineReport(query);
+  const csv = toCsv(
+    ["maquina", "mac", "descricao", "usuario", "total", ...STATUS_COLUMNS, ...categories],
+    machines.map((m) => [
+      m.name,
+      m.macAddress,
+      m.description,
+      m.userName,
+      m.total,
+      ...STATUS_COLUMNS.map((s) => m.byStatus[s]),
+      ...categories.map((c) => m.byCategory.find((x) => x.label === c)?.total ?? 0),
+    ]),
+  );
+  return { filename: `maquinas_${period.from}_a_${period.to}.csv`, csv };
+}
+
+/** CSV do relatório de solicitantes ou de responsáveis. */
+export async function exportPeopleCsv(query: ReportQuery, role: reports.PersonRole) {
+  const { period, people, categories } = await getPeopleReport(query, role);
+  const who = role === "requester" ? "solicitante" : "responsavel";
+  const csv = toCsv(
+    [
+      who,
+      "chamados",
+      "resolvidos",
+      "taxa_resolucao_pct",
+      "tempo_medio_resolucao_h",
+      "avaliacao_media",
+      "avaliacoes",
+      ...STATUS_COLUMNS,
+      ...categories,
+    ],
+    people.map((p) => [
+      p.userName ?? "Sem responsável",
+      p.total,
+      p.resolved,
+      Math.round((p.resolved / p.total) * 100),
+      p.avgResolutionHours,
+      p.avgRating,
+      p.rated,
+      ...STATUS_COLUMNS.map((s) => p.byStatus[s]),
+      ...categories.map((c) => p.byCategory.find((x) => x.label === c)?.total ?? 0),
+    ]),
+  );
+  return { filename: `${role === "requester" ? "solicitantes" : "responsaveis"}_${period.from}_a_${period.to}.csv`, csv };
+}
+
 const isoOrEmpty = (d: Date | null) => (d ? d.toISOString() : "");
 
 export async function exportCsv(query: ReportQuery) {

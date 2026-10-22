@@ -93,6 +93,15 @@ export async function setRead(userId: number, id: number, read: boolean): Promis
   return result.affectedRows > 0;
 }
 
+/** Marca como lidas as notificações do usuário sobre um chamado (ao abrir o chamado). */
+export async function markTicketRead(userId: number, ticketId: number): Promise<number> {
+  const [result] = await pool.execute<ResultSetHeader>(
+    "UPDATE notifications SET read_at = CURRENT_TIMESTAMP WHERE user_id = ? AND ticket_id = ? AND read_at IS NULL",
+    [userId, ticketId],
+  );
+  return result.affectedRows;
+}
+
 export async function markAllRead(userId: number): Promise<void> {
   await pool.execute("UPDATE notifications SET read_at = CURRENT_TIMESTAMP WHERE user_id = ? AND read_at IS NULL", [
     userId,

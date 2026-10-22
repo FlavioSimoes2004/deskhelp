@@ -44,6 +44,10 @@ CREATE TABLE IF NOT EXISTS tickets (
   machine_id   INT UNSIGNED NULL,
   -- Solução do chamado: registrada pelo responsável ou por um admin, com o chamado "resolvido".
   solution     TEXT NULL,
+  -- Avaliação do atendimento pelo solicitante (1 a 5), com o chamado resolvido ou fechado.
+  rating         TINYINT UNSIGNED NULL,
+  rating_comment VARCHAR(500) NULL,
+  rated_at       DATETIME NULL,
   created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   resolved_at  DATETIME NULL,
@@ -59,11 +63,13 @@ CREATE TABLE IF NOT EXISTS tickets (
   CONSTRAINT fk_tickets_assignee FOREIGN KEY (assignee_id) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- is_internal = 1: nota interna, visível só para admin e suporte.
 CREATE TABLE IF NOT EXISTS ticket_comments (
-  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  ticket_id  INT UNSIGNED NOT NULL,
-  user_id    INT UNSIGNED NOT NULL,
-  body       TEXT NOT NULL,
+  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  ticket_id   INT UNSIGNED NOT NULL,
+  user_id     INT UNSIGNED NOT NULL,
+  body        TEXT NOT NULL,
+  is_internal TINYINT(1) NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_comments_ticket (ticket_id, created_at),
@@ -167,6 +173,13 @@ CREATE TABLE IF NOT EXISTS machines (
   KEY idx_machines_user (user_id),
   CONSTRAINT fk_machines_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Bancos criados antes das notas internas e da avaliação do atendimento.
+ALTER TABLE ticket_comments ADD COLUMN IF NOT EXISTS is_internal TINYINT(1) NOT NULL DEFAULT 0 AFTER body;
+ALTER TABLE tickets
+  ADD COLUMN IF NOT EXISTS rating TINYINT UNSIGNED NULL AFTER solution,
+  ADD COLUMN IF NOT EXISTS rating_comment VARCHAR(500) NULL AFTER rating,
+  ADD COLUMN IF NOT EXISTS rated_at DATETIME NULL AFTER rating_comment;
 
 -- Bancos criados antes da coluna tickets.solution.
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS solution TEXT NULL AFTER machine_id;

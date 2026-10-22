@@ -319,7 +319,9 @@ paths:
     get:
       tags: [Chamados]
       summary: Detalhar chamado
-      description: Inclui comentários e histórico de alterações.
+      description: |
+        Inclui comentários e histórico de alterações (notas internas só para admin e suporte).
+        Abrir o chamado marca como lidas as notificações dele do usuário.
       operationId: getTicket
       responses:
         "200":
@@ -386,6 +388,8 @@ paths:
       summary: Comentar no chamado
       description: |
         Somente quem abriu o chamado e o responsável por ele podem comentar (os demais recebem 403).
+        `internal: true` cria uma **nota interna**: qualquer admin ou suporte pode escrever, só admin e
+        suporte veem (inclusive os anexos) e só eles são notificados.
         Os anexos enviados com o comentário ficam em `ticket_comment_attachments`, ligados a ele por `comment_id`.
         Exceto administradores, ninguém comenta em chamados fechados.
         Para enviar anexos use `multipart/form-data` com o campo `attachments` (até 5 arquivos de 10 MB;
@@ -401,12 +405,14 @@ paths:
               required: [body]
               properties:
                 body: { type: string, minLength: 1, maxLength: 5000 }
+                internal: { type: boolean, default: false, description: Nota interna (só admin e suporte) }
           multipart/form-data:
             schema:
               type: object
               required: [body]
               properties:
                 body: { type: string, minLength: 1, maxLength: 5000 }
+                internal: { type: string, enum: ["true", "false"], default: "false" }
                 attachments:
                   type: array
                   maxItems: 5
@@ -450,6 +456,42 @@ paths:
       responses:
         "200":
           description: Chamado atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/TicketDetail" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /tickets/{id}/rating:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Chamados]
+      summary: Avaliar o atendimento
+      description: |
+        Somente quem abriu o chamado (403 para os demais), com o chamado `resolvido` ou `fechado`
+        (409 `TICKET_NOT_RESOLVED`), uma vez (409 `ALREADY_RATED`).
+      operationId: rateTicket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating]
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: [string, "null"], maxLength: 500 }
+            example: { rating: 5, comment: "Resolveram rápido, obrigado!" }
+      responses:
+        "200":
+          description: Chamado com a avaliação
           content:
             application/json:
               schema:
@@ -564,6 +606,37 @@ paths:
   /agenda/{id}:
     parameters:
       - $ref: "#/components/parameters/Id"
+    patch:
+      tags: [Agenda]
+      summary: Editar item da agenda
+      description: |
+        Só o dono e só enquanto o lembrete não tocou (hora futura e aviso não gerado); senão
+        409 `AGENDA_NOT_EDITABLE`. Envie apenas os campos a alterar.
+      operationId: updateAgendaItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                title: { type: string, minLength: 3, maxLength: 160 }
+                description: { type: [string, "null"], maxLength: 2000 }
+                scheduledAt: { type: string, description: Data e hora local (AAAA-MM-DDTHH:MM), a partir de agora }
+      responses:
+        "200":
+          description: Item atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/AgendaItem" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
     delete:
       tags: [Agenda]
       summary: Excluir item da agenda
@@ -1054,6 +1127,60 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /reports/machines.csv:
+    get:
+      tags: [Relatórios]
+      summary: Exportar relatório de máquinas (CSV)
+      operationId: exportMachineReport
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: Arquivo CSV (UTF-8 com BOM)
+          content:
+            text/csv:
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /reports/requesters.csv:
+    get:
+      tags: [Relatórios]
+      summary: Exportar relatório de solicitantes (CSV)
+      operationId: exportRequesterReport
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: Arquivo CSV (UTF-8 com BOM)
+          content:
+            text/csv:
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /reports/assignees.csv:
+    get:
+      tags: [Relatórios]
+      summary: Exportar relatório de responsáveis (CSV)
+      operationId: exportAssigneeReport
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: Arquivo CSV (UTF-8 com BOM)
+          content:
+            text/csv:
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
   /reports/summary:
     get:
       tags: [Relatórios]
@@ -1172,6 +1299,9 @@ components:
         machineMacAddress: { type: [string, "null"] }
         machineDescription: { type: [string, "null"] }
         solution: { type: [string, "null"], description: Solução registrada pelo responsável ou por um admin }
+        rating: { type: [integer, "null"], minimum: 1, maximum: 5, description: Avaliação do atendimento por quem abriu }
+        ratingComment: { type: [string, "null"] }
+        ratedAt: { type: [string, "null"], format: date-time }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         resolvedAt: { type: [string, "null"], format: date-time }
@@ -1180,6 +1310,7 @@ components:
       type: object
       properties:
         id: { type: integer }
+        internal: { type: boolean, description: Nota interna (só aparece para admin e suporte) }
         ticketId: { type: integer }
         userId: { type: integer }
         userName: { type: string }
@@ -1295,6 +1426,8 @@ components:
             total: { type: integer }
             resolved: { type: integer }
             avgResolutionHours: { type: [number, "null"] }
+            avgRating: { type: [number, "null"] }
+            rated: { type: integer }
             people: { type: integer, description: Pessoas com ao menos um chamado }
             unassigned: { type: integer, description: Chamados sem responsável (0 no relatório de solicitantes) }
         people:
@@ -1308,6 +1441,8 @@ components:
               total: { type: integer }
               resolved: { type: integer }
               avgResolutionHours: { type: [number, "null"] }
+              avgRating: { type: [number, "null"], description: Avaliação média (1 a 5) }
+              rated: { type: integer, description: Chamados avaliados }
               byStatus: { type: object, additionalProperties: { type: integer } }
               byCategory: { type: array, items: { $ref: "#/components/schemas/CountItem" } }
         categories: { type: array, items: { type: string } }

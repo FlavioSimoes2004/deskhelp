@@ -1,7 +1,9 @@
-import { useId, type CSSProperties, type ReactNode } from "react";
+import { useId, useState, type CSSProperties, type ReactNode } from "react";
+import type { ApiError } from "../services/api";
 import type { TicketStatus } from "../services/types";
 import { isoDay, STATUS_ORDER } from "../utils/format";
 import { StatusBadge } from "./Badges";
+import { ErrorAlert } from "./Feedback";
 
 export const daysAgo = (n: number) => isoDay(new Date(Date.now() - n * 86_400_000));
 
@@ -193,5 +195,32 @@ export function BreakdownTables({
         </div>
       </section>
     </>
+  );
+}
+
+/** Botão "Exportar CSV" com estado de carregamento e erro. */
+export function ExportCsvButton({ onExport }: { onExport: () => Promise<void> }) {
+  const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState<ApiError | null>(null);
+
+  async function run() {
+    setExporting(true);
+    setError(null);
+    try {
+      await onExport();
+    } catch (err) {
+      setError(err as ApiError);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
+      <button type="button" className="btn btn-ghost" onClick={run} disabled={exporting}>
+        {exporting ? "Gerando CSV…" : "Exportar CSV"}
+      </button>
+      <ErrorAlert error={error} />
+    </div>
   );
 }

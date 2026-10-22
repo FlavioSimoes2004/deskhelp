@@ -40,3 +40,13 @@ describe("commentRecipients", () => {
     expect(commentRecipients(1, { requesterId: 2, assigneeId: 2 })).toEqual([2]);
   });
 });
+
+describe("commentRecipients for internal notes", () => {
+  it("does not notify a common requester", () => {
+    expect(commentRecipients(1, { requesterId: 2, assigneeId: 7 }, { requesterIsStaff: false })).toEqual([7]);
+  });
+
+  it("notifies a requester who is staff", () => {
+    expect(commentRecipients(1, { requesterId: 2, assigneeId: 7 }, { requesterIsStaff: true })).toEqual([2, 7]);
+  });
+});

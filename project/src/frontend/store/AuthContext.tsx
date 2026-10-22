@@ -1,5 +1,5 @@
 import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { SESSION_EXPIRED_EVENT, tokenStore } from "../services/api";
+import { SESSION_EXPIRED_EVENT, TOKEN_KEY, tokenStore } from "../services/api";
 import { authService } from "../services/deskhelp";
 import type { User } from "../services/types";
 
@@ -71,6 +71,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
   }, [logout]);
+
+  // Outras abas do mesmo navegador: sair numa aba sai em todas; entrar (inclusive com
+  // outra conta) atualiza o usuário nas demais. O evento "storage" só chega às outras abas.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== TOKEN_KEY && e.key !== null) return;
+      if (!tokenStore.get()) {
+        setUser(null);
+        return;
+      }
+      authService
+        .me()
+        .then(setUser)
+        .catch(() => setUser(null));
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   const value = useMemo<AuthState>(
     () => ({

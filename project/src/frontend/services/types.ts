@@ -33,6 +33,10 @@ export interface Ticket {
   machineMacAddress: string | null;
   machineDescription: string | null;
   solution: string | null;
+  /** Avaliação do atendimento (1 a 5) e comentário de quem abriu. */
+  rating: number | null;
+  ratingComment: string | null;
+  ratedAt: string | null;
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;
@@ -44,6 +48,8 @@ export interface TicketComment {
   userId: number;
   userName: string;
   body: string;
+  /** Nota interna: visível só para admin e suporte. */
+  internal: boolean;
   createdAt: string;
   attachments: TicketAttachment[];
 }
@@ -187,6 +193,9 @@ export interface PersonReportRow {
   total: number;
   resolved: number;
   avgResolutionHours: number | null;
+  /** Avaliação média (1 a 5) e quantos chamados foram avaliados. */
+  avgRating: number | null;
+  rated: number;
   byStatus: Record<TicketStatus, number>;
   byCategory: { label: string; total: number }[];
 }
@@ -197,6 +206,8 @@ export interface PeopleReport {
     total: number;
     resolved: number;
     avgResolutionHours: number | null;
+    avgRating: number | null;
+    rated: number;
     /** Pessoas com ao menos um chamado (sem contar "sem responsável"). */
     people: number;
     /** Chamados sem responsável (sempre 0 no relatório de solicitantes). */

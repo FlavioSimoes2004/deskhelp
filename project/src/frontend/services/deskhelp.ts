@@ -75,18 +75,23 @@ export const ticketService = {
       machineId: number | null;
     }>,
   ) => api.patch<{ data: TicketDetail }>(`/tickets/${id}`, data).then((r) => r.data),
-  comment: (id: number, body: string, files: File[] = []) => {
+  /** internal = nota interna (só admin e suporte veem). */
+  comment: (id: number, body: string, files: File[] = [], internal = false) => {
     if (files.length === 0) {
-      return api.post<{ data: TicketDetail }>(`/tickets/${id}/comments`, { body }).then((r) => r.data);
+      return api.post<{ data: TicketDetail }>(`/tickets/${id}/comments`, { body, internal }).then((r) => r.data);
     }
     const form = new FormData();
     form.append("body", body);
+    form.append("internal", String(internal));
     for (const file of files) form.append("attachments", file);
     return api.postForm<{ data: TicketDetail }>(`/tickets/${id}/comments`, form).then((r) => r.data);
   },
   /** Responsável ou admin, com o chamado resolvido; null/vazio remove a solução. */
   setSolution: (id: number, solution: string | null) =>
     api.put<{ data: TicketDetail }>(`/tickets/${id}/solution`, { solution }).then((r) => r.data),
+  /** Quem abriu avalia o atendimento (1 a 5), com o chamado resolvido ou fechado. */
+  rate: (id: number, rating: number, comment: string | null) =>
+    api.post<{ data: TicketDetail }>(`/tickets/${id}/rating`, { rating, comment }).then((r) => r.data),
   resolve: (id: number) => api.post<{ data: TicketDetail }>(`/tickets/${id}/resolve`).then((r) => r.data),
   attachmentBlob: (attachment: TicketAttachment) => api.blob(`/attachments/${attachment.id}`),
   downloadAttachment: (attachment: TicketAttachment) =>
@@ -164,6 +169,9 @@ export const agendaService = {
   /** scheduledAt no formato do campo datetime-local: AAAA-MM-DDTHH:MM; ticketId vincula a um chamado. */
   create: (data: { title: string; description: string | null; scheduledAt: string; ticketId?: number | null }) =>
     api.post<{ data: AgendaItem }>("/agenda", data).then((r) => r.data),
+  /** Só lembretes que ainda não tocaram. */
+  update: (id: number, data: { title?: string; description?: string | null; scheduledAt?: string }) =>
+    api.patch<{ data: AgendaItem }>(`/agenda/${id}`, data).then((r) => r.data),
   remove: (id: number) => api.delete(`/agenda/${id}`),
   /** Itens cuja hora chegou e ainda não foram dispensados (avisos na tela). */
   due: () => api.get<{ data: AgendaItem[] }>("/agenda/due").then((r) => r.data),
@@ -175,6 +183,10 @@ export const reportService = {
     api.get<{ data: ReportSummary }>("/reports/summary", { from, to }).then((r) => r.data),
   machines: (from: string, to: string) =>
     api.get<{ data: MachineReport }>("/reports/machines", { from, to }).then((r) => r.data),
+  exportMachinesCsv: (from: string, to: string) =>
+    api.download("/reports/machines.csv", { from, to }, `maquinas_${from}_a_${to}.csv`),
+  exportPeopleCsv: (kind: "requesters" | "assignees", from: string, to: string) =>
+    api.download(`/reports/${kind}.csv`, { from, to }, `${kind === "requesters" ? "solicitantes" : "responsaveis"}_${from}_a_${to}.csv`),
   /** Por quem abriu ("requesters") ou por responsável ("assignees"). */
   people: (kind: "requesters" | "assignees", from: string, to: string) =>
     api.get<{ data: PeopleReport }>(`/reports/${kind}`, { from, to }).then((r) => r.data),

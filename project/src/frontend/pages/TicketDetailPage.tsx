@@ -8,6 +8,7 @@ import { TicketAgendaPanel } from "../components/TicketAgendaPanel";
 import { TicketStub } from "../components/TicketStub";
 import { useAsync } from "../hooks/useAsync";
 import { useAuth } from "../hooks/useAuth";
+import { notifyNotificationsChanged } from "../hooks/useUnreadNotifications";
 import { ApiError } from "../services/api";
 import { machineService, ticketService, userService } from "../services/deskhelp";
 import type {
@@ -87,6 +88,11 @@ export function TicketDetailPage() {
   const staff = useAsync(() => (isStaff ? userService.staff() : Promise.resolve([])), [isStaff]);
   const machines = useAsync(() => (isStaff ? machineService.list() : Promise.resolve([])), [isStaff]);
 
+  const loadedId = ticket.data?.id;
+  useEffect(() => {
+    if (loadedId !== undefined) notifyNotificationsChanged();
+  }, [loadedId]);
+
   if (ticket.loading && !ticket.data) return <Loading />;
   if (ticket.error?.status === 404 || Number.isNaN(id)) {
     return (
@@ -115,6 +121,8 @@ export function TicketDetailPage() {
     : !isAdmin && t.status === "fechado"
       ? "Este chamado foi fechado. Se o problema voltou, abra um novo chamado."
       : null;
+  // Nota interna: qualquer admin ou suporte (em chamado fechado, só admin).
+  const canInternal = isStaff && (isAdmin || t.status !== "fechado");
   return (
     <div className="page">
       <p style={{ marginBottom: 12 }}>
@@ -150,9 +158,15 @@ export function TicketDetailPage() {
             canEdit={isAdmin || (user !== null && t.assigneeId === user.id)}
             onSaved={(updated) => ticket.setData(updated)}
           />
+          <RatingPanel
+            ticket={t}
+            canRate={user !== null && t.requesterId === user.id}
+            onRated={(updated) => ticket.setData(updated)}
+          />
           <Conversation
             ticket={t}
             blockedReason={commentBlocked}
+            canInternal={canInternal}
             categories={categories.data ?? []}
             staff={staff.data ?? []}
             machines={machines.data ?? []}
@@ -220,6 +234,7 @@ export function TicketDetailPage() {
 function Conversation({
   ticket,
   blockedReason,
+  canInternal,
   categories,
   staff,
   machines,
@@ -228,6 +243,8 @@ function Conversation({
   ticket: TicketDetail;
   /** Motivo pelo qual o usuário não pode responder; null quando pode. */
   blockedReason: string | null;
+  /** Pode escrever notas internas (admin/suporte). */
+  canInternal: boolean;
   categories: Category[];
   staff: User[];
   machines: Machine[];
@@ -238,6 +255,10 @@ function Conversation({
   const [fileInputKey, setFileInputKey] = useState(0);
   const [error, setError] = useState<ApiError | null>(null);
   const [sending, setSending] = useState(false);
+  // Sem poder responder normalmente, a equipe ainda pode deixar nota interna.
+  const internalOnly = blockedReason !== null && canInternal;
+  const [internalChoice, setInternalChoice] = useState(false);
+  const internal = internalOnly || (canInternal && internalChoice);
 
   const items = useMemo(() => {
     const comments = ticket.comments.map((c) => ({ kind: "comment" as const, at: c.createdAt, key: `c${c.id}`, c }));
@@ -251,7 +272,7 @@ function Conversation({
     setSending(true);
     setError(null);
     try {
-      onCommented(await ticketService.comment(ticket.id, body, files));
+      onCommented(await ticketService.comment(ticket.id, body, files, internal));
       setBody("");
       setFiles([]);
       setFileInputKey((k) => k + 1);
@@ -281,10 +302,15 @@ function Conversation({
                 </span>
                 <div>
                   <strong>{item.c.userName}</strong>{" "}
+                  {item.c.internal && (
+                    <span className="tag tag-alert" title="Visível só para administradores e suporte">
+                      Nota interna
+                    </span>
+                  )}{" "}
                   <span className="muted" style={{ color: "var(--ink-3)", fontSize: "var(--step--1)" }} title={formatDateTime(item.at)}>
                     {timeAgo(item.at)}
                   </span>
-                  <div className="comment-body">{item.c.body}</div>
+                  <div className={item.c.internal ? "comment-body internal" : "comment-body"}>{item.c.body}</div>
                   {item.c.attachments.length > 0 && (
                     <ul className="attachments">
                       {item.c.attachments.map((a) => (
@@ -308,16 +334,33 @@ function Conversation({
         </ol>
       )}
 
-      {blockedReason === null ? (
+      {blockedReason !== null && (
+        <p className="alert alert-ok" style={{ marginTop: 20 }}>
+          {blockedReason}
+          {internalOnly && " Você ainda pode deixar uma nota interna para a equipe."}
+        </p>
+      )}
+      {blockedReason === null || canInternal ? (
         <form className="form" onSubmit={onSubmit} style={{ marginTop: 20 }}>
           <ErrorAlert error={error} />
-          <Field label="Responder">
+          {canInternal && (
+            <label className="internal-toggle">
+              <input
+                type="checkbox"
+                checked={internal}
+                disabled={internalOnly}
+                onChange={(e) => setInternalChoice(e.target.checked)}
+              />
+              Nota interna: visível só para administradores e suporte
+            </label>
+          )}
+          <Field label={internal ? "Nota interna" : "Responder"}>
             <textarea
               className="textarea"
               rows={4}
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              placeholder="Escreva uma atualização ou pergunta"
+              placeholder={internal ? "Anotação para a equipe (quem abriu não vê)" : "Escreva uma atualização ou pergunta"}
             />
           </Field>
           <Field label="Anexos" hint="Até 5 arquivos de 10 MB: imagens, PDF, texto, planilhas, documentos ou ZIP.">
@@ -332,15 +375,11 @@ function Conversation({
           </Field>
           <div className="form-actions">
             <button className="btn btn-primary" type="submit" disabled={sending || !body.trim()}>
-              {sending ? "Enviando…" : "Enviar resposta"}
+              {sending ? "Enviando…" : internal ? "Salvar nota interna" : "Enviar resposta"}
             </button>
           </div>
         </form>
-      ) : (
-        <p className="alert alert-ok" style={{ marginTop: 20 }}>
-          {blockedReason}
-        </p>
-      )}
+      ) : null}
     </section>
   );
 }
@@ -700,6 +739,117 @@ function SolutionPanel({
             ? "Nenhuma solução registrada ainda."
             : "A solução poderá ser registrada quando o chamado estiver resolvido."}
         </p>
+      )}
+    </section>
+  );
+}
+
+const RATING_LABEL = ["", "Muito ruim", "Ruim", "Regular", "Bom", "Ótimo"];
+
+/** Estrelas de 1 a 5 só para leitura. */
+function Stars({ value }: { value: number }) {
+  return (
+    <span className="stars" role="img" aria-label={`${value} de 5 estrelas`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <span key={n} aria-hidden="true" className={n <= value ? "star on" : "star"}>
+          ★
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/**
+ * Avaliação do atendimento: quem abriu avalia (1 a 5 e comentário opcional) quando o
+ * chamado está resolvido ou fechado, uma vez. Depois, todos que veem o chamado veem a nota.
+ */
+function RatingPanel({
+  ticket,
+  canRate,
+  onRated,
+}: {
+  ticket: TicketDetail;
+  canRate: boolean;
+  onRated: (ticket: TicketDetail) => void;
+}) {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [error, setError] = useState<ApiError | null>(null);
+  const [saving, setSaving] = useState(false);
+  const finished = ticket.status === "resolvido" || ticket.status === "fechado";
+
+  if (ticket.rating === null && !(canRate && finished)) return null;
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!rating) return;
+    setSaving(true);
+    setError(null);
+    try {
+      onRated(await ticketService.rate(ticket.id, rating, comment.trim() || null));
+    } catch (err) {
+      setError(err as ApiError);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="panel" aria-labelledby="rating-title">
+      <div className="panel-head">
+        <h2 id="rating-title">Avaliação do atendimento</h2>
+      </div>
+      {ticket.rating !== null ? (
+        <div>
+          <p style={{ margin: 0 }}>
+            <Stars value={ticket.rating} /> <strong>{RATING_LABEL[ticket.rating]}</strong>
+            {ticket.ratedAt && (
+              <span className="muted" style={{ color: "var(--ink-3)", fontSize: "var(--step--1)" }}>
+                {" "}
+                · {formatDateTime(ticket.ratedAt)}
+              </span>
+            )}
+          </p>
+          {ticket.ratingComment && <p className="description" style={{ marginTop: 8 }}>{ticket.ratingComment}</p>}
+        </div>
+      ) : (
+        <form className="form" onSubmit={onSubmit}>
+          <ErrorAlert error={error} />
+          <fieldset className="star-picker">
+            <legend>Como foi o atendimento?</legend>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <label key={n} title={RATING_LABEL[n]} className={n <= rating ? "on" : undefined}>
+                <input
+                  type="radio"
+                  name="rating"
+                  value={n}
+                  checked={rating === n}
+                  onChange={() => setRating(n)}
+                  className="visually-hidden"
+                />
+                <span aria-hidden="true">★</span>
+                <span className="visually-hidden">
+                  {n} {n === 1 ? "estrela" : "estrelas"}: {RATING_LABEL[n]}
+                </span>
+              </label>
+            ))}
+            <span className="star-picker-label">{rating ? RATING_LABEL[rating] : "Escolha de 1 a 5"}</span>
+          </fieldset>
+          <Field label="Comentário" hint="Opcional. A avaliação não pode ser alterada depois.">
+            <textarea
+              className="textarea"
+              rows={3}
+              maxLength={500}
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+            />
+          </Field>
+          <div className="form-actions">
+            <button className="btn btn-primary" type="submit" disabled={!rating || saving}>
+              {saving ? "Enviando…" : "Enviar avaliação"}
+            </button>
+          </div>
+        </form>
       )}
     </section>
   );

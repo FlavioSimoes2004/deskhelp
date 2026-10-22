@@ -79,8 +79,24 @@ export const solutionSchema = z.object({
     .transform((v) => v || null),
 });
 
+// Formulários multipart enviam texto: aceita true/false e "true"/"false".
+const boolField = z.union([z.boolean(), z.enum(["true", "false"]).transform((v) => v === "true")]);
+
 export const commentSchema = z.object({
   body: z.string().trim().min(1, "Escreva o comentário").max(5000),
+  /** Nota interna: visível só para admin e suporte. */
+  internal: boolField.default(false),
+});
+
+export const ratingSchema = z.object({
+  rating: z.number().int().min(1, "Escolha de 1 a 5 estrelas").max(5, "Escolha de 1 a 5 estrelas"),
+  comment: z
+    .string()
+    .trim()
+    .max(500, "O comentário pode ter no máximo 500 caracteres")
+    .nullable()
+    .optional()
+    .transform((v) => v || null),
 });
 
 export const ticketQuerySchema = z.object({
@@ -224,6 +240,20 @@ export const createAgendaSchema = z.object({
   /** Chamado a vincular (opcional). */
   ticketId: id.nullable().default(null),
 });
+
+export const updateAgendaSchema = z
+  .object({
+    title: z.string().trim().min(3, "O título precisa ter pelo menos 3 caracteres").max(160).optional(),
+    description: z
+      .string()
+      .trim()
+      .max(2000, "A descrição pode ter no máximo 2000 caracteres")
+      .nullable()
+      .optional()
+      .transform((v) => (v === undefined ? undefined : v || null)),
+    scheduledAt: z.string().regex(LOCAL_DATETIME, "Informe a data e a hora").optional(),
+  })
+  .refine((data) => Object.values(data).some((v) => v !== undefined), { message: "Nenhum campo para atualizar" });
 
 export const agendaQuerySchema = z.object({
   when: z.enum(["upcoming", "past"]).optional(),

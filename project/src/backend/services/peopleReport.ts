@@ -13,6 +13,8 @@ export interface PersonResolution {
   userId: number | null;
   resolved: number;
   avgMinutes: number | null;
+  avgRating?: number | null;
+  rated?: number;
 }
 
 export interface PersonReportRow extends Breakdown {
@@ -21,6 +23,9 @@ export interface PersonReportRow extends Breakdown {
   userName: string | null;
   resolved: number;
   avgResolutionHours: number | null;
+  /** Avaliação média (1 a 5, uma casa decimal) e quantos chamados foram avaliados. */
+  avgRating: number | null;
+  rated: number;
 }
 
 export const minutesToHours = (minutes: number | null) =>
@@ -42,6 +47,8 @@ export function aggregatePeopleReport(counts: PersonTicketCount[], resolution: P
         ...breakdown,
         resolved: r?.resolved ?? 0,
         avgResolutionHours: minutesToHours(r?.avgMinutes ?? null),
+        avgRating: r?.avgRating == null ? null : Math.round(r.avgRating * 10) / 10,
+        rated: r?.rated ?? 0,
       };
     })
     .sort(

@@ -2,7 +2,7 @@ import * as agenda from "../models/agendaModel.js";
 import { findTicketById } from "../models/ticketModel.js";
 import type { AuthUser } from "../models/types.js";
 import { HttpError, notFound } from "../utils/httpError.js";
-import { isNotInPast, parseLocalDateTime } from "./agendaRules.js";
+import { isAgendaEditable, isNotInPast, parseLocalDateTime } from "./agendaRules.js";
 import { canViewTicket } from "./ticketRules.js";
 
 export async function createItem(
@@ -20,6 +20,32 @@ export async function createItem(
     if (!ticket || !canViewTicket(user, ticket)) throw notFound("Chamado não encontrado");
   }
   const id = await agenda.insertAgendaItem(user.id, { ...data, scheduledAt });
+  return agenda.findAgendaItem(user.id, id);
+}
+
+const notEditable = () =>
+  new HttpError(409, "AGENDA_NOT_EDITABLE", "Só é possível editar lembretes que ainda não tocaram");
+
+/** Edita um lembrete que ainda não tocou (título, descrição, data e hora). */
+export async function updateItem(
+  user: AuthUser,
+  id: number,
+  data: { title?: string; description?: string | null; scheduledAt?: string },
+) {
+  const current = await agenda.findAgendaItem(user.id, id);
+  if (!current) throw notFound("Item da agenda não encontrado");
+  if (!isAgendaEditable(current, new Date())) throw notEditable();
+  let scheduledAt: Date | undefined;
+  if (data.scheduledAt !== undefined) {
+    const parsed = parseLocalDateTime(data.scheduledAt);
+    if (!parsed || !isNotInPast(parsed, new Date())) {
+      const message = parsed ? "Escolha uma data e hora a partir de agora" : "Data ou hora inválida";
+      throw new HttpError(400, "VALIDATION_ERROR", message, [{ field: "scheduledAt", message }]);
+    }
+    scheduledAt = parsed;
+  }
+  // Se o lembrete tocou entre a leitura e a gravação, o UPDATE não altera nada.
+  if (!(await agenda.updateAgendaItem(user.id, id, { ...data, scheduledAt }))) throw notEditable();
   return agenda.findAgendaItem(user.id, id);
 }
 

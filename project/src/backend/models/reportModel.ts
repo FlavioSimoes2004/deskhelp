@@ -40,7 +40,9 @@ export async function resolutionStats(period: Period) {
     `SELECT COUNT(*) AS total,
             SUM(t.resolved_at IS NOT NULL) AS resolved,
             AVG(CASE WHEN t.resolved_at IS NOT NULL
-                     THEN TIMESTAMPDIFF(MINUTE, t.created_at, t.resolved_at) END) AS avg_minutes
+                     THEN TIMESTAMPDIFF(MINUTE, t.created_at, t.resolved_at) END) AS avg_minutes,
+            AVG(t.rating) AS avg_rating,
+            COUNT(t.rating) AS rated
      FROM tickets t WHERE ${PERIOD}`,
     period,
   );
@@ -49,6 +51,9 @@ export async function resolutionStats(period: Period) {
     total: Number(row?.total ?? 0),
     resolved: Number(row?.resolved ?? 0),
     avgResolutionHours: row?.avg_minutes == null ? null : Math.round((Number(row.avg_minutes) / 60) * 10) / 10,
+    /** Média das avaliações (1 a 5) dos chamados avaliados no período. */
+    avgRating: row?.avg_rating == null ? null : Math.round(Number(row.avg_rating) * 10) / 10,
+    rated: Number(row?.rated ?? 0),
   };
 }
 
@@ -128,14 +133,16 @@ export async function ticketsByPerson(period: Period, role: PersonRole) {
   }));
 }
 
-/** Resolvidos e tempo médio até resolver, por pessoa, no período. */
+/** Resolvidos, tempo médio até resolver e avaliação média, por pessoa, no período. */
 export async function resolutionByPerson(period: Period, role: PersonRole) {
   const column = PERSON_COLUMN[role];
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT ${column} AS user_id,
             SUM(t.resolved_at IS NOT NULL) AS resolved,
             AVG(CASE WHEN t.resolved_at IS NOT NULL
-                     THEN TIMESTAMPDIFF(MINUTE, t.created_at, t.resolved_at) END) AS avg_minutes
+                     THEN TIMESTAMPDIFF(MINUTE, t.created_at, t.resolved_at) END) AS avg_minutes,
+            AVG(t.rating) AS avg_rating,
+            COUNT(t.rating) AS rated
      FROM tickets t WHERE ${PERIOD}
      GROUP BY ${column}`,
     period,
@@ -144,5 +151,7 @@ export async function resolutionByPerson(period: Period, role: PersonRole) {
     userId: r.user_id === null ? null : Number(r.user_id),
     resolved: Number(r.resolved ?? 0),
     avgMinutes: r.avg_minutes == null ? null : Number(r.avg_minutes),
+    avgRating: r.avg_rating == null ? null : Number(r.avg_rating),
+    rated: Number(r.rated ?? 0),
   }));
 }

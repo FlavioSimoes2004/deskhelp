@@ -20,17 +20,36 @@ export function agendaStatus(item: AgendaItem) {
   return { label: "Agendado", className: "tag" };
 }
 
-/** Formulário de novo lembrete; com ticketId, o lembrete fica vinculado ao chamado. */
+/** Lembrete editável: a hora ainda não chegou (e o aviso ainda não foi gerado). */
+export const isAgendaEditable = (item: AgendaItem) =>
+  item.notifiedAt === null && new Date(item.scheduledAt).getTime() > Date.now();
+
+/** Data e hora local do item, no formato dos campos do formulário. */
+function splitLocal(iso: string) {
+  const d = new Date(iso);
+  return { date: isoDay(d), time: `${pad(d.getHours())}:${pad(d.getMinutes())}` };
+}
+
+/**
+ * Formulário de lembrete. Sem item: cria (com ticketId, vinculado ao chamado).
+ * Com item: edita título, descrição, data e hora de um lembrete que ainda não tocou.
+ */
 export function AgendaForm({
   ticketId,
+  item,
   onCreated,
   onCancel,
 }: {
   ticketId?: number;
+  item?: AgendaItem;
   onCreated: (item: AgendaItem) => void;
   onCancel?: () => void;
 }) {
-  const [form, setForm] = useState(() => ({ title: "", description: "", ...nextHour() }));
+  const [form, setForm] = useState(() =>
+    item
+      ? { title: item.title, description: item.description ?? "", ...splitLocal(item.scheduledAt) }
+      : { title: "", description: "", ...nextHour() },
+  );
   const [error, setError] = useState<ApiError | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -38,15 +57,19 @@ export function AgendaForm({
     e.preventDefault();
     setSaving(true);
     setError(null);
+    const data = {
+      title: form.title,
+      description: form.description.trim() || null,
+      scheduledAt: `${form.date}T${form.time}`,
+    };
     try {
-      const item = await agendaService.create({
-        title: form.title,
-        description: form.description.trim() || null,
-        scheduledAt: `${form.date}T${form.time}`,
-        ticketId: ticketId ?? null,
-      });
+      if (item) {
+        onCreated(await agendaService.update(item.id, data));
+        return;
+      }
+      const created = await agendaService.create({ ...data, ticketId: ticketId ?? null });
       setForm({ title: "", description: "", ...nextHour() });
-      onCreated(item);
+      onCreated(created);
     } catch (err) {
       setError(err as ApiError);
     } finally {
@@ -57,7 +80,7 @@ export function AgendaForm({
   return (
     <form className="panel form" onSubmit={onSubmit} noValidate>
       <div className="panel-head">
-        <h2>{ticketId ? "Novo lembrete para este chamado" : "Novo lembrete"}</h2>
+        <h2>{item ? `Editar “${item.title}”` : ticketId ? "Novo lembrete para este chamado" : "Novo lembrete"}</h2>
       </div>
       <ErrorAlert error={error && !error.details.length ? error : null} />
       <Field label="Título" error={error?.fieldError("title")}>
@@ -99,7 +122,7 @@ export function AgendaForm({
           </button>
         )}
         <button type="submit" className="btn btn-primary" disabled={saving || !form.title.trim() || !form.date || !form.time}>
-          {saving ? "Salvando…" : "Agendar lembrete"}
+          {saving ? "Salvando…" : item ? "Salvar alterações" : "Agendar lembrete"}
         </button>
       </div>
     </form>

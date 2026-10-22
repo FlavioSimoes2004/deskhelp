@@ -38,6 +38,9 @@ interface TicketRow extends RowDataPacket {
   machine_mac_address: string | null;
   machine_description: string | null;
   solution: string | null;
+  rating: number | null;
+  rating_comment: string | null;
+  rated_at: Date | null;
   created_at: Date;
   updated_at: Date;
   resolved_at: Date | null;
@@ -61,6 +64,9 @@ const toTicket = (row: TicketRow): Ticket => ({
   machineMacAddress: row.machine_mac_address,
   machineDescription: row.machine_description,
   solution: row.solution,
+  rating: row.rating,
+  ratingComment: row.rating_comment,
+  ratedAt: row.rated_at,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   resolvedAt: row.resolved_at,
@@ -216,11 +222,13 @@ const toAttachment = (r: RowDataPacket): TicketAttachment => ({
   createdAt: r.created_at,
 });
 
-export async function listComments(ticketId: number): Promise<TicketComment[]> {
+/** Comentários do chamado; notas internas só quando includeInternal (admin/suporte). */
+export async function listComments(ticketId: number, includeInternal: boolean): Promise<TicketComment[]> {
   const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT cm.id, cm.ticket_id, cm.user_id, u.name AS user_name, cm.body, cm.created_at
+    `SELECT cm.id, cm.ticket_id, cm.user_id, u.name AS user_name, cm.body, cm.is_internal, cm.created_at
      FROM ticket_comments cm JOIN users u ON u.id = cm.user_id
-     WHERE cm.ticket_id = ? ORDER BY cm.created_at, cm.id`,
+     WHERE cm.ticket_id = ? ${includeInternal ? "" : "AND cm.is_internal = 0"}
+     ORDER BY cm.created_at, cm.id`,
     [ticketId],
   );
   const [attachmentRows] = await pool.execute<RowDataPacket[]>(
@@ -238,6 +246,7 @@ export async function listComments(ticketId: number): Promise<TicketComment[]> {
     userId: r.user_id,
     userName: r.user_name,
     body: r.body,
+    internal: r.is_internal === 1,
     createdAt: r.created_at,
     attachments: byComment.get(r.id) ?? [],
   }));
@@ -260,13 +269,14 @@ export async function insertComment(
   body: string,
   attachments: NewAttachment[] = [],
   notifyUserIds: number[] = [],
+  internal = false,
 ): Promise<number> {
   const conn: PoolConnection = await pool.getConnection();
   try {
     await conn.beginTransaction();
     const [result] = await conn.execute<ResultSetHeader>(
-      "INSERT INTO ticket_comments (ticket_id, user_id, body) VALUES (?, ?, ?)",
-      [ticketId, userId, body],
+      "INSERT INTO ticket_comments (ticket_id, user_id, body, is_internal) VALUES (?, ?, ?, ?)",
+      [ticketId, userId, body, internal ? 1 : 0],
     );
     for (const file of attachments) {
       await conn.execute(
@@ -293,12 +303,14 @@ export async function insertComment(
 
 export async function findAttachmentById(id: number): Promise<StoredAttachment | null> {
   const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT id, comment_id, ticket_id, original_name, file_path, mime_type, size_bytes, created_at
-     FROM ticket_comment_attachments WHERE id = ?`,
+    `SELECT a.id, a.comment_id, a.ticket_id, a.original_name, a.file_path, a.mime_type, a.size_bytes,
+            a.created_at, cm.is_internal
+     FROM ticket_comment_attachments a JOIN ticket_comments cm ON cm.id = a.comment_id
+     WHERE a.id = ?`,
     [id],
   );
   const r = rows[0];
-  return r ? { ...toAttachment(r), filePath: r.file_path } : null;
+  return r ? { ...toAttachment(r), filePath: r.file_path, internal: r.is_internal === 1 } : null;
 }
 
 export async function listHistory(ticketId: number): Promise<TicketHistoryEntry[]> {
@@ -342,4 +354,15 @@ export async function oldestOpenTicketDate(requesterId?: number): Promise<string
     { requesterId },
   );
   return rows[0]?.day ?? null;
+}
+
+/** Grava a avaliação; false se o chamado já tinha sido avaliado (corrida entre duas abas). */
+export async function setRating(ticketId: number, rating: number, comment: string | null): Promise<boolean> {
+  // updated_at = updated_at: avaliar não conta como atividade de atendimento.
+  const [result] = await pool.execute<ResultSetHeader>(
+    `UPDATE tickets SET rating = ?, rating_comment = ?, rated_at = NOW(), updated_at = updated_at
+     WHERE id = ? AND rating IS NULL`,
+    [rating, comment, ticketId],
+  );
+  return result.affectedRows > 0;
 }

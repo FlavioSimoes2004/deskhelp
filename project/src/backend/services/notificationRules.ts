@@ -15,11 +15,16 @@ export function assignmentRecipient(
   return next;
 }
 
-/** Quem recebe a notificação de comentário: quem abriu e o responsável, exceto o autor. */
+/**
+ * Quem recebe a notificação de comentário: quem abriu e o responsável, exceto o autor.
+ * Nota interna não avisa quem abriu, a não ser que seja da equipe (admin/suporte).
+ */
 export function commentRecipients(
   authorId: number,
   ticket: { requesterId: number; assigneeId: number | null },
+  internal: { requesterIsStaff: boolean } | null = null,
 ): number[] {
-  const ids = new Set([ticket.requesterId, ticket.assigneeId]);
+  const requester = internal && !internal.requesterIsStaff ? null : ticket.requesterId;
+  const ids = new Set([requester, ticket.assigneeId]);
   return [...ids].filter((id): id is number => id !== null && id !== authorId);
 }

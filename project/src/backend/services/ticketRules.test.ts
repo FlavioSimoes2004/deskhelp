@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   applySupportRules,
+  assertCanAddComment,
+  assertCanRate,
   assertCanSetSolution,
   assertMachineWhenResolved,
   canComment,
@@ -202,5 +204,41 @@ describe("assertCanSetSolution", () => {
     expect(diffTicket({ ...baseTicket, solution: null }, { solution: "Troquei o toner" })).toEqual([
       { field: "solution", oldValue: null, newValue: "Troquei o toner" },
     ]);
+  });
+});
+
+describe("assertCanAddComment", () => {
+  const ticket = { requesterId: 2, assigneeId: 7, status: "em_andamento" as const };
+
+  it("keeps normal comments for the requester and the assignee", () => {
+    expect(() => assertCanAddComment(comum, ticket, false)).not.toThrow();
+    expect(() => assertCanAddComment(support, ticket, false)).not.toThrow();
+    expect(() => assertCanAddComment(admin, ticket, false)).toThrow(/responsável/);
+  });
+
+  it("lets any staff member write internal notes, but not common users", () => {
+    expect(() => assertCanAddComment(admin, ticket, true)).not.toThrow();
+    expect(() => assertCanAddComment({ id: 9, role: "support" }, ticket, true)).not.toThrow();
+    expect(() => assertCanAddComment(comum, ticket, true)).toThrow(/notas internas/);
+  });
+
+  it("only admins comment on closed tickets", () => {
+    expect(() => assertCanAddComment(support, { ...ticket, status: "fechado" }, true)).toThrow(/fechado/);
+    expect(() => assertCanAddComment(admin, { ...ticket, status: "fechado" }, true)).not.toThrow();
+  });
+});
+
+describe("assertCanRate", () => {
+  const resolved = { requesterId: 2, status: "resolvido" as const, rating: null };
+
+  it("lets the requester rate a resolved or closed ticket", () => {
+    expect(() => assertCanRate(comum, resolved)).not.toThrow();
+    expect(() => assertCanRate(comum, { ...resolved, status: "fechado" })).not.toThrow();
+  });
+
+  it("denies other users, open tickets and a second rating", () => {
+    expect(() => assertCanRate(admin, resolved)).toThrow(/Somente quem abriu/);
+    expect(() => assertCanRate(comum, { ...resolved, status: "em_andamento" })).toThrow(/resolvido/);
+    expect(() => assertCanRate(comum, { ...resolved, rating: 4 })).toThrow(/já foi avaliado/);
   });
 });
