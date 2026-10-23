@@ -30,7 +30,7 @@ export async function rate(req: Request, res: Response) {
 }
 
 export async function create(req: Request, res: Response) {
-  res.status(201).json({ data: await tickets.createTicket(currentUser(req), res.locals.body) });
+  res.status(201).json({ data: await tickets.createTicket(currentUser(req), res.locals.body, res.locals.files ?? []) });
 }
 
 export async function update(req: Request, res: Response) {

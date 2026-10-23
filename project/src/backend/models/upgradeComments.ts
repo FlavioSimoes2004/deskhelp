@@ -126,19 +126,10 @@ async function fromAttachmentsColumn(conn: Conn) {
   console.log("Anexos ligados aos comentários por ticket_comment_attachments.comment_id.");
 }
 
-/** Deixa comment_id e ticket_id obrigatórios, com índice e chave estrangeira. */
+/** Garante índice e chave estrangeira de comment_id e ticket_id (ticket_id obrigatório). */
 async function finalizeAttachments(conn: Conn) {
-  if (await columnNullable(conn, "ticket_comment_attachments", "comment_id")) {
-    const [result] = await conn.query<mysql.ResultSetHeader>(
-      "DELETE FROM ticket_comment_attachments WHERE comment_id IS NULL",
-    );
-    if (result.affectedRows > 0) {
-      console.warn(
-        `${result.affectedRows} anexos sem comentário correspondente foram removidos do banco (os arquivos continuam em UPLOAD_DIR).`,
-      );
-    }
-    await conn.query("ALTER TABLE ticket_comment_attachments MODIFY comment_id INT UNSIGNED NOT NULL");
-  }
+  // comment_id NULL é válido: anexo do próprio chamado (enviado ao abri-lo). Não remove nem
+  // torna a coluna obrigatória.
   if (!(await indexExists(conn, "ticket_comment_attachments", "idx_attachments_comment"))) {
     await conn.query("ALTER TABLE ticket_comment_attachments ADD KEY idx_attachments_comment (comment_id)");
   }

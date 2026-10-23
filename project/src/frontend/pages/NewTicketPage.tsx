@@ -28,6 +28,8 @@ export function NewTicketPage() {
   const staffSetsPriority = isComum && Boolean(settings?.priorityByStaffOnly);
   const choosePriority = isComum ? !settings?.priorityByStaffOnly && !settings?.hidePriorityForComum : true;
   const [form, setForm] = useState({ title: "", description: "", categoryId: "", priority: "media" as TicketPriority });
+  const [files, setFiles] = useState<File[]>([]);
+  const maxFiles = settings?.maxTicketAttachments ?? 5;
   const [error, setError] = useState<ApiError | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -36,12 +38,15 @@ export function NewTicketPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const ticket = await ticketService.create({
-        title: form.title,
-        description: form.description,
-        categoryId: Number(form.categoryId),
-        priority: form.priority,
-      });
+      const ticket = await ticketService.create(
+        {
+          title: form.title,
+          description: form.description,
+          categoryId: Number(form.categoryId),
+          priority: form.priority,
+        },
+        files,
+      );
       navigate(`/chamados/${ticket.id}`, { state: { created: true } });
     } catch (err) {
       setError(err as ApiError);
@@ -129,11 +134,30 @@ export function NewTicketPage() {
             required
           />
         </Field>
+        {maxFiles > 0 && (
+          <Field
+            label="Anexos"
+            hint={`Opcional. Até ${maxFiles} ${maxFiles === 1 ? "arquivo" : "arquivos"} de 10 MB: imagens (ex.: print do erro), PDF, texto, planilhas, documentos ou ZIP.`}
+            error={
+              files.length > maxFiles
+                ? `Selecione no máximo ${maxFiles} ${maxFiles === 1 ? "arquivo" : "arquivos"}.`
+                : error?.fieldError("attachments")
+            }
+          >
+            <input
+              className="input"
+              type="file"
+              multiple={maxFiles > 1}
+              accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.log,.csv,.doc,.docx,.xls,.xlsx,.odt,.ods,.zip"
+              onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+            />
+          </Field>
+        )}
         <div className="form-actions">
           <Link className="btn btn-ghost" to="/chamados">
             Cancelar
           </Link>
-          <button className="btn btn-primary" type="submit" disabled={submitting || !form.categoryId}>
+          <button className="btn btn-primary" type="submit" disabled={submitting || !form.categoryId || files.length > maxFiles}>
             {submitting ? "Abrindo…" : "Abrir chamado"}
           </button>
         </div>

@@ -146,19 +146,50 @@ export async function findTicketById(id: number): Promise<Ticket | null> {
   return rows[0] ? toTicket(rows[0]) : null;
 }
 
-export async function insertTicket(data: {
-  title: string;
-  description: string;
-  priority: TicketPriority | null;
-  categoryId: number;
-  requesterId: number;
-}): Promise<number> {
-  const [result] = await pool.execute<ResultSetHeader>(
-    `INSERT INTO tickets (title, description, priority, category_id, requester_id)
-     VALUES (:title, :description, :priority, :categoryId, :requesterId)`,
-    data,
+/** Cria o chamado e os anexos dele (arquivos já salvos em disco) na mesma transação. */
+export async function insertTicket(
+  data: {
+    title: string;
+    description: string;
+    priority: TicketPriority | null;
+    categoryId: number;
+    requesterId: number;
+  },
+  attachments: NewAttachment[] = [],
+): Promise<number> {
+  const conn: PoolConnection = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [result] = await conn.execute<ResultSetHeader>(
+      `INSERT INTO tickets (title, description, priority, category_id, requester_id)
+       VALUES (:title, :description, :priority, :categoryId, :requesterId)`,
+      data,
+    );
+    for (const file of attachments) {
+      await conn.execute(
+        `INSERT INTO ticket_comment_attachments (comment_id, ticket_id, original_name, file_path, mime_type, size_bytes)
+         VALUES (NULL, ?, ?, ?, ?, ?)`,
+        [result.insertId, file.originalName, file.filePath, file.mimeType, file.sizeBytes],
+      );
+    }
+    await conn.commit();
+    return result.insertId;
+  } catch (error) {
+    await conn.rollback();
+    throw error;
+  } finally {
+    conn.release();
+  }
+}
+
+/** Anexos do próprio chamado (enviados ao abri-lo, sem comentário). */
+export async function listTicketAttachments(ticketId: number): Promise<TicketAttachment[]> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT id, comment_id, ticket_id, original_name, mime_type, size_bytes, created_at
+     FROM ticket_comment_attachments WHERE ticket_id = ? AND comment_id IS NULL ORDER BY id`,
+    [ticketId],
   );
-  return result.insertId;
+  return rows.map(toAttachment);
 }
 
 const COLUMN: Record<keyof TicketEditableFields, string> = {
@@ -325,7 +356,7 @@ export async function findAttachmentById(id: number): Promise<StoredAttachment |
   const [rows] = await pool.execute<RowDataPacket[]>(
     `SELECT a.id, a.comment_id, a.ticket_id, a.original_name, a.file_path, a.mime_type, a.size_bytes,
             a.created_at, cm.is_internal
-     FROM ticket_comment_attachments a JOIN ticket_comments cm ON cm.id = a.comment_id
+     FROM ticket_comment_attachments a LEFT JOIN ticket_comments cm ON cm.id = a.comment_id
      WHERE a.id = ?`,
     [id],
   );

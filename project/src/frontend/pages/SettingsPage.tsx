@@ -12,6 +12,7 @@ export function SettingsPage() {
     hidePriorityForComum: false,
     priorityByStaffOnly: false,
     blockSupportUserManagement: false,
+    maxTicketAttachments: "5",
     ratingsLocked: false,
     reopenLimited: false,
     reopenHours: "48",
@@ -31,6 +32,7 @@ export function SettingsPage() {
       hidePriorityForComum: s.hidePriorityForComum,
       priorityByStaffOnly: s.priorityByStaffOnly,
       blockSupportUserManagement: s.blockSupportUserManagement,
+      maxTicketAttachments: String(s.maxTicketAttachments),
       ratingsLocked: s.ratingsLocked,
       reopenLimited: s.reopenWindowHours !== null,
       reopenHours: String(s.reopenWindowHours ?? 48),
@@ -51,6 +53,7 @@ export function SettingsPage() {
           hidePriorityForComum: form.hidePriorityForComum,
           priorityByStaffOnly: form.priorityByStaffOnly,
           blockSupportUserManagement: form.blockSupportUserManagement,
+          maxTicketAttachments: Number(form.maxTicketAttachments),
           ratingsLocked: form.ratingsLocked,
           reopenWindowHours: form.reopenLimited ? Number(form.reopenHours) : null,
           commentsLocked: form.commentsLocked,
@@ -201,6 +204,27 @@ export function SettingsPage() {
           </fieldset>
 
           <fieldset className="fieldset">
+            <legend>Anexos ao abrir chamado</legend>
+            <Field
+              label="Máximo de anexos ao abrir um chamado"
+              hint="De 0 a 5 (5 é o máximo por envio aceito pelo servidor). Com 0, o campo de anexos some da página “Abrir chamado”. Não afeta os anexos dos comentários."
+              error={error?.fieldError("maxTicketAttachments")}
+            >
+              <input
+                className="input"
+                type="number"
+                min={0}
+                max={5}
+                step={1}
+                inputMode="numeric"
+                value={form.maxTicketAttachments}
+                onChange={(e) => setForm({ ...form, maxTicketAttachments: e.target.value })}
+                style={{ maxWidth: 160 }}
+              />
+            </Field>
+          </fieldset>
+
+          <fieldset className="fieldset">
             <legend>Chamados por usuário</legend>
             <label className="setting-toggle">
               <input
@@ -237,7 +261,12 @@ export function SettingsPage() {
             <button
               className="btn btn-primary"
               type="submit"
-              disabled={saving || (form.limitEnabled && !form.limit) || (form.reopenLimited && !form.reopenHours)}
+              disabled={
+                saving ||
+                (form.limitEnabled && !form.limit) ||
+                (form.reopenLimited && !form.reopenHours) ||
+                form.maxTicketAttachments === ""
+              }
             >
               {saving ? "Salvando…" : "Salvar configurações"}
             </button>

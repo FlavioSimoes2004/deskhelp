@@ -3,6 +3,7 @@ import {
   assertBelowOpenTicketLimit,
   assertCanWriteUsers,
   assertRatingsOpen,
+  assertTicketAttachmentsAllowed,
   assertCommentsOpen,
   DEFAULT_SETTINGS,
   hidesPriority,
@@ -23,6 +24,7 @@ describe("parseSettings", () => {
       hidePriorityForComum: true,
       priorityByStaffOnly: false,
       blockSupportUserManagement: false,
+      maxTicketAttachments: 5,
       ratingsLocked: false,
       reopenWindowHours: null,
       commentsLocked: true,
@@ -45,6 +47,7 @@ describe("parseSettings", () => {
       hidePriorityForComum: true,
       priorityByStaffOnly: false,
       blockSupportUserManagement: false,
+      maxTicketAttachments: 5,
       ratingsLocked: false,
       reopenWindowHours: null,
       commentsLocked: false,
@@ -133,5 +136,21 @@ describe("ratings and reopen settings", () => {
   it("blocks new ratings when locked", () => {
     expect(() => assertRatingsOpen({ ...DEFAULT_SETTINGS, ratingsLocked: true })).toThrow(/avaliação/);
     expect(() => assertRatingsOpen(DEFAULT_SETTINGS)).not.toThrow();
+  });
+});
+
+describe("ticket attachments at creation", () => {
+  it("defaults to the system maximum and caps saved values to it", () => {
+    expect(parseSettings({}).maxTicketAttachments).toBe(5);
+    expect(parseSettings({ max_ticket_attachments: "2" }).maxTicketAttachments).toBe(2);
+    expect(parseSettings({ max_ticket_attachments: "0" }).maxTicketAttachments).toBe(0);
+    expect(parseSettings({ max_ticket_attachments: "99" }).maxTicketAttachments).toBe(5);
+  });
+
+  it("blocks more attachments than allowed, and any attachment when the limit is 0", () => {
+    expect(() => assertTicketAttachmentsAllowed(2, { ...DEFAULT_SETTINGS, maxTicketAttachments: 2 })).not.toThrow();
+    expect(() => assertTicketAttachmentsAllowed(3, { ...DEFAULT_SETTINGS, maxTicketAttachments: 2 })).toThrow(/no máximo 2/);
+    expect(() => assertTicketAttachmentsAllowed(1, { ...DEFAULT_SETTINGS, maxTicketAttachments: 0 })).toThrow(/não são permitidos/);
+    expect(() => assertTicketAttachmentsAllowed(0, { ...DEFAULT_SETTINGS, maxTicketAttachments: 0 })).not.toThrow();
   });
 });

@@ -1191,7 +1191,8 @@ table.table {
   margin-top: 4px;
 }
 
-.timeline .attachments {
+.timeline .attachments,
+.ticket-files .attachments {
   list-style: none;
   margin: 6px 0 0;
   padding: 0;
@@ -1201,12 +1202,14 @@ table.table {
 }
 
 /* Os itens de anexo não usam a grade (avatar + conteúdo) dos itens da linha do tempo. */
-.timeline .attachments li {
+.timeline .attachments li,
+.ticket-files .attachments li {
   display: block;
   min-width: 0;
 }
 
-.timeline .attachment {
+.timeline .attachment,
+.ticket-files .attachment {
   font: inherit;
   font-size: var(--step--1);
   color: var(--ink);
@@ -1220,11 +1223,13 @@ table.table {
   text-align: left;
 }
 
-.timeline .attachment:hover:not(:disabled) {
+.timeline .attachment:hover:not(:disabled),
+.ticket-files .attachment:hover:not(:disabled) {
   border-color: var(--line-strong);
 }
 
-.timeline .attachment-size {
+.timeline .attachment-size,
+.ticket-files .attachment-size {
   color: var(--ink-3);
 }
 

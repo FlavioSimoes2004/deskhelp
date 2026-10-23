@@ -2,6 +2,9 @@ import type { AuthUser } from "../models/types.js";
 import { HttpError } from "../utils/httpError.js";
 import { isRequesterOnly } from "./roleRules.js";
 
+/** Máximo de anexos por envio aceito pelo servidor (ver middlewares/upload.ts). */
+export const SYSTEM_MAX_ATTACHMENTS = 5;
+
 export interface AppSettings {
   /** Usuários comuns (e admins, que seguem as regras do comum) não veem nem escolhem a prioridade. */
   hidePriorityForComum: boolean;
@@ -9,6 +12,8 @@ export interface AppSettings {
   priorityByStaffOnly: boolean;
   /** Suporte não cria nem edita usuários (só super suporte). */
   blockSupportUserManagement: boolean;
+  /** Anexos permitidos ao abrir um chamado (0 a SYSTEM_MAX_ATTACHMENTS; 0 = sem anexos). */
+  maxTicketAttachments: number;
   /** Ninguém consegue avaliar o atendimento. */
   ratingsLocked: boolean;
   /** Horas, após a conclusão, em que quem abriu pode reabrir o chamado; null = sem prazo. */
@@ -23,6 +28,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   hidePriorityForComum: false,
   priorityByStaffOnly: false,
   blockSupportUserManagement: false,
+  maxTicketAttachments: SYSTEM_MAX_ATTACHMENTS,
   ratingsLocked: false,
   reopenWindowHours: null,
   commentsLocked: false,
@@ -34,6 +40,7 @@ export const SETTING_KEYS: Record<keyof AppSettings, string> = {
   hidePriorityForComum: "hide_priority_for_comum",
   priorityByStaffOnly: "priority_by_staff_only",
   blockSupportUserManagement: "block_support_user_management",
+  maxTicketAttachments: "max_ticket_attachments",
   ratingsLocked: "ratings_locked",
   reopenWindowHours: "reopen_window_hours",
   commentsLocked: "comments_locked",
@@ -48,7 +55,13 @@ export function parseSettings(rows: Record<string, string>): AppSettings {
   };
   const limit = Number(rows[SETTING_KEYS.maxOpenTicketsPerUser]);
   const reopen = Number(rows[SETTING_KEYS.reopenWindowHours]);
+  const attachmentsRow = rows[SETTING_KEYS.maxTicketAttachments];
+  const attachments = Number(attachmentsRow);
   return {
+    maxTicketAttachments:
+      attachmentsRow !== undefined && Number.isInteger(attachments) && attachments >= 0
+        ? Math.min(attachments, SYSTEM_MAX_ATTACHMENTS)
+        : SYSTEM_MAX_ATTACHMENTS,
     hidePriorityForComum: bool("hidePriorityForComum"),
     priorityByStaffOnly: bool("priorityByStaffOnly"),
     blockSupportUserManagement: bool("blockSupportUserManagement"),
@@ -84,6 +97,17 @@ export function assertCanWriteUsers(user: AuthUser, settings: AppSettings): void
   if (user.role === "support" && settings.blockSupportUserManagement) {
     throw new HttpError(403, "FORBIDDEN", "O cadastro e a edição de usuários estão restritos ao super suporte");
   }
+}
+
+/** Anexos ao abrir um chamado, dentro do limite configurado. */
+export function assertTicketAttachmentsAllowed(count: number, settings: AppSettings): void {
+  const max = settings.maxTicketAttachments;
+  if (count <= max) return;
+  const message =
+    max === 0
+      ? "Anexos não são permitidos ao abrir um chamado"
+      : `Envie no máximo ${max} ${max === 1 ? "anexo" : "anexos"} ao abrir um chamado`;
+  throw new HttpError(400, "VALIDATION_ERROR", message, [{ field: "attachments", message }]);
 }
 
 export function assertRatingsOpen(settings: AppSettings): void {

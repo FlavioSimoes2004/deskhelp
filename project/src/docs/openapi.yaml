@@ -316,6 +316,10 @@ paths:
     post:
       tags: [Chamados]
       summary: Abrir chamado
+      description: |
+        Para enviar anexos, use `multipart/form-data` com o campo `attachments`. O máximo é o da configuração
+        `maxTicketAttachments` (0 a 5; acima disso, 400). Tipos e tamanho seguem os dos comentários (10 MB
+        cada). Os anexos aparecem em `attachments` no detalhe do chamado.
       operationId: createTicket
       requestBody:
         required: true
@@ -334,6 +338,19 @@ paths:
               description: Desde hoje cedo o cliente VPN mostra "tempo esgotado" ao conectar.
               categoryId: 4
               priority: alta
+          multipart/form-data:
+            schema:
+              type: object
+              required: [title, description, categoryId]
+              properties:
+                title: { type: string }
+                description: { type: string }
+                categoryId: { type: integer }
+                priority: { $ref: "#/components/schemas/TicketPriority" }
+                attachments:
+                  type: array
+                  maxItems: 5
+                  items: { type: string, format: binary }
       responses:
         "201":
           description: Chamado criado
@@ -707,6 +724,7 @@ paths:
                 hidePriorityForComum: { type: boolean }
                 priorityByStaffOnly: { type: boolean }
                 blockSupportUserManagement: { type: boolean }
+                maxTicketAttachments: { type: integer, minimum: 0, maximum: 5 }
                 ratingsLocked: { type: boolean }
                 reopenWindowHours: { type: [integer, "null"], minimum: 1, maximum: 8760, description: null = sem prazo }
                 commentsLocked: { type: boolean }
@@ -1514,7 +1532,7 @@ components:
       type: object
       properties:
         id: { type: integer }
-        commentId: { type: integer }
+        commentId: { type: [integer, "null"], description: null = anexo do próprio chamado (enviado ao abri-lo) }
         ticketId: { type: integer }
         originalName: { type: string }
         mimeType: { type: string }
@@ -1534,6 +1552,10 @@ components:
         - $ref: "#/components/schemas/Ticket"
         - type: object
           properties:
+            attachments:
+              type: array
+              description: Anexos enviados ao abrir o chamado
+              items: { $ref: "#/components/schemas/Attachment" }
             comments:
               type: array
               items: { $ref: "#/components/schemas/Comment" }
@@ -1643,6 +1665,7 @@ components:
         hidePriorityForComum: { type: boolean, description: Esconde a prioridade de usuários comuns }
         priorityByStaffOnly: { type: boolean, description: Usuários comuns abrem chamados sem prioridade }
         blockSupportUserManagement: { type: boolean, description: Suporte não cria nem edita usuários }
+        maxTicketAttachments: { type: integer, description: Anexos permitidos ao abrir um chamado (0 a 5) }
         ratingsLocked: { type: boolean, description: Ninguém avalia o atendimento }
         reopenWindowHours: { type: [integer, "null"], description: Horas após a conclusão em que quem abriu pode reabrir }
         commentsLocked: { type: boolean, description: Bloqueia novos comentários para todos }

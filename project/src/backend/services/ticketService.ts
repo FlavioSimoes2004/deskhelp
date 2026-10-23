@@ -14,6 +14,7 @@ import {
   assertBelowOpenTicketLimit,
   assertCommentsOpen,
   assertRatingsOpen,
+  assertTicketAttachmentsAllowed,
   hidesPriority,
   newTicketPriority,
 } from "./settingsRules.js";
@@ -76,14 +77,17 @@ export async function listTickets(user: AuthUser, query: TicketQuery) {
 
 export async function getTicketDetail(user: AuthUser, id: number) {
   const ticket = await getVisibleTicket(user, id);
-  const [comments, history, settings] = await Promise.all([
+  const [comments, history, settings, attachments] = await Promise.all([
     tickets.listComments(id, isStaff(user.role)),
     tickets.listHistory(id),
     getSettings(),
+    tickets.listTicketAttachments(id),
   ]);
   const hide = hidesPriority(user, settings);
   return {
     ...present(ticket, hide),
+    /** Anexos enviados ao abrir o chamado. */
+    attachments,
     comments,
     // O histórico também não mostra mudanças de prioridade a quem não pode vê-la.
     history: hide ? history.filter((h) => h.field !== "priority") : history,
@@ -93,6 +97,7 @@ export async function getTicketDetail(user: AuthUser, id: number) {
 export async function createTicket(
   user: AuthUser,
   data: { title: string; description: string; priority: TicketPriority; categoryId: number },
+  files: UploadedFile[] = [],
 ) {
   await assertCategory(data.categoryId);
   const settings = await getSettings();
@@ -100,7 +105,22 @@ export async function createTicket(
   const hide = hidesPriority(user, settings);
   // Usuário comum: sem prioridade quando só o suporte define; a padrão quando ela está escondida.
   const priority = newTicketPriority(user, settings, data.priority, DEFAULT_PRIORITY);
-  const id = await tickets.insertTicket({ ...data, priority, requesterId: user.id });
+  assertTicketAttachmentsAllowed(files.length, settings);
+
+  // Arquivos primeiro (ainda sem id do chamado); o chamado e os anexos entram juntos no banco.
+  const saved: tickets.NewAttachment[] = [];
+  let id: number;
+  try {
+    for (const file of files) {
+      const filePath = await saveFile(NEW_TICKET_FOLDER, file.extension, file.data);
+      saved.push({ originalName: file.originalName, filePath, mimeType: file.mimeType, sizeBytes: file.sizeBytes });
+    }
+    id = await tickets.insertTicket({ ...data, priority, requesterId: user.id }, saved);
+  } catch (error) {
+    // Não deixa arquivos órfãos se o chamado não foi criado.
+    await Promise.all(saved.map((f) => removeStored(f.filePath).catch(() => undefined)));
+    throw error;
+  }
   return present(await getVisibleTicket(user, id), hide);
 }
 
@@ -220,6 +240,8 @@ export async function resolveOwnTicket(user: AuthUser, id: number) {
 }
 
 const attachmentFolder = (ticketId: number) => `tickets/${ticketId}`;
+/** Anexos enviados ao abrir o chamado (salvos antes de o chamado ter id). */
+const NEW_TICKET_FOLDER = "tickets/abertura";
 
 export async function addComment(
   user: AuthUser,

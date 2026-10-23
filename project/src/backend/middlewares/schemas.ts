@@ -99,6 +99,8 @@ export const settingsSchema = z
     hidePriorityForComum: z.boolean().optional(),
     priorityByStaffOnly: z.boolean().optional(),
     blockSupportUserManagement: z.boolean().optional(),
+    // 0 a 5 (5 = máximo por envio aceito pelo servidor; 0 = sem anexos ao abrir).
+    maxTicketAttachments: z.number().int("Use um número inteiro").min(0).max(5, "O máximo é 5 anexos").optional(),
     ratingsLocked: z.boolean().optional(),
     // null = sem prazo para reabrir.
     reopenWindowHours: z

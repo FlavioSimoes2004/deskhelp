@@ -64,7 +64,8 @@ export interface TicketComment {
 
 export interface TicketAttachment {
   id: number;
-  commentId: number;
+  /** null = anexo do próprio chamado (enviado ao abri-lo). */
+  commentId: number | null;
   ticketId: number;
   originalName: string;
   mimeType: string;
@@ -82,6 +83,8 @@ export interface TicketHistoryEntry {
 }
 
 export interface TicketDetail extends Ticket {
+  /** Anexos enviados ao abrir o chamado. */
+  attachments: TicketAttachment[];
   comments: TicketComment[];
   history: TicketHistoryEntry[];
 }
@@ -245,6 +248,8 @@ export interface AppSettings {
   priorityByStaffOnly: boolean;
   /** Suporte não cria nem edita usuários (só super support). */
   blockSupportUserManagement: boolean;
+  /** Anexos permitidos ao abrir um chamado (0 a 5; 0 = sem anexos). */
+  maxTicketAttachments: number;
   /** Ninguém avalia o atendimento. */
   ratingsLocked: boolean;
   /** Horas, após a conclusão, em que quem abriu pode reabrir; null = sem prazo. */

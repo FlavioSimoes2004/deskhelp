@@ -53,7 +53,7 @@ Regras importantes:
 | `/relatorios/maquinas` | Chamados por máquina no período, por status e por categoria | admin e super support |
 | `/relatorios/solicitantes` | Chamados por quem abriu, no período: status, categoria e resolução | admin e super support |
 | `/categorias` | Lista, cadastro e ativação/desativação de categorias (nomes sempre em maiúsculas; desativadas somem da escolha nos chamados) | super support |
-| `/configuracoes` | Configurações gerais: esconder prioridade de usuários comuns, só o suporte definir a prioridade, proibir o suporte de cadastrar/editar usuários, bloquear avaliações, prazo para reabrir, bloquear conversa, limitar chamados abertos por usuário | admin e super support |
+| `/configuracoes` | Configurações gerais: esconder prioridade de usuários comuns, só o suporte definir a prioridade, proibir o suporte de cadastrar/editar usuários, bloquear avaliações, prazo para reabrir, máximo de anexos ao abrir chamado, bloquear conversa, limitar chamados abertos por usuário | admin e super support |
 | `/relatorios/responsaveis` | Chamados por responsável, no período: status, categoria e resolução | admin e super support |
 
 ## Instalação (Fedora)

@@ -79,7 +79,8 @@ apiRouter.get("/settings", settingsCtrl.get);
 apiRouter.get("/tickets/overview", ticketCtrl.overview);
 apiRouter.get("/tickets/oldest-open", ticketCtrl.oldestOpen);
 apiRouter.get("/tickets", validate(ticketQuerySchema, "query"), ticketCtrl.list);
-apiRouter.post("/tickets", validate(createTicketSchema), ticketCtrl.create);
+// Aceita JSON ou formulário com anexos (campo "attachments"), limitados pela configuração.
+apiRouter.post("/tickets", parseMultipart, validate(createTicketSchema), ticketCtrl.create);
 apiRouter.get("/tickets/:id", byId, ticketCtrl.get);
 apiRouter.post("/tickets/:id/comments", byId, parseMultipart, validate(commentSchema), ticketCtrl.addComment);
 apiRouter.post("/tickets/:id/resolve", requireRole("comum", "admin"), byId, ticketCtrl.resolve);

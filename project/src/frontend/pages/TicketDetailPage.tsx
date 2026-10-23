@@ -166,6 +166,7 @@ export function TicketDetailPage() {
               <h2 id="desc-title">Descrição</h2>
             </div>
             <p className="description">{t.description}</p>
+            {t.attachments.length > 0 && <TicketFiles attachments={t.attachments} />}
           </section>
           <SolutionPanel
             ticket={t}
@@ -988,5 +989,22 @@ function ReopenPanel({
         )}
       </div>
     </section>
+  );
+}
+
+/** Anexos enviados ao abrir o chamado (imagens abrem em pré-visualização; o resto baixa). */
+function TicketFiles({ attachments }: { attachments: TicketAttachment[] }) {
+  const [error, setError] = useState<ApiError | null>(null);
+  return (
+    <div className="ticket-files" style={{ marginTop: 12 }}>
+      <ErrorAlert error={error} />
+      <ul className="attachments" aria-label="Anexos do chamado">
+        {attachments.map((a) => (
+          <li key={a.id}>
+            <AttachmentLink attachment={a} onError={setError} />
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

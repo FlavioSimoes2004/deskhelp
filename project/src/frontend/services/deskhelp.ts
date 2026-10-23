@@ -65,8 +65,20 @@ export const ticketService = {
       .get<{ data: { byStatus: StatusCounts; assignedToMe?: StatusCounts } }>("/tickets/overview")
       .then((r) => r.data),
   get: (id: number) => api.get<{ data: TicketDetail }>(`/tickets/${id}`).then((r) => r.data),
-  create: (data: { title: string; description: string; categoryId: number; priority: TicketPriority }) =>
-    api.post<{ data: Ticket }>("/tickets", data).then((r) => r.data),
+  /** Com arquivos, envia como formulário (multipart) para incluir os anexos. */
+  create: (
+    data: { title: string; description: string; categoryId: number; priority: TicketPriority },
+    files: File[] = [],
+  ) => {
+    if (files.length === 0) return api.post<{ data: Ticket }>("/tickets", data).then((r) => r.data);
+    const form = new FormData();
+    form.append("title", data.title);
+    form.append("description", data.description);
+    form.append("categoryId", String(data.categoryId));
+    form.append("priority", data.priority);
+    for (const file of files) form.append("attachments", file);
+    return api.postForm<{ data: Ticket }>("/tickets", form).then((r) => r.data);
+  },
   update: (
     id: number,
     data: Partial<{

@@ -98,9 +98,10 @@ CREATE TABLE IF NOT EXISTS ticket_comments (
 -- Anexos dos comentários. O arquivo fica no servidor (pasta UPLOAD_DIR);
 -- file_path guarda o caminho dele relativo a essa pasta. comment_id liga o anexo
 -- ao comentário; ticket_id repete o chamado para checar o acesso no download.
+-- comment_id NULL = anexo do próprio chamado (enviado ao abri-lo).
 CREATE TABLE IF NOT EXISTS ticket_comment_attachments (
   id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  comment_id    INT UNSIGNED NOT NULL,
+  comment_id    INT UNSIGNED NULL,
   ticket_id     INT UNSIGNED NOT NULL,
   original_name VARCHAR(255) NOT NULL,
   file_path     VARCHAR(255) NOT NULL,
@@ -171,6 +172,9 @@ ALTER TABLE notifications
   MODIFY ticket_id INT UNSIGNED NULL,
   MODIFY actor_id INT UNSIGNED NULL,
   ADD COLUMN IF NOT EXISTS agenda_id INT UNSIGNED NULL AFTER comment_id;
+
+-- Bancos criados antes dos anexos na abertura do chamado.
+ALTER TABLE ticket_comment_attachments MODIFY comment_id INT UNSIGNED NULL;
 
 -- Máquinas (nome, endereço MAC, IP, descrição, configuração e o usuário que está com ela).
 CREATE TABLE IF NOT EXISTS machines (
@@ -258,7 +262,7 @@ CREATE TABLE IF NOT EXISTS ticket_history (
 
 -- Configurações gerais da aplicação (alteradas por admins na página Configurações).
 -- Chaves: hide_priority_for_comum, priority_by_staff_only, comments_locked, max_open_tickets_per_user,
--- block_support_user_management, ratings_locked, reopen_window_hours.
+-- block_support_user_management, ratings_locked, reopen_window_hours, max_ticket_attachments.
 CREATE TABLE IF NOT EXISTS app_settings (
   setting_key VARCHAR(60) NOT NULL,
   value       VARCHAR(255) NOT NULL,

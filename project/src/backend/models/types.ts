@@ -74,7 +74,8 @@ export interface TicketComment {
 
 export interface TicketAttachment {
   id: number;
-  commentId: number;
+  /** null = anexo do próprio chamado (enviado ao abri-lo). */
+  commentId: number | null;
   ticketId: number;
   originalName: string;
   mimeType: string;
