@@ -45,10 +45,10 @@ tags:
   - name: Chamados
   - name: Configurações
     description: |
-      Regras gerais da aplicação. Todos os usuários leem (as telas se ajustam); só admin altera.
+      Regras gerais da aplicação. Todos os usuários leem (as telas se ajustam); admin e super support alteram.
       `hidePriorityForComum`: usuários `comum` recebem `priority: null`, sem histórico de prioridade, e
       não escolhem nem filtram por prioridade. `priorityByStaffOnly`: chamados abertos por usuários
-      `comum` são criados sem prioridade (`null`); admin ou suporte define depois.
+      `comum` e `admin` são criados sem prioridade (`null`); o suporte define depois.
       `blockSupportUserManagement`: `POST /users` e `PATCH /users/{id}` retornam 403 para o suporte. `commentsLocked`: `POST /tickets/{id}/comments` retorna
       409 `COMMENTS_LOCKED` para todos. `maxOpenTicketsPerUser`: `POST /tickets` retorna 409
       `OPEN_TICKET_LIMIT` quando quem abre já tem esse número de chamados `aberto`/`em_andamento`.
@@ -64,11 +64,11 @@ tags:
       solicitante ou responsável (`comment`, nunca para o autor do comentário). Lembretes da agenda geram
       `agenda` (sem chamado nem autor).
   - name: Usuários
-    description: Administradores e suporte. O suporte não cria, promove nem altera administradores (403).
+    description: Suporte e super support. O suporte não cria, promove nem altera administradores e super supports (403).
   - name: Máquinas
-    description: Administradores e suporte
+    description: Suporte e super support
   - name: Relatórios
-    description: Somente administradores
+    description: Administradores e super support
 security:
   - BearerAuth: []
 
@@ -211,7 +211,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
     post:
       tags: [Chamados]
-      summary: Cadastrar categoria (admin)
+      summary: Cadastrar categoria (super support)
       description: |
         O nome é gravado em maiúsculas (inclusive letras acentuadas), sem espaços sobrando. Nome repetido,
         sem diferenciar maiúsculas nem acentos, retorna 409 `CATEGORY_EXISTS`.
@@ -245,7 +245,7 @@ paths:
       - $ref: "#/components/parameters/Id"
     patch:
       tags: [Chamados]
-      summary: Ativar ou desativar categoria (admin)
+      summary: Ativar ou desativar categoria (super support)
       description: |
         Categoria desativada some da escolha ao abrir um chamado ou trocar a categoria de um chamado
         (a API recusa com 400). Chamados que já a usam continuam com ela.
@@ -395,7 +395,7 @@ paths:
       tags: [Chamados]
       summary: Detalhar chamado
       description: |
-        Inclui comentários e histórico de alterações (notas internas só para admin e suporte).
+        Inclui comentários e histórico de alterações (notas internas só para suporte e super support).
         Abrir o chamado marca como lidas as notificações dele do usuário.
       operationId: getTicket
       responses:
@@ -411,7 +411,7 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
     patch:
       tags: [Chamados]
-      summary: Alterar chamado (admin e suporte)
+      summary: Alterar chamado (suporte e super support)
       description: |
         Envie apenas os campos a alterar. Cada mudança é registrada no histórico.
         Ao mudar para `resolvido` ou `fechado`, as datas de resolução/fechamento são preenchidas;
@@ -463,8 +463,8 @@ paths:
       summary: Comentar no chamado
       description: |
         Somente quem abriu o chamado e o responsável por ele podem comentar (os demais recebem 403).
-        `internal: true` cria uma **nota interna**: qualquer admin ou suporte pode escrever, só admin e
-        suporte veem (inclusive os anexos) e só eles são notificados.
+        `internal: true` cria uma **nota interna**: qualquer suporte ou super support pode escrever, só suporte e super
+        support veem (inclusive os anexos) e só eles são notificados.
         Os anexos enviados com o comentário ficam em `ticket_comment_attachments`, ligados a ele por `comment_id`.
         Exceto administradores, ninguém comenta em chamados fechados.
         Para enviar anexos use `multipart/form-data` com o campo `attachments` (até 5 arquivos de 10 MB;
@@ -480,7 +480,7 @@ paths:
               required: [body]
               properties:
                 body: { type: string, minLength: 1, maxLength: 5000 }
-                internal: { type: boolean, default: false, description: Nota interna (só admin e suporte) }
+                internal: { type: boolean, default: false, description: Nota interna (só suporte e super support) }
           multipart/form-data:
             schema:
               type: object
@@ -637,7 +637,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
     put:
       tags: [Configurações]
-      summary: Alterar configurações (admin)
+      summary: Alterar configurações (admin e super support)
       description: Envie apenas as configurações a alterar.
       operationId: updateSettings
       requestBody:
@@ -949,12 +949,12 @@ paths:
   /users/staff:
     get:
       tags: [Usuários]
-      summary: Listar administradores e suporte
-      description: Disponível para admin e suporte. Usado para escolher e exibir responsáveis por chamados.
+      summary: Listar suporte e super support
+      description: Disponível para suporte e super support. Usado para escolher e exibir responsáveis por chamados.
       operationId: listStaff
       responses:
         "200":
-          description: Administradores e suporte, ativos e desativados
+          description: Suporte e super support, ativos e desativados
           content:
             application/json:
               schema:
@@ -1371,7 +1371,10 @@ components:
   schemas:
     Role:
       type: string
-      enum: [admin, comum, support]
+      enum: [admin, comum, support, super_support]
+      description: |
+        super_support: acesso total. support: atendimento (com restrições). admin: como comum + Administração
+        (relatórios e configurações). comum: só os próprios chamados.
     TicketStatus:
       type: string
       enum: [aberto, em_andamento, aguardando, resolvido, fechado]
@@ -1439,7 +1442,7 @@ components:
       type: object
       properties:
         id: { type: integer }
-        internal: { type: boolean, description: Nota interna (só aparece para admin e suporte) }
+        internal: { type: boolean, description: Nota interna (só aparece para suporte e super support) }
         ticketId: { type: integer }
         userId: { type: integer }
         userName: { type: string }

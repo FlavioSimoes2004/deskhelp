@@ -23,7 +23,8 @@ export function NewTicketPage() {
   const settings = useAppSettings();
   const categories = useAsync(() => ticketService.categories(), []);
   // Configuração: usuário comum pode não escolher a prioridade (fica sem, ou a padrão).
-  const isComum = user?.role === "comum";
+  // Comum e admin seguem as mesmas regras de prioridade.
+  const isComum = user?.role === "comum" || user?.role === "admin";
   const staffSetsPriority = isComum && Boolean(settings?.priorityByStaffOnly);
   const choosePriority = isComum ? !settings?.priorityByStaffOnly && !settings?.hidePriorityForComum : true;
   const [form, setForm] = useState({ title: "", description: "", categoryId: "", priority: "media" as TicketPriority });

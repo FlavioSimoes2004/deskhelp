@@ -1,5 +1,6 @@
 import type { AuthUser, Role } from "../models/types.js";
 import { forbidden, HttpError } from "../utils/httpError.js";
+import { isProtectedRole, isSuper } from "./roleRules.js";
 
 /** Impede que alguém se tranque para fora do sistema mudando o próprio perfil ou desativando a conta. */
 export function assertCanUpdateUser(
@@ -17,12 +18,15 @@ export function assertCanUpdateUser(
 }
 
 /**
- * Admin gerencia qualquer usuário. Suporte gerencia usuários comuns e de suporte,
- * mas não altera administradores nem cria ou promove alguém a administrador.
- * target é null no cadastro.
+ * Super suporte gerencia qualquer usuário. Suporte gerencia usuários comuns e de suporte,
+ * mas não altera nem cria/promove administradores e super suportes. target é null no cadastro.
  */
 export function assertCanManageUser(actor: AuthUser, target: { role: Role } | null, patch: { role?: Role }): void {
-  if (actor.role === "admin") return;
-  if (target?.role === "admin") throw forbidden("O suporte não pode alterar usuários administradores");
-  if (patch.role === "admin") throw forbidden("O suporte não pode criar ou promover administradores");
+  if (isSuper(actor.role)) return;
+  if (target && isProtectedRole(target.role)) {
+    throw forbidden("O suporte não pode alterar administradores nem super suportes");
+  }
+  if (patch.role && isProtectedRole(patch.role)) {
+    throw forbidden("O suporte não pode criar nem promover administradores ou super suportes");
+  }
 }

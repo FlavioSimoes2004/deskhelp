@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS users (
   name          VARCHAR(120) NOT NULL,
   email         VARCHAR(190) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  role          ENUM('admin', 'comum', 'support') NOT NULL DEFAULT 'comum',
+  -- super_support: acesso total; support: atendimento; admin: como comum + Administração; comum.
+  role          ENUM('admin', 'comum', 'support', 'super_support') NOT NULL DEFAULT 'comum',
   active        TINYINT(1) NOT NULL DEFAULT 1,
   -- Sessão atual: cada login gera um id novo e derruba a sessão anterior (um login por conta).
   session_id    CHAR(36) NULL,
@@ -21,7 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE users ADD COLUMN IF NOT EXISTS session_id CHAR(36) NULL AFTER active;
 
 -- Bancos criados antes do perfil 'support' recebem a nova opção.
-ALTER TABLE users MODIFY role ENUM('admin', 'comum', 'support') NOT NULL DEFAULT 'comum';
+ALTER TABLE users MODIFY role ENUM('admin', 'comum', 'support', 'super_support') NOT NULL DEFAULT 'comum';
 
 -- active = 1: a categoria aparece para escolher ao abrir/alterar um chamado; 0: some da escolha
 -- (chamados que já a usam continuam com ela).

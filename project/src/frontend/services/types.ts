@@ -1,4 +1,4 @@
-export type Role = "admin" | "comum" | "support";
+export type Role = "admin" | "comum" | "support" | "super_support";
 export type TicketStatus = "aberto" | "em_andamento" | "aguardando" | "resolvido" | "fechado";
 export type TicketPriority = "baixa" | "media" | "alta" | "critica";
 

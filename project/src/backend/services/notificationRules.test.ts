@@ -1,23 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { assignmentRecipient, commentRecipients } from "./notificationRules.js";
 
-const admin = { id: 1, role: "admin" as const };
+const superSupport = { id: 1, role: "super_support" as const };
 const support = { id: 7, role: "support" as const };
 
 describe("assignmentRecipient", () => {
-  it("notifies the new assignee when an admin assigns someone else", () => {
-    expect(assignmentRecipient(admin, { assigneeId: null }, { assigneeId: 7 })).toBe(7);
-    expect(assignmentRecipient(admin, { assigneeId: 8 }, { assigneeId: 7 })).toBe(7);
+  it("notifies the new assignee when an superSupport assigns someone else", () => {
+    expect(assignmentRecipient(superSupport, { assigneeId: null }, { assigneeId: 7 })).toBe(7);
+    expect(assignmentRecipient(superSupport, { assigneeId: 8 }, { assigneeId: 7 })).toBe(7);
   });
 
-  it("does not notify when the admin assigns the ticket to themselves", () => {
-    expect(assignmentRecipient(admin, { assigneeId: null }, { assigneeId: 1 })).toBeNull();
+  it("does not notify when the superSupport assigns the ticket to themselves", () => {
+    expect(assignmentRecipient(superSupport, { assigneeId: null }, { assigneeId: 1 })).toBeNull();
   });
 
   it("does not notify when the assignee does not change or is removed", () => {
-    expect(assignmentRecipient(admin, { assigneeId: 7 }, { assigneeId: 7 })).toBeNull();
-    expect(assignmentRecipient(admin, { assigneeId: 7 }, { assigneeId: null })).toBeNull();
-    expect(assignmentRecipient(admin, { assigneeId: 7 }, {})).toBeNull();
+    expect(assignmentRecipient(superSupport, { assigneeId: 7 }, { assigneeId: 7 })).toBeNull();
+    expect(assignmentRecipient(superSupport, { assigneeId: 7 }, { assigneeId: null })).toBeNull();
+    expect(assignmentRecipient(superSupport, { assigneeId: 7 }, {})).toBeNull();
   });
 
   it("does not notify when support assumes a ticket", () => {
@@ -48,5 +48,11 @@ describe("commentRecipients for internal notes", () => {
 
   it("notifies a requester who is staff", () => {
     expect(commentRecipients(1, { requesterId: 2, assigneeId: 7 }, { requesterIsStaff: true })).toEqual([2, 7]);
+  });
+});
+
+describe("assignmentRecipient for the restricted admin role", () => {
+  it("does not notify on behalf of admins, who no longer manage tickets", () => {
+    expect(assignmentRecipient({ id: 3, role: "admin" }, { assigneeId: null }, { assigneeId: 7 })).toBeNull();
   });
 });

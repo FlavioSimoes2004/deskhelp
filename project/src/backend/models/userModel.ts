@@ -54,9 +54,11 @@ export async function listUsers(filters: { search?: string; role?: Role; active?
   return rows.map(toPublic);
 }
 
-/** Administradores e suporte (ativos e desativados), quem pode ser responsável por chamados. */
+/** Suporte e super suporte (ativos e desativados): quem pode ser responsável por chamados. */
 export async function listStaff(): Promise<PublicUser[]> {
-  const [rows] = await pool.query<UserRow[]>("SELECT * FROM users WHERE role IN ('admin', 'support') ORDER BY name");
+  const [rows] = await pool.query<UserRow[]>(
+    "SELECT * FROM users WHERE role IN ('support', 'super_support') ORDER BY name",
+  );
   return rows.map(toPublic);
 }
 

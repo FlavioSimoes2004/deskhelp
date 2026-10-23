@@ -6,9 +6,12 @@ import { ApiError } from "../services/api";
 import { categoryService } from "../services/deskhelp";
 import type { Category } from "../services/types";
 
-/** Categorias dos chamados (só admin): lista e cadastro. Os nomes ficam sempre em maiúsculas. */
+/** Categorias dos chamados (só super support): lista e cadastro. Os nomes ficam sempre em maiúsculas. */
 export function CategoriesPage() {
   const categories = useAsync(() => categoryService.list(), []);
+  // Filtros da lista (feitos aqui mesmo: a lista de categorias é pequena).
+  const [nameFilter, setNameFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive">("");
   const [name, setName] = useState("");
   const [error, setError] = useState<ApiError | null>(null);
   const [saving, setSaving] = useState(false);
@@ -46,6 +49,16 @@ export function CategoriesPage() {
       setSaving(false);
     }
   }
+
+  // Busca sem diferenciar maiúsculas nem acentos ("seguranca" encontra "SEGURANÇA").
+  const plain = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const query = plain(nameFilter.trim());
+  const visible = (categories.data ?? []).filter(
+    (c) =>
+      (!query || plain(c.name).includes(query)) &&
+      (statusFilter === "" || (statusFilter === "active") === c.active),
+  );
+  const hasFilters = Boolean(nameFilter || statusFilter);
 
   return (
     <div className="page" style={{ maxWidth: 760 }}>
@@ -85,11 +98,49 @@ export function CategoriesPage() {
         </div>
       </form>
 
-      <div style={{ marginTop: 16 }}>
+      <div className="filters" role="search" style={{ marginTop: 16 }}>
+        <div className="field grow">
+          <label htmlFor="c-name">Buscar por nome</label>
+          <input
+            id="c-name"
+            className="input"
+            type="search"
+            value={nameFilter}
+            onChange={(e) => setNameFilter(e.target.value)}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="c-status">Situação</label>
+          <select
+            id="c-status"
+            className="select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+          >
+            <option value="">Todas</option>
+            <option value="active">Ativas</option>
+            <option value="inactive">Desativadas</option>
+          </select>
+        </div>
+        {hasFilters && (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => {
+              setNameFilter("");
+              setStatusFilter("");
+            }}
+          >
+            Limpar filtros
+          </button>
+        )}
+      </div>
+
+      <div>
         <ErrorAlert error={categories.error} onRetry={categories.reload} />
         {categories.loading && !categories.data ? (
           <Loading />
-        ) : categories.data?.length ? (
+        ) : visible.length ? (
           <div className="table-wrap">
             <table className="table">
               <thead>
@@ -102,7 +153,7 @@ export function CategoriesPage() {
                 </tr>
               </thead>
               <tbody>
-                {categories.data.map((c) => (
+                {visible.map((c) => (
                   <tr key={c.id}>
                     <td>
                       <strong className={c.active ? undefined : "muted"}>{c.name}</strong>
@@ -127,9 +178,15 @@ export function CategoriesPage() {
           </div>
         ) : (
           <div className="panel">
-            <EmptyState title="Nenhuma categoria cadastrada">
-              <p>Cadastre a primeira categoria acima.</p>
-            </EmptyState>
+            {categories.data?.length ? (
+              <EmptyState title="Nenhuma categoria com esses filtros">
+                <p>Ajuste a busca ou a situação.</p>
+              </EmptyState>
+            ) : (
+              <EmptyState title="Nenhuma categoria cadastrada">
+                <p>Cadastre a primeira categoria acima.</p>
+              </EmptyState>
+            )}
           </div>
         )}
       </div>

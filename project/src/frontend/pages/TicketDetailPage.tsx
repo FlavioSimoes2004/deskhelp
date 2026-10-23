@@ -84,7 +84,7 @@ function describeChange(
 
 export function TicketDetailPage() {
   const id = Number(useParams().id);
-  const { user, isAdmin, isStaff } = useAuth();
+  const { user, isSuper, isStaff, isRequesterOnly } = useAuth();
   const justCreated = Boolean((useLocation().state as { created?: boolean } | null)?.created);
 
   const ticket = useAsync(() => ticketService.get(id), [id]);
@@ -127,11 +127,11 @@ export function TicketDetailPage() {
     ? isStaff && t.assigneeId === null
       ? "Assuma o chamado para poder responder."
       : "Somente quem abriu o chamado e o responsável por ele podem responder."
-    : !isAdmin && t.status === "fechado"
+    : !isSuper && t.status === "fechado"
       ? "Este chamado foi fechado. Se o problema voltou, abra um novo chamado."
       : null;
-  // Nota interna: qualquer admin ou suporte (em chamado fechado, só admin).
-  const canInternal = isStaff && !settings?.commentsLocked && (isAdmin || t.status !== "fechado");
+  // Nota interna: suporte ou super support (em chamado fechado, só super support).
+  const canInternal = isStaff && !settings?.commentsLocked && (isSuper || t.status !== "fechado");
   return (
     <div className="page">
       <p style={{ marginBottom: 12 }}>
@@ -165,7 +165,7 @@ export function TicketDetailPage() {
           </section>
           <SolutionPanel
             ticket={t}
-            canEdit={isAdmin || (user !== null && t.assigneeId === user.id)}
+            canEdit={isSuper || (user !== null && t.assigneeId === user.id)}
             onSaved={(updated) => ticket.setData(updated)}
           />
           <RatingPanel
@@ -188,7 +188,7 @@ export function TicketDetailPage() {
           {isStaff && user ? (
             <ManagePanel
               ticket={t}
-              isAdmin={isAdmin}
+              isSuper={isSuper}
               currentUserId={user.id}
               categories={categories.data ?? []}
               staff={(staff.data ?? []).filter((a) => a.active)}
@@ -196,7 +196,7 @@ export function TicketDetailPage() {
               onSaved={(updated) => ticket.setData(updated)}
             />
           ) : null}
-          {user?.role === "comum" && t.requesterId === user.id && t.status !== "resolvido" && t.status !== "fechado" && (
+          {isRequesterOnly && user && t.requesterId === user.id && t.status !== "resolvido" && t.status !== "fechado" && (
             <ResolvePanel
               ticketId={t.id}
               hasMachine={t.machineId !== null}
@@ -313,7 +313,7 @@ function Conversation({
                 <div>
                   <strong>{item.c.userName}</strong>{" "}
                   {item.c.internal && (
-                    <span className="tag tag-alert" title="Visível só para administradores e suporte">
+                    <span className="tag tag-alert" title="Visível só para o suporte e o super support">
                       Nota interna
                     </span>
                   )}{" "}
@@ -361,7 +361,7 @@ function Conversation({
                 disabled={internalOnly}
                 onChange={(e) => setInternalChoice(e.target.checked)}
               />
-              Nota interna: visível só para administradores e suporte
+              Nota interna: visível só para o suporte e o super support
             </label>
           )}
           <Field label={internal ? "Nota interna" : "Responder"}>
@@ -395,13 +395,13 @@ function Conversation({
 }
 
 /**
- * Atendimento do chamado. Admin altera tudo; suporte só assume chamados sem
+ * Atendimento do chamado. Super support altera tudo; suporte só assume chamados sem
  * responsável e altera prioridade, categoria e máquina (as regras valem também na API).
  * Para marcar como "resolvido", o chamado precisa ter máquina vinculada.
  */
 function ManagePanel({
   ticket,
-  isAdmin,
+  isSuper,
   currentUserId,
   categories,
   staff,
@@ -409,7 +409,7 @@ function ManagePanel({
   onSaved,
 }: {
   ticket: TicketDetail;
-  isAdmin: boolean;
+  isSuper: boolean;
   currentUserId: number;
   categories: Category[];
   staff: User[];
@@ -460,14 +460,14 @@ function ManagePanel({
       machineId: form.machineId ? Number(form.machineId) : null,
     };
     void save(
-      isAdmin
+      isSuper
         ? { ...editable, status: form.status, assigneeId: form.assigneeId ? Number(form.assigneeId) : null }
         : editable,
     );
   }
 
   // Suporte só assume chamado sem responsável; a API ajusta o status ao assumir.
-  const canAssume = isAdmin ? ticket.assigneeId !== currentUserId : ticket.assigneeId === null;
+  const canAssume = isSuper ? ticket.assigneeId !== currentUserId : ticket.assigneeId === null;
 
   // Máquinas que podem ser vinculadas: as que estão com quem abriu o chamado ou sem usuário.
   // A máquina já vinculada continua na lista, para o campo não ficar em branco.
@@ -496,14 +496,14 @@ function ManagePanel({
             onClick={() =>
               save({
                 assigneeId: currentUserId,
-                ...(isAdmin && ticket.status === "aberto" ? { status: "em_andamento" as const } : {}),
+                ...(isSuper && ticket.status === "aberto" ? { status: "em_andamento" as const } : {}),
               })
             }
           >
             Assumir chamado
           </button>
         )}
-        {isAdmin && (
+        {isSuper && (
           <>
             <Field label="Status">
               <select

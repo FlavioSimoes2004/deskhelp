@@ -51,8 +51,10 @@ const authLimiter = rateLimit({
 });
 
 const byId = validate(idParamSchema, "params");
-const adminOnly = requireRole("admin");
-const staffOnly = requireRole("admin", "support");
+// Perfis: super_support (tudo), support (atendimento), admin (como comum + Administração), comum.
+const superOnly = requireRole("super_support");
+const staffOnly = requireRole("support", "super_support");
+const administration = requireRole("admin", "super_support");
 
 export const apiRouter = Router();
 
@@ -80,7 +82,7 @@ apiRouter.get("/tickets", validate(ticketQuerySchema, "query"), ticketCtrl.list)
 apiRouter.post("/tickets", validate(createTicketSchema), ticketCtrl.create);
 apiRouter.get("/tickets/:id", byId, ticketCtrl.get);
 apiRouter.post("/tickets/:id/comments", byId, parseMultipart, validate(commentSchema), ticketCtrl.addComment);
-apiRouter.post("/tickets/:id/resolve", requireRole("comum"), byId, ticketCtrl.resolve);
+apiRouter.post("/tickets/:id/resolve", requireRole("comum", "admin"), byId, ticketCtrl.resolve);
 // Solução: responsável ou admin, com o chamado resolvido (regras no ticketService)
 apiRouter.put("/tickets/:id/solution", byId, validate(solutionSchema), ticketCtrl.setSolution);
 // Avaliação do atendimento: quem abriu, com o chamado resolvido ou fechado (regras no ticketService)
@@ -101,11 +103,11 @@ apiRouter.get("/notifications/unread-count", notificationCtrl.unreadCount);
 apiRouter.post("/notifications/read-all", notificationCtrl.readAll);
 apiRouter.patch("/notifications/:id", byId, validate(updateNotificationSchema), notificationCtrl.update);
 
-// Administradores e suporte (o suporte tem regras próprias no ticketService)
+// Suporte e super suporte (o suporte tem regras próprias no ticketService)
 apiRouter.patch("/tickets/:id", staffOnly, byId, validate(updateTicketSchema), ticketCtrl.update);
 apiRouter.get("/users/staff", staffOnly, userCtrl.staff);
 
-// Usuários e máquinas: administradores e suporte (o suporte não gerencia administradores)
+// Usuários e máquinas: suporte e super suporte (o suporte não gerencia admins nem super suportes)
 apiRouter.get("/users", staffOnly, validate(userQuerySchema, "query"), userCtrl.list);
 apiRouter.post("/users", staffOnly, validate(createUserSchema), userCtrl.create);
 apiRouter.get("/users/:id", staffOnly, byId, userCtrl.get);
@@ -117,15 +119,15 @@ apiRouter.get("/machines/:id", staffOnly, byId, machineCtrl.get);
 apiRouter.patch("/machines/:id", staffOnly, byId, validate(updateMachineSchema), machineCtrl.update);
 apiRouter.get("/machines/:id/history", staffOnly, byId, machineCtrl.history);
 
-// Somente administradores
-apiRouter.put("/settings", adminOnly, validate(settingsSchema), settingsCtrl.update);
-apiRouter.post("/categories", adminOnly, validate(createCategorySchema), categoryCtrl.create);
-apiRouter.patch("/categories/:id", adminOnly, byId, validate(updateCategorySchema), categoryCtrl.update);
-apiRouter.get("/reports/summary", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.summary);
-apiRouter.get("/reports/machines", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.machines);
-apiRouter.get("/reports/requesters", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.requesters);
-apiRouter.get("/reports/assignees", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.assignees);
-apiRouter.get("/reports/machines.csv", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.machinesCsv);
-apiRouter.get("/reports/requesters.csv", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.requestersCsv);
-apiRouter.get("/reports/assignees.csv", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.assigneesCsv);
-apiRouter.get("/reports/tickets.csv", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.exportCsv);
+// Administração (admin e super suporte) e Super support (categorias)
+apiRouter.put("/settings", administration, validate(settingsSchema), settingsCtrl.update);
+apiRouter.post("/categories", superOnly, validate(createCategorySchema), categoryCtrl.create);
+apiRouter.patch("/categories/:id", superOnly, byId, validate(updateCategorySchema), categoryCtrl.update);
+apiRouter.get("/reports/summary", administration, validate(reportQuerySchema, "query"), reportCtrl.summary);
+apiRouter.get("/reports/machines", administration, validate(reportQuerySchema, "query"), reportCtrl.machines);
+apiRouter.get("/reports/requesters", administration, validate(reportQuerySchema, "query"), reportCtrl.requesters);
+apiRouter.get("/reports/assignees", administration, validate(reportQuerySchema, "query"), reportCtrl.assignees);
+apiRouter.get("/reports/machines.csv", administration, validate(reportQuerySchema, "query"), reportCtrl.machinesCsv);
+apiRouter.get("/reports/requesters.csv", administration, validate(reportQuerySchema, "query"), reportCtrl.requestersCsv);
+apiRouter.get("/reports/assignees.csv", administration, validate(reportQuerySchema, "query"), reportCtrl.assigneesCsv);
+apiRouter.get("/reports/tickets.csv", administration, validate(reportQuerySchema, "query"), reportCtrl.exportCsv);

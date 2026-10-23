@@ -1,7 +1,8 @@
 import type { AuthUser } from "../models/types.js";
+import { isSuper } from "./roleRules.js";
 
 /**
- * Quem recebe a notificação de atribuição: o novo responsável, quando um admin
+ * Quem recebe a notificação de atribuição: o novo responsável, quando um super suporte
  * atribui o chamado a outra pessoa. Assumir o chamado para si não notifica.
  */
 export function assignmentRecipient(
@@ -9,7 +10,7 @@ export function assignmentRecipient(
   current: { assigneeId: number | null },
   patch: { assigneeId?: number | null },
 ): number | null {
-  if (actor.role !== "admin") return null;
+  if (!isSuper(actor.role)) return null;
   const next = patch.assigneeId;
   if (next == null || next === current.assigneeId || next === actor.id) return null;
   return next;

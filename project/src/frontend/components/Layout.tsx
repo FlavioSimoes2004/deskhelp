@@ -11,7 +11,7 @@ import { ThemePicker } from "./ThemePicker";
 const navClass = ({ isActive }: { isActive: boolean }) => `nav-link${isActive ? " active" : ""}`;
 
 export function Layout() {
-  const { user, isAdmin, isStaff, logout } = useAuth();
+  const { user, isSuper, isStaff, canAdministrate, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const location = useLocation();
 
@@ -62,12 +62,9 @@ export function Layout() {
               <NavLink to="/maquinas" className={navClass}>
                 Máquinas
               </NavLink>
-              <NavLink to="/api-docs" className={navClass}>
-                Documentação da API
-              </NavLink>
             </>
           )}
-          {isAdmin && (
+          {canAdministrate && (
             <>
               <div className="rail-group">Administração</div>
               <NavLink to="/relatorios" end className={navClass}>
@@ -82,11 +79,19 @@ export function Layout() {
               <NavLink to="/relatorios/responsaveis" className={navClass}>
                 Relatório de responsáveis
               </NavLink>
+              <NavLink to="/configuracoes" className={navClass}>
+                Configurações
+              </NavLink>
+            </>
+          )}
+          {isSuper && (
+            <>
+              <div className="rail-group">Super support</div>
               <NavLink to="/categorias" className={navClass}>
                 Categorias
               </NavLink>
-              <NavLink to="/configuracoes" className={navClass}>
-                Configurações
+              <NavLink to="/api-docs" className={navClass}>
+                Documentação da API
               </NavLink>
             </>
           )}

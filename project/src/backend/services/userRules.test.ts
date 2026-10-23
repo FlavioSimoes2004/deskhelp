@@ -3,6 +3,7 @@ import { assertCanManageUser, assertCanUpdateUser } from "./userRules.js";
 import { HttpError } from "../utils/httpError.js";
 
 const admin = { id: 1, role: "admin" as const };
+const superSupport = { id: 3, role: "super_support" as const };
 const support = { id: 7, role: "support" as const };
 
 describe("assertCanUpdateUser", () => {
@@ -32,9 +33,10 @@ describe("assertCanUpdateUser", () => {
 });
 
 describe("assertCanManageUser", () => {
-  it("lets an admin manage anyone, including creating admins", () => {
-    expect(() => assertCanManageUser(admin, { role: "admin" }, { role: "comum" })).not.toThrow();
-    expect(() => assertCanManageUser(admin, null, { role: "admin" })).not.toThrow();
+  it("lets super support manage anyone, including creating admins and super supports", () => {
+    expect(() => assertCanManageUser(superSupport, { role: "admin" }, { role: "comum" })).not.toThrow();
+    expect(() => assertCanManageUser(superSupport, null, { role: "admin" })).not.toThrow();
+    expect(() => assertCanManageUser(superSupport, { role: "super_support" }, { role: "super_support" })).not.toThrow();
   });
 
   it("lets support create and edit common and support users", () => {
@@ -43,11 +45,13 @@ describe("assertCanManageUser", () => {
   });
 
   it("blocks support from creating or promoting administrators", () => {
-    expect(() => assertCanManageUser(support, null, { role: "admin" })).toThrow(/criar ou promover/);
-    expect(() => assertCanManageUser(support, { role: "comum" }, { role: "admin" })).toThrow(/criar ou promover/);
+    expect(() => assertCanManageUser(support, null, { role: "admin" })).toThrow(/criar nem promover/);
+    expect(() => assertCanManageUser(support, { role: "comum" }, { role: "admin" })).toThrow(/criar nem promover/);
+    expect(() => assertCanManageUser(support, null, { role: "super_support" })).toThrow(/criar nem promover/);
   });
 
   it("blocks support from editing an administrator", () => {
     expect(() => assertCanManageUser(support, { role: "admin" }, {})).toThrow(/administradores/);
+    expect(() => assertCanManageUser(support, { role: "super_support" }, {})).toThrow(/super suportes/);
   });
 });

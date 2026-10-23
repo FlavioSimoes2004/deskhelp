@@ -11,26 +11,28 @@ Sistema de chamados (help desk): usuários abrem chamados e a equipe de suporte 
 
 | Perfil | Pode |
 | --- | --- |
-| **Comum** | Abrir chamados, ver e comentar apenas os próprios chamados, editar o próprio perfil e senha |
-| **Suporte** | Tudo do comum + ver todos os chamados, assumir um chamado sem responsável (status vai para "em andamento" se estava aberto) e alterar prioridade e categoria. Não altera status nem troca um responsável já definido. Também gerencia usuários comuns e de suporte (sem criar, promover ou alterar administradores) e máquinas |
-| **Admin** | Tudo do comum + ver todos os chamados, alterar status, prioridade, categoria e responsável, assumir chamados, cadastrar/editar/desativar usuários, ver relatórios e exportar CSV |
+| **Comum** | Abrir chamados, ver e comentar apenas os próprios chamados, avaliar o atendimento, usar a agenda, editar o próprio perfil e senha |
+| **Administrador** (`admin`) | As mesmas restrições do comum (só os próprios chamados, sem atendimento, sem Usuários e Máquinas) + as páginas de **Administração**: relatórios e Configurações |
+| **Suporte** | Tudo do comum + ver todos os chamados, assumir um chamado sem responsável (status vai para "em andamento" se estava aberto), alterar prioridade, categoria e máquina, notas internas. Não altera status nem troca um responsável já definido. Gerencia usuários comuns e de suporte (sem criar, promover ou alterar administradores e super supports) e máquinas |
+| **Super support** (`super_support`) | Acesso total: tudo do suporte sem as restrições dele (alterar status e responsável, assumir qualquer chamado, gerenciar qualquer usuário), Administração e o grupo **Super support** (Categorias e Documentação da API) |
 
 Regras importantes:
-- O responsável por um chamado precisa ser um administrador ou suporte ativo.
-- Somente quem abriu o chamado e o responsável por ele podem comentar (vale também para admin).
+- O responsável por um chamado precisa ser um suporte ou super support ativo.
+- Somente quem abriu o chamado e o responsável por ele podem comentar (vale também para o super support).
 - Chamados não podem ser excluídos.
-- Admin e suporte vinculam a máquina do chamado; um chamado só pode ficar "resolvido" com máquina vinculada.
-- A solução do chamado é registrada pelo responsável ou por um admin, com o chamado "resolvido".
-- Admin e suporte podem deixar notas internas no chamado, que quem abriu não vê.
+- Suporte e super support vinculam a máquina do chamado; um chamado só pode ficar "resolvido" com máquina vinculada.
+- A solução do chamado é registrada pelo responsável ou por um super support, com o chamado "resolvido".
+- Suporte e super support podem deixar notas internas no chamado, que quem abriu não vê.
 - Quem abriu avalia o atendimento (1 a 5) uma vez, com o chamado resolvido ou fechado.
 - Abrir um chamado marca as notificações dele como lidas.
 - A tela se atualiza sozinha a cada 15 segundos (e ao voltar para a aba): sino, avisos da agenda, notificações, chamados e a conversa do chamado. O intervalo fica em `LIVE_REFRESH_MS` (`src/frontend/hooks/useLiveRefresh.ts`).
-- Um admin não pode tirar o próprio perfil de admin nem desativar a própria conta.
+- Ninguém pode trocar o próprio perfil nem desativar a própria conta.
 - Conta desativada perde o acesso na hora (o token é revalidado no banco a cada requisição).
 - Uma conta só fica conectada em um lugar: um login novo encerra a sessão anterior.
 - Após 25 minutos sem atividade aparece um aviso; aos 30 minutos o usuário é desconectado.
-- Chamado fechado só aceita comentários de administrador.
+- Chamado fechado só aceita comentários do super support.
 - Toda alteração de chamado fica registrada no histórico.
+- A conta inicial criada pelo `db:migrate` (ADMIN_EMAIL/ADMIN_PASSWORD) é um super support. Na primeira migração com o perfil super support, as contas `admin` existentes foram convertidas para super support.
 
 ## Páginas
 
@@ -45,13 +47,13 @@ Regras importantes:
 | `/perfil` | Nome e troca de senha | todos |
 | `/agenda` | Lembretes pessoais com data e hora (opcionalmente vinculados a um chamado); avisam na tela e nas notificações; podem ser excluídos | todos |
 | `/api-docs` | Documentação da API (Swagger UI) | todos |
-| `/usuarios` | Cadastro e gestão de usuários | admin e suporte |
-| `/relatorios` | Indicadores por período + exportação CSV | admin |
-| `/relatorios/maquinas` | Chamados por máquina no período, por status e por categoria | admin |
-| `/relatorios/solicitantes` | Chamados por quem abriu, no período: status, categoria e resolução | admin |
-| `/categorias` | Lista, cadastro e ativação/desativação de categorias (nomes sempre em maiúsculas; desativadas somem da escolha nos chamados) | admin |
-| `/configuracoes` | Configurações gerais: esconder prioridade de usuários comuns, só o suporte definir a prioridade, proibir o suporte de cadastrar/editar usuários, bloquear conversa, limitar chamados abertos por usuário | admin |
-| `/relatorios/responsaveis` | Chamados por responsável, no período: status, categoria e resolução | admin |
+| `/usuarios` | Cadastro e gestão de usuários | suporte e super support |
+| `/relatorios` | Indicadores por período + exportação CSV | admin e super support |
+| `/relatorios/maquinas` | Chamados por máquina no período, por status e por categoria | admin e super support |
+| `/relatorios/solicitantes` | Chamados por quem abriu, no período: status, categoria e resolução | admin e super support |
+| `/categorias` | Lista, cadastro e ativação/desativação de categorias (nomes sempre em maiúsculas; desativadas somem da escolha nos chamados) | super support |
+| `/configuracoes` | Configurações gerais: esconder prioridade de usuários comuns, só o suporte definir a prioridade, proibir o suporte de cadastrar/editar usuários, bloquear conversa, limitar chamados abertos por usuário | admin e super support |
+| `/relatorios/responsaveis` | Chamados por responsável, no período: status, categoria e resolução | admin e super support |
 
 ## Instalação (Fedora)
 

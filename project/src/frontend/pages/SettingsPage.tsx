@@ -5,7 +5,7 @@ import { useAsync } from "../hooks/useAsync";
 import { ApiError } from "../services/api";
 import { settingsService } from "../services/deskhelp";
 
-/** Configurações gerais da aplicação (só admin). Valem na hora, para todos. */
+/** Configurações gerais da aplicação (admin e super support). Valem na hora, para todos. */
 export function SettingsPage() {
   const settings = useAsync(() => settingsService.get(), []);
   const [form, setForm] = useState({
@@ -89,8 +89,9 @@ export function SettingsPage() {
               <span>
                 <strong>Esconder a prioridade de usuários comuns</strong>
                 <small>
-                  Eles deixam de ver a prioridade nos chamados e na lista, e de escolhê-la ao abrir um chamado (fica
-                  “Média”). Admin e suporte continuam vendo e alterando.
+                  Usuários comuns e administradores (que seguem as regras do comum) deixam de ver a prioridade nos
+                  chamados e na lista, e de escolhê-la ao abrir um chamado (fica “Média”). Suporte e super support
+                  continuam vendo e alterando.
                 </small>
               </span>
             </label>
@@ -103,7 +104,8 @@ export function SettingsPage() {
               <span>
                 <strong>Só o suporte define a prioridade</strong>
                 <small>
-                  Usuários comuns abrem chamados sem prioridade; admin ou suporte define depois, no painel “Atendimento”.
+                  Usuários comuns e administradores abrem chamados sem prioridade; o suporte define depois, no painel
+                  “Atendimento”.
                   Esses chamados aparecem como “Sem prioridade” e podem ser filtrados assim na lista.
                 </small>
               </span>
@@ -121,7 +123,7 @@ export function SettingsPage() {
               <span>
                 <strong>Proibir o suporte de cadastrar e editar usuários</strong>
                 <small>
-                  Só administradores cadastram, alteram, desativam ou trocam a senha de usuários. O suporte continua vendo a
+                  Só o super support cadastra, altera, desativa ou troca a senha de usuários. O suporte continua vendo a
                   lista de usuários (somente leitura).
                 </small>
               </span>
@@ -139,7 +141,7 @@ export function SettingsPage() {
               <span>
                 <strong>Bloquear a conversa</strong>
                 <small>
-                  Ninguém consegue enviar comentários, notas internas ou anexos nos chamados, inclusive administradores.
+                  Ninguém consegue enviar comentários, notas internas ou anexos nos chamados, inclusive o super support.
                   O que já foi escrito continua visível.
                 </small>
               </span>

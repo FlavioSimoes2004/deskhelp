@@ -11,15 +11,15 @@ import {
   statusTimestamps,
 } from "./ticketRules.js";
 
-const admin = { id: 1, role: "admin" as const };
+const superSupport = { id: 1, role: "super_support" as const };
 const comum = { id: 2, role: "comum" as const };
 const support = { id: 7, role: "support" as const };
 const now = new Date("2026-10-13T12:00:00Z");
 const earlier = new Date("2026-10-10T09:00:00Z");
 
 describe("canViewTicket", () => {
-  it("allows an admin to view any ticket", () => {
-    expect(canViewTicket(admin, { requesterId: 99 })).toBe(true);
+  it("allows an superSupport to view any ticket", () => {
+    expect(canViewTicket(superSupport, { requesterId: 99 })).toBe(true);
   });
 
   it("allows a common user to view their own ticket", () => {
@@ -41,8 +41,8 @@ describe("canComment", () => {
     expect(canComment(support, { requesterId: 2, assigneeId: 7 })).toBe(true);
   });
 
-  it("denies anyone else, including admins", () => {
-    expect(canComment(admin, { requesterId: 2, assigneeId: 7 })).toBe(false);
+  it("denies anyone else, including super support", () => {
+    expect(canComment(superSupport, { requesterId: 2, assigneeId: 7 })).toBe(false);
     expect(canComment(support, { requesterId: 2, assigneeId: null })).toBe(false);
   });
 });
@@ -184,10 +184,10 @@ describe("applySupportRules and machines", () => {
 describe("assertCanSetSolution", () => {
   const resolved = { status: "resolvido" as const, assigneeId: 7 };
 
-  it("lets the assignee and admins record the solution of a resolved ticket", () => {
+  it("lets the assignee and super support record the solution of a resolved ticket", () => {
     expect(() => assertCanSetSolution(support, resolved)).not.toThrow();
-    expect(() => assertCanSetSolution(admin, resolved)).not.toThrow();
-    expect(() => assertCanSetSolution(admin, { ...resolved, assigneeId: null })).not.toThrow();
+    expect(() => assertCanSetSolution(superSupport, resolved)).not.toThrow();
+    expect(() => assertCanSetSolution(superSupport, { ...resolved, assigneeId: null })).not.toThrow();
   });
 
   it("denies anyone else, including the requester", () => {
@@ -197,7 +197,7 @@ describe("assertCanSetSolution", () => {
 
   it("requires the ticket to be resolved", () => {
     expect(() => assertCanSetSolution(support, { ...resolved, status: "em_andamento" })).toThrow(/resolvido/);
-    expect(() => assertCanSetSolution(admin, { ...resolved, status: "fechado" })).toThrow(/resolvido/);
+    expect(() => assertCanSetSolution(superSupport, { ...resolved, status: "fechado" })).toThrow(/resolvido/);
   });
 
   it("records the solution in the history", () => {
@@ -213,18 +213,18 @@ describe("assertCanAddComment", () => {
   it("keeps normal comments for the requester and the assignee", () => {
     expect(() => assertCanAddComment(comum, ticket, false)).not.toThrow();
     expect(() => assertCanAddComment(support, ticket, false)).not.toThrow();
-    expect(() => assertCanAddComment(admin, ticket, false)).toThrow(/responsável/);
+    expect(() => assertCanAddComment(superSupport, ticket, false)).toThrow(/responsável/);
   });
 
   it("lets any staff member write internal notes, but not common users", () => {
-    expect(() => assertCanAddComment(admin, ticket, true)).not.toThrow();
+    expect(() => assertCanAddComment(superSupport, ticket, true)).not.toThrow();
     expect(() => assertCanAddComment({ id: 9, role: "support" }, ticket, true)).not.toThrow();
     expect(() => assertCanAddComment(comum, ticket, true)).toThrow(/notas internas/);
   });
 
-  it("only admins comment on closed tickets", () => {
+  it("only super support comments on closed tickets", () => {
     expect(() => assertCanAddComment(support, { ...ticket, status: "fechado" }, true)).toThrow(/fechado/);
-    expect(() => assertCanAddComment(admin, { ...ticket, status: "fechado" }, true)).not.toThrow();
+    expect(() => assertCanAddComment(superSupport, { ...ticket, status: "fechado" }, true)).not.toThrow();
   });
 });
 
@@ -237,8 +237,28 @@ describe("assertCanRate", () => {
   });
 
   it("denies other users, open tickets and a second rating", () => {
-    expect(() => assertCanRate(admin, resolved)).toThrow(/Somente quem abriu/);
+    expect(() => assertCanRate(superSupport, resolved)).toThrow(/Somente quem abriu/);
     expect(() => assertCanRate(comum, { ...resolved, status: "em_andamento" })).toThrow(/resolvido/);
     expect(() => assertCanRate(comum, { ...resolved, rating: 4 })).toThrow(/já foi avaliado/);
+  });
+});
+
+describe("admin role (restricted like a common user)", () => {
+  const adminUser = { id: 4, role: "admin" as const };
+
+  it("only sees their own tickets", () => {
+    expect(canViewTicket(adminUser, { requesterId: 4 })).toBe(true);
+    expect(canViewTicket(adminUser, { requesterId: 99 })).toBe(false);
+  });
+
+  it("cannot write internal notes, comment on closed tickets or record solutions", () => {
+    const ticket = { requesterId: 4, assigneeId: 7, status: "em_andamento" as const };
+    expect(() => assertCanAddComment(adminUser, ticket, true)).toThrow(/notas internas/);
+    expect(() => assertCanAddComment(adminUser, { ...ticket, status: "fechado" }, false)).toThrow(/fechado/);
+    expect(() => assertCanSetSolution(adminUser, { status: "resolvido", assigneeId: 7 })).toThrow(/responsável/);
+  });
+
+  it("can rate their own resolved ticket, like a common user", () => {
+    expect(() => assertCanRate(adminUser, { requesterId: 4, status: "resolvido", rating: null })).not.toThrow();
   });
 });

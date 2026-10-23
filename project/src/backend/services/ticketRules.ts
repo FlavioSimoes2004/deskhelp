@@ -1,10 +1,10 @@
-import type { AuthUser, Role, TicketPriority, TicketStatus } from "../models/types.js";
+import type { AuthUser, TicketPriority, TicketStatus } from "../models/types.js";
 import { forbidden, HttpError } from "../utils/httpError.js";
+import { isStaff, isSuper } from "./roleRules.js";
 
-/** Equipe de atendimento: administradores e suporte. */
-export const isStaff = (role: Role) => role === "admin" || role === "support";
+export { isStaff } from "./roleRules.js";
 
-/** Admin e suporte veem todos os chamados; usuário comum vê apenas os que abriu. */
+/** Suporte e super suporte veem todos os chamados; comum e admin, apenas os que abriram. */
 export function canViewTicket(user: AuthUser, ticket: { requesterId: number }): boolean {
   return isStaff(user.role) || ticket.requesterId === user.id;
 }
@@ -16,7 +16,7 @@ export function canComment(user: AuthUser, ticket: { requesterId: number; assign
 
 /**
  * Pode enviar o comentário? Comentário normal: quem abriu ou o responsável. Nota interna
- * (visível só para a equipe): qualquer admin ou suporte. Em chamado fechado, só admin.
+ * (visível só para a equipe): qualquer suporte ou super suporte. Em chamado fechado, só super suporte.
  */
 export function assertCanAddComment(
   user: AuthUser,
@@ -30,7 +30,7 @@ export function assertCanAddComment(
         : "Somente quem abriu o chamado e o responsável por ele podem comentar",
     );
   }
-  if (user.role !== "admin" && ticket.status === "fechado") {
+  if (!isSuper(user.role) && ticket.status === "fechado") {
     throw new HttpError(409, "TICKET_CLOSED", "Este chamado está fechado e não aceita novos comentários");
   }
 }
@@ -102,14 +102,14 @@ export interface TicketEditableFields {
 }
 
 /**
- * Quem registra a solução: o responsável pelo chamado ou um admin, e só com o
+ * Quem registra a solução: o responsável pelo chamado ou um super suporte, e só com o
  * chamado "resolvido".
  */
 export function assertCanSetSolution(
   user: AuthUser,
   ticket: { status: TicketStatus; assigneeId: number | null },
 ): void {
-  if (user.role !== "admin" && ticket.assigneeId !== user.id) {
+  if (!isSuper(user.role) && ticket.assigneeId !== user.id) {
     throw forbidden("Somente o responsável pelo chamado ou um administrador pode registrar a solução");
   }
   if (ticket.status !== "resolvido") {

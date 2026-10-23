@@ -182,16 +182,16 @@ export const agendaService = {
 
 export const categoryService = {
   list: () => api.get<{ data: Category[] }>("/categories").then((r) => r.data),
-  /** Só admin. O nome é gravado em maiúsculas. */
+  /** Só super support. O nome é gravado em maiúsculas. */
   create: (name: string) => api.post<{ data: Category }>("/categories", { name }).then((r) => r.data),
-  /** Só admin. Inativa: some da escolha ao abrir/alterar chamados. */
+  /** Só super support. Inativa: some da escolha ao abrir/alterar chamados. */
   setActive: (id: number, active: boolean) =>
     api.patch<{ data: Category }>(`/categories/${id}`, { active }).then((r) => r.data),
 };
 
 export const settingsService = {
   get: () => api.get<{ data: AppSettings }>("/settings").then((r) => r.data),
-  /** Só admin. */
+  /** Admin e super support. */
   update: (data: Partial<AppSettings>) => api.put<{ data: AppSettings }>("/settings", data).then((r) => r.data),
 };
 

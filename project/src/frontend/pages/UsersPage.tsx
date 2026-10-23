@@ -10,10 +10,12 @@ import type { Role, User } from "../services/types";
 import { formatDateTime, ROLE_LABEL } from "../utils/format";
 
 export function UsersPage() {
-  const { user: me, isAdmin } = useAuth();
+  const { user: me, isSuper } = useAuth();
   // Configuração: o suporte pode estar proibido de cadastrar e editar usuários.
   const settings = useAppSettings();
-  const canWrite = isAdmin || !settings?.blockSupportUserManagement;
+  const canWrite = isSuper || !settings?.blockSupportUserManagement;
+  // O suporte não edita contas admin nem super support (regra também aplicada na API).
+  const isProtected = (role: Role) => role === "admin" || role === "super_support";
   const [search, setSearch] = useState("");
   const [role, setRole] = useState<Role | "">("");
   const [active, setActive] = useState<"true" | "false" | "">("");
@@ -50,7 +52,7 @@ export function UsersPage() {
 
       {!canWrite && (
         <div className="alert alert-warn" role="status" style={{ marginBottom: 16 }}>
-          O cadastro e a edição de usuários estão restritos a administradores. Você pode consultar a lista.
+          O cadastro e a edição de usuários estão restritos ao super support. Você pode consultar a lista.
         </div>
       )}
 
@@ -65,7 +67,7 @@ export function UsersPage() {
           key={editing === "new" ? "new" : editing.id}
           user={editing === "new" ? null : editing}
           isSelf={editing !== "new" && editing.id === me?.id}
-          canGrantAdmin={isAdmin}
+          canGrantAdmin={isSuper}
           onCancel={() => setEditing(null)}
           onSaved={onSaved}
         />
@@ -87,6 +89,7 @@ export function UsersPage() {
           <label htmlFor="u-role">Perfil</label>
           <select id="u-role" className="select" value={role} onChange={(e) => setRole(e.target.value as Role | "")}>
             <option value="">Todos</option>
+            <option value="super_support">Super support</option>
             <option value="admin">Administrador</option>
             <option value="support">Suporte</option>
             <option value="comum">Comum</option>
@@ -134,13 +137,13 @@ export function UsersPage() {
                   </td>
                   <td>{u.email}</td>
                   <td>
-                    <span className={u.role === "admin" ? "tag" : "tag tag-muted"}>{ROLE_LABEL[u.role]}</span>
+                    <span className={u.role === "comum" ? "tag tag-muted" : "tag"}>{ROLE_LABEL[u.role]}</span>
                   </td>
                   <td>{u.active ? "Ativo" : <span className="muted">Desativado</span>}</td>
                   <td className="muted">{formatDateTime(u.createdAt)}</td>
                   <td className="num">
-                    {/* O suporte não altera administradores (regra também aplicada na API). */}
-                    {canWrite && (isAdmin || u.role !== "admin") && (
+                    {/* O suporte não altera admins nem super supports (regra também aplicada na API). */}
+                    {canWrite && (isSuper || !isProtected(u.role)) && (
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
@@ -178,7 +181,7 @@ function UserForm({
 }: {
   user: User | null;
   isSelf: boolean;
-  /** Só admin pode criar ou promover administradores. */
+  /** Só super support cria ou promove administradores e super supports. */
   canGrantAdmin: boolean;
   onCancel: () => void;
   onSaved: (message: string) => void;
@@ -250,7 +253,10 @@ function UserForm({
           >
             <option value="comum">Comum: abre e acompanha os próprios chamados</option>
             <option value="support">Suporte: assume chamados sem responsável e ajusta prioridade e categoria</option>
-            {canGrantAdmin && <option value="admin">Administrador: atende chamados e gerencia o sistema</option>}
+            {canGrantAdmin && (
+              <option value="admin">Administrador: como o comum, mais as páginas de Administração</option>
+            )}
+            {canGrantAdmin && <option value="super_support">Super support: acesso total</option>}
           </select>
         </Field>
         <Field

@@ -23,9 +23,14 @@ export interface AuthState {
   user: User | null;
   /** true enquanto a sessão salva ainda está sendo verificada. */
   loading: boolean;
-  isAdmin: boolean;
-  /** Admin ou suporte: veem todos os chamados e atendem. */
+  /** Super support: acesso total. */
+  isSuper: boolean;
+  /** Suporte ou super support: veem todos os chamados e atendem. */
   isStaff: boolean;
+  /** Admin ou super support: páginas de Administração. */
+  canAdministrate: boolean;
+  /** Comum ou admin: só os próprios chamados, com as regras do usuário comum. */
+  isRequesterOnly: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: { name: string; email: string; password: string }) => Promise<void>;
   /** Sem motivo: o usuário saiu. "idle": inatividade (também encerra no servidor). */
@@ -94,8 +99,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       loading,
-      isAdmin: user?.role === "admin",
-      isStaff: user?.role === "admin" || user?.role === "support",
+      isSuper: user?.role === "super_support",
+      isStaff: user?.role === "support" || user?.role === "super_support",
+      canAdministrate: user?.role === "admin" || user?.role === "super_support",
+      isRequesterOnly: user?.role === "comum" || user?.role === "admin",
       login: async (email, password) => {
         const result = await authService.login(email, password);
         tokenStore.set(result.token);

@@ -11,8 +11,8 @@ import { hashPassword } from "../utils/password.js";
 const SEED_PASSWORD = "Exemplo@2026";
 
 const USERS = [
-  { key: "bruno", name: "Bruno Almeida", email: "bruno.almeida@deskhelp.local", role: "admin" },
-  { key: "fernanda", name: "Fernanda Lima", email: "fernanda.lima@deskhelp.local", role: "admin" },
+  { key: "bruno", name: "Bruno Almeida", email: "bruno.almeida@deskhelp.local", role: "super_support" },
+  { key: "fernanda", name: "Fernanda Lima", email: "fernanda.lima@deskhelp.local", role: "super_support" },
   { key: "ana", name: "Ana Souza", email: "ana.souza@deskhelp.local", role: "comum" },
   { key: "carlos", name: "Carlos Pereira", email: "carlos.pereira@deskhelp.local", role: "comum" },
   { key: "juliana", name: "Juliana Rocha", email: "juliana.rocha@deskhelp.local", role: "comum" },

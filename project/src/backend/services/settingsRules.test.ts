@@ -51,10 +51,11 @@ describe("parseSettings", () => {
 describe("hidesPriority", () => {
   const on = { ...DEFAULT_SETTINGS, hidePriorityForComum: true };
 
-  it("hides priority only from common users, and only when enabled", () => {
+  it("hides priority from common users and admins (same rules), only when enabled", () => {
     expect(hidesPriority({ id: 1, role: "comum" }, on)).toBe(true);
+    expect(hidesPriority({ id: 1, role: "admin" }, on)).toBe(true);
     expect(hidesPriority({ id: 1, role: "support" }, on)).toBe(false);
-    expect(hidesPriority({ id: 1, role: "admin" }, on)).toBe(false);
+    expect(hidesPriority({ id: 1, role: "super_support" }, on)).toBe(false);
     expect(hidesPriority({ id: 1, role: "comum" }, DEFAULT_SETTINGS)).toBe(false);
   });
 });
@@ -109,11 +110,11 @@ describe("assertCanWriteUsers", () => {
   const blocked = { ...DEFAULT_SETTINGS, blockSupportUserManagement: true };
 
   it("blocks support from creating or editing users when enabled", () => {
-    expect(() => assertCanWriteUsers({ id: 7, role: "support" }, blocked)).toThrow(/administradores/);
+    expect(() => assertCanWriteUsers({ id: 7, role: "support" }, blocked)).toThrow(/super suporte/);
   });
 
-  it("never blocks admins, and allows support when disabled", () => {
-    expect(() => assertCanWriteUsers({ id: 1, role: "admin" }, blocked)).not.toThrow();
+  it("never blocks super support, and allows support when disabled", () => {
+    expect(() => assertCanWriteUsers({ id: 1, role: "super_support" }, blocked)).not.toThrow();
     expect(() => assertCanWriteUsers({ id: 7, role: "support" }, DEFAULT_SETTINGS)).not.toThrow();
   });
 });

@@ -49,9 +49,11 @@ export function App() {
             <Route
               path="api-docs"
               element={
-                <Suspense fallback={<Loading />}>
-                  <ApiDocsPage />
-                </Suspense>
+                <RequireAuth superSupport>
+                  <Suspense fallback={<Loading />}>
+                    <ApiDocsPage />
+                  </Suspense>
+                </RequireAuth>
               }
             />
             <Route
@@ -73,7 +75,7 @@ export function App() {
             <Route
               path="relatorios"
               element={
-                <RequireAuth admin>
+                <RequireAuth administration>
                   <TicketReportPage />
                 </RequireAuth>
               }
@@ -81,7 +83,7 @@ export function App() {
             <Route
               path="relatorios/maquinas"
               element={
-                <RequireAuth admin>
+                <RequireAuth administration>
                   <MachineReportPage />
                 </RequireAuth>
               }
@@ -89,7 +91,7 @@ export function App() {
             <Route
               path="relatorios/solicitantes"
               element={
-                <RequireAuth admin>
+                <RequireAuth administration>
                   <PeopleReportPage key="requesters" kind="requesters" />
                 </RequireAuth>
               }
@@ -97,7 +99,7 @@ export function App() {
             <Route
               path="relatorios/responsaveis"
               element={
-                <RequireAuth admin>
+                <RequireAuth administration>
                   <PeopleReportPage key="assignees" kind="assignees" />
                 </RequireAuth>
               }
@@ -105,7 +107,7 @@ export function App() {
             <Route
               path="categorias"
               element={
-                <RequireAuth admin>
+                <RequireAuth superSupport>
                   <CategoriesPage />
                 </RequireAuth>
               }
@@ -113,7 +115,7 @@ export function App() {
             <Route
               path="configuracoes"
               element={
-                <RequireAuth admin>
+                <RequireAuth administration>
                   <SettingsPage />
                 </RequireAuth>
               }

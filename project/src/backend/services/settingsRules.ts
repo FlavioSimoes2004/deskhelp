@@ -1,12 +1,13 @@
 import type { AuthUser } from "../models/types.js";
 import { HttpError } from "../utils/httpError.js";
+import { isRequesterOnly } from "./roleRules.js";
 
 export interface AppSettings {
-  /** Usuários "comum" não veem (nem escolhem) a prioridade dos chamados. */
+  /** Usuários comuns (e admins, que seguem as regras do comum) não veem nem escolhem a prioridade. */
   hidePriorityForComum: boolean;
-  /** Usuários "comum" abrem chamados sem prioridade; admin/suporte definem depois. */
+  /** Usuários comuns (e admins) abrem chamados sem prioridade; o suporte define depois. */
   priorityByStaffOnly: boolean;
-  /** Suporte não cria nem edita usuários (só admin). */
+  /** Suporte não cria nem edita usuários (só super suporte). */
   blockSupportUserManagement: boolean;
   /** Ninguém consegue enviar comentários (nem notas internas). */
   commentsLocked: boolean;
@@ -55,22 +56,22 @@ export function serializeSetting(value: AppSettings[keyof AppSettings]): string 
 
 /**
  * Prioridade de um chamado novo: sem prioridade quando só o suporte a define; a padrão
- * quando a prioridade está escondida; senão, a escolhida. Vale só para usuários "comum".
+ * quando a prioridade está escondida; senão, a escolhida. Vale para comum e admin.
  */
 export function newTicketPriority<P>(user: AuthUser, settings: AppSettings, chosen: P, fallback: P): P | null {
-  if (user.role !== "comum") return chosen;
+  if (!isRequesterOnly(user.role)) return chosen;
   if (settings.priorityByStaffOnly) return null;
   if (settings.hidePriorityForComum) return fallback;
   return chosen;
 }
 
 export const hidesPriority = (user: AuthUser, settings: AppSettings) =>
-  settings.hidePriorityForComum && user.role === "comum";
+  settings.hidePriorityForComum && isRequesterOnly(user.role);
 
-/** Com a configuração ligada, só admin cria e edita usuários. */
+/** Com a configuração ligada, só super suporte cria e edita usuários. */
 export function assertCanWriteUsers(user: AuthUser, settings: AppSettings): void {
   if (user.role === "support" && settings.blockSupportUserManagement) {
-    throw new HttpError(403, "FORBIDDEN", "O cadastro e a edição de usuários estão restritos a administradores");
+    throw new HttpError(403, "FORBIDDEN", "O cadastro e a edição de usuários estão restritos ao super suporte");
   }
 }
 

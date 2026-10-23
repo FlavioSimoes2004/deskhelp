@@ -8,6 +8,7 @@ import type { UploadedFile } from "../middlewares/upload.js";
 import { removeStored, resolveStored, saveFile } from "../utils/fileStorage.js";
 import { forbidden, HttpError, notFound } from "../utils/httpError.js";
 import { assignmentRecipient, commentRecipients } from "./notificationRules.js";
+import { isRequesterOnly } from "./roleRules.js";
 import { getSettings } from "./settingsService.js";
 import { assertBelowOpenTicketLimit, assertCommentsOpen, hidesPriority, newTicketPriority } from "./settingsRules.js";
 import {
@@ -143,10 +144,10 @@ export async function rateTicket(user: AuthUser, id: number, rating: number, com
   return getTicketDetail(user, id);
 }
 
-/** Usuário comum marca o próprio chamado como resolvido. */
+/** Quem abriu (comum ou admin) marca o próprio chamado como resolvido. */
 export async function resolveOwnTicket(user: AuthUser, id: number) {
   const current = await getVisibleTicket(user, id);
-  if (user.role !== "comum" || current.requesterId !== user.id) {
+  if (!isRequesterOnly(user.role) || current.requesterId !== user.id) {
     throw forbidden("Somente quem abriu o chamado pode marcá-lo como resolvido");
   }
   if (current.status === "resolvido" || current.status === "fechado") {
@@ -213,7 +214,7 @@ export function getOldestOpenDate(user: AuthUser) {
   return tickets.oldestOpenTicketDate(isStaff(user.role) ? undefined : user.id);
 }
 
-/** Resumo para a página inicial: admin e suporte veem o geral e o que está com eles; comum vê os próprios. */
+/** Resumo para a página inicial: a equipe vê o geral e o que está com ela; comum e admin, os próprios. */
 export async function getOverview(user: AuthUser) {
   if (isStaff(user.role)) {
     const [all, assignedToMe] = await Promise.all([
