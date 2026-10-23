@@ -87,7 +87,7 @@ export function NewTicketPage() {
               <option value="" disabled>
                 Escolha uma categoria
               </option>
-              {categories.data?.map((c) => (
+              {categories.data?.filter((c) => c.active).map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>

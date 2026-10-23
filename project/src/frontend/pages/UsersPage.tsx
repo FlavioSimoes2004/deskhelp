@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { EmptyState, ErrorAlert, Loading } from "../components/Feedback";
 import { Field } from "../components/Field";
+import { useAppSettings } from "../hooks/useAppSettings";
 import { useAsync } from "../hooks/useAsync";
 import { useAuth } from "../hooks/useAuth";
 import { ApiError } from "../services/api";
@@ -10,6 +11,9 @@ import { formatDateTime, ROLE_LABEL } from "../utils/format";
 
 export function UsersPage() {
   const { user: me, isAdmin } = useAuth();
+  // Configuração: o suporte pode estar proibido de cadastrar e editar usuários.
+  const settings = useAppSettings();
+  const canWrite = isAdmin || !settings?.blockSupportUserManagement;
   const [search, setSearch] = useState("");
   const [role, setRole] = useState<Role | "">("");
   const [active, setActive] = useState<"true" | "false" | "">("");
@@ -30,17 +34,25 @@ export function UsersPage() {
           <h1>Usuários</h1>
           <p>Cadastre pessoas, defina o perfil de cada uma e desative contas que não devem mais entrar.</p>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => {
-            setNotice(null);
-            setEditing("new");
-          }}
-        >
-          Cadastrar usuário
-        </button>
+        {canWrite && (
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              setNotice(null);
+              setEditing("new");
+            }}
+          >
+            Cadastrar usuário
+          </button>
+        )}
       </div>
+
+      {!canWrite && (
+        <div className="alert alert-warn" role="status" style={{ marginBottom: 16 }}>
+          O cadastro e a edição de usuários estão restritos a administradores. Você pode consultar a lista.
+        </div>
+      )}
 
       {notice && (
         <div className="alert alert-ok" role="status" style={{ marginBottom: 16 }}>
@@ -48,7 +60,7 @@ export function UsersPage() {
         </div>
       )}
 
-      {editing && (
+      {editing && canWrite && (
         <UserForm
           key={editing === "new" ? "new" : editing.id}
           user={editing === "new" ? null : editing}
@@ -128,7 +140,7 @@ export function UsersPage() {
                   <td className="muted">{formatDateTime(u.createdAt)}</td>
                   <td className="num">
                     {/* O suporte não altera administradores (regra também aplicada na API). */}
-                    {(isAdmin || u.role !== "admin") && (
+                    {canWrite && (isAdmin || u.role !== "admin") && (
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"

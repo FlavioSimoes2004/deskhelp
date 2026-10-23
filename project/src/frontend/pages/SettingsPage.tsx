@@ -11,6 +11,7 @@ export function SettingsPage() {
   const [form, setForm] = useState({
     hidePriorityForComum: false,
     priorityByStaffOnly: false,
+    blockSupportUserManagement: false,
     commentsLocked: false,
     limitEnabled: false,
     limit: "3",
@@ -26,6 +27,7 @@ export function SettingsPage() {
     setForm({
       hidePriorityForComum: s.hidePriorityForComum,
       priorityByStaffOnly: s.priorityByStaffOnly,
+      blockSupportUserManagement: s.blockSupportUserManagement,
       commentsLocked: s.commentsLocked,
       limitEnabled: s.maxOpenTicketsPerUser !== null,
       limit: String(s.maxOpenTicketsPerUser ?? 3),
@@ -42,6 +44,7 @@ export function SettingsPage() {
         await settingsService.update({
           hidePriorityForComum: form.hidePriorityForComum,
           priorityByStaffOnly: form.priorityByStaffOnly,
+          blockSupportUserManagement: form.blockSupportUserManagement,
           commentsLocked: form.commentsLocked,
           maxOpenTicketsPerUser: form.limitEnabled ? Number(form.limit) : null,
         }),
@@ -102,6 +105,24 @@ export function SettingsPage() {
                 <small>
                   Usuários comuns abrem chamados sem prioridade; admin ou suporte define depois, no painel “Atendimento”.
                   Esses chamados aparecem como “Sem prioridade” e podem ser filtrados assim na lista.
+                </small>
+              </span>
+            </label>
+          </fieldset>
+
+          <fieldset className="fieldset">
+            <legend>Usuários</legend>
+            <label className="setting-toggle">
+              <input
+                type="checkbox"
+                checked={form.blockSupportUserManagement}
+                onChange={(e) => setForm({ ...form, blockSupportUserManagement: e.target.checked })}
+              />
+              <span>
+                <strong>Proibir o suporte de cadastrar e editar usuários</strong>
+                <small>
+                  Só administradores cadastram, alteram, desativam ou trocam a senha de usuários. O suporte continua vendo a
+                  lista de usuários (somente leitura).
                 </small>
               </span>
             </label>

@@ -16,6 +16,7 @@ import {
   commentSchema,
   createAgendaSchema,
   createCategorySchema,
+  updateCategorySchema,
   updateAgendaSchema,
   createMachineSchema,
   createTicketSchema,
@@ -119,6 +120,7 @@ apiRouter.get("/machines/:id/history", staffOnly, byId, machineCtrl.history);
 // Somente administradores
 apiRouter.put("/settings", adminOnly, validate(settingsSchema), settingsCtrl.update);
 apiRouter.post("/categories", adminOnly, validate(createCategorySchema), categoryCtrl.create);
+apiRouter.patch("/categories/:id", adminOnly, byId, validate(updateCategorySchema), categoryCtrl.update);
 apiRouter.get("/reports/summary", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.summary);
 apiRouter.get("/reports/machines", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.machines);
 apiRouter.get("/reports/requesters", adminOnly, validate(reportQuerySchema, "query"), reportCtrl.requesters);

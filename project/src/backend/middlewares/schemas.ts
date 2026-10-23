@@ -92,10 +92,13 @@ export const createCategorySchema = z.object({
   name: z.string().trim().min(2, "O nome precisa ter pelo menos 2 caracteres").max(80),
 });
 
+export const updateCategorySchema = z.object({ active: z.boolean() });
+
 export const settingsSchema = z
   .object({
     hidePriorityForComum: z.boolean().optional(),
     priorityByStaffOnly: z.boolean().optional(),
+    blockSupportUserManagement: z.boolean().optional(),
     commentsLocked: z.boolean().optional(),
     // null = sem limite.
     maxOpenTicketsPerUser: z

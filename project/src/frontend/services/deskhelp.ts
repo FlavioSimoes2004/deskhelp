@@ -184,6 +184,9 @@ export const categoryService = {
   list: () => api.get<{ data: Category[] }>("/categories").then((r) => r.data),
   /** Só admin. O nome é gravado em maiúsculas. */
   create: (name: string) => api.post<{ data: Category }>("/categories", { name }).then((r) => r.data),
+  /** Só admin. Inativa: some da escolha ao abrir/alterar chamados. */
+  setActive: (id: number, active: boolean) =>
+    api.patch<{ data: Category }>(`/categories/${id}`, { active }).then((r) => r.data),
 };
 
 export const settingsService = {

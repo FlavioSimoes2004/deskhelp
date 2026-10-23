@@ -146,9 +146,11 @@ export function TicketsPage() {
             onChange={(e) => update({ categoryId: e.target.value })}
           >
             <option value="">Todas</option>
+            {/* O filtro lista também as desativadas, para achar chamados antigos. */}
             {categories.data?.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
+                {c.active ? "" : " (desativada)"}
               </option>
             ))}
           </select>

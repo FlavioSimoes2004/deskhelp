@@ -14,6 +14,8 @@ export interface User {
 export interface Category {
   id: number;
   name: string;
+  /** Aparece para escolher ao abrir/alterar um chamado. */
+  active: boolean;
 }
 
 export interface Ticket {
@@ -239,6 +241,8 @@ export interface AppSettings {
   hidePriorityForComum: boolean;
   /** Usuários "comum" abrem chamados sem prioridade; admin/suporte definem depois. */
   priorityByStaffOnly: boolean;
+  /** Suporte não cria nem edita usuários (só admin). */
+  blockSupportUserManagement: boolean;
   /** Conversa bloqueada: ninguém envia comentários. */
   commentsLocked: boolean;
   /** Máximo de chamados "aberto"/"em andamento" por usuário; null = sem limite. */

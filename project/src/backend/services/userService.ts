@@ -2,12 +2,15 @@ import * as users from "../models/userModel.js";
 import type { AuthUser, PublicUser, Role } from "../models/types.js";
 import { HttpError, notFound } from "../utils/httpError.js";
 import { hashPassword } from "../utils/password.js";
+import { getSettings } from "./settingsService.js";
+import { assertCanWriteUsers } from "./settingsRules.js";
 import { assertCanManageUser, assertCanUpdateUser } from "./userRules.js";
 
 export const listUsers = users.listUsers;
 export const listStaff = users.listStaff;
 
 export async function createUser(actor: AuthUser, data: { name: string; email: string; password: string; role: Role }) {
+  assertCanWriteUsers(actor, await getSettings());
   assertCanManageUser(actor, null, data);
   if (await users.findUserByEmail(data.email)) {
     throw new HttpError(409, "EMAIL_IN_USE", "Já existe uma conta com este e-mail");
@@ -29,6 +32,7 @@ export async function updateUser(
   id: number,
   data: { name?: string; email?: string; role?: Role; active?: boolean; password?: string },
 ) {
+  assertCanWriteUsers(actor, await getSettings());
   const target = await getUser(id);
   assertCanManageUser(actor, target, data);
   assertCanUpdateUser(actor, id, data);

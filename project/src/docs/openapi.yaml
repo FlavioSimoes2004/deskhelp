@@ -48,7 +48,8 @@ tags:
       Regras gerais da aplicação. Todos os usuários leem (as telas se ajustam); só admin altera.
       `hidePriorityForComum`: usuários `comum` recebem `priority: null`, sem histórico de prioridade, e
       não escolhem nem filtram por prioridade. `priorityByStaffOnly`: chamados abertos por usuários
-      `comum` são criados sem prioridade (`null`); admin ou suporte define depois. `commentsLocked`: `POST /tickets/{id}/comments` retorna
+      `comum` são criados sem prioridade (`null`); admin ou suporte define depois.
+      `blockSupportUserManagement`: `POST /users` e `PATCH /users/{id}` retornam 403 para o suporte. `commentsLocked`: `POST /tickets/{id}/comments` retorna
       409 `COMMENTS_LOCKED` para todos. `maxOpenTicketsPerUser`: `POST /tickets` retorna 409
       `OPEN_TICKET_LIMIT` quando quem abre já tem esse número de chamados `aberto`/`em_andamento`.
   - name: Agenda
@@ -238,6 +239,39 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
+
+  /categories/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    patch:
+      tags: [Chamados]
+      summary: Ativar ou desativar categoria (admin)
+      description: |
+        Categoria desativada some da escolha ao abrir um chamado ou trocar a categoria de um chamado
+        (a API recusa com 400). Chamados que já a usam continuam com ela.
+      operationId: updateCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [active]
+              properties:
+                active: { type: boolean }
+      responses:
+        "200":
+          description: Categoria atualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Category" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /tickets:
     get:
@@ -616,6 +650,7 @@ paths:
               properties:
                 hidePriorityForComum: { type: boolean }
                 priorityByStaffOnly: { type: boolean }
+                blockSupportUserManagement: { type: boolean }
                 commentsLocked: { type: boolean }
                 maxOpenTicketsPerUser: { type: [integer, "null"], minimum: 1, maximum: 1000, description: null = sem limite }
             example: { commentsLocked: false, maxOpenTicketsPerUser: 3 }
@@ -1366,7 +1401,8 @@ components:
       type: object
       properties:
         id: { type: integer }
-        name: { type: string, example: Rede e internet }
+        name: { type: string, example: REDE E INTERNET, description: Sempre em maiúsculas }
+        active: { type: boolean, description: Aparece para escolher ao abrir/alterar um chamado }
     Ticket:
       type: object
       properties:
@@ -1544,6 +1580,7 @@ components:
       properties:
         hidePriorityForComum: { type: boolean, description: Esconde a prioridade de usuários comuns }
         priorityByStaffOnly: { type: boolean, description: Usuários comuns abrem chamados sem prioridade }
+        blockSupportUserManagement: { type: boolean, description: Suporte não cria nem edita usuários }
         commentsLocked: { type: boolean, description: Bloqueia novos comentários para todos }
         maxOpenTicketsPerUser: { type: [integer, "null"], description: Máximo de chamados aberto/em andamento por usuário }
     AgendaItem:

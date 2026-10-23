@@ -49,8 +49,8 @@ Regras importantes:
 | `/relatorios` | Indicadores por período + exportação CSV | admin |
 | `/relatorios/maquinas` | Chamados por máquina no período, por status e por categoria | admin |
 | `/relatorios/solicitantes` | Chamados por quem abriu, no período: status, categoria e resolução | admin |
-| `/categorias` | Lista e cadastro de categorias (nomes sempre em maiúsculas) | admin |
-| `/configuracoes` | Configurações gerais: esconder prioridade de usuários comuns, só o suporte definir a prioridade, bloquear conversa, limitar chamados abertos por usuário | admin |
+| `/categorias` | Lista, cadastro e ativação/desativação de categorias (nomes sempre em maiúsculas; desativadas somem da escolha nos chamados) | admin |
+| `/configuracoes` | Configurações gerais: esconder prioridade de usuários comuns, só o suporte definir a prioridade, proibir o suporte de cadastrar/editar usuários, bloquear conversa, limitar chamados abertos por usuário | admin |
 | `/relatorios/responsaveis` | Chamados por responsável, no período: status, categoria e resolução | admin |
 
 ## Instalação (Fedora)

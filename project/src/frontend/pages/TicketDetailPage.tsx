@@ -551,11 +551,15 @@ function ManagePanel({
         </Field>
         <Field label="Categoria">
           <select className="select" value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
+            {/* Só as ativas; a atual continua na lista mesmo desativada, para não trocar sem querer. */}
+            {categories
+              .filter((c) => c.active || c.id === ticket.categoryId)
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.active ? "" : " (desativada)"}
+                </option>
+              ))}
           </select>
         </Field>
         <Field

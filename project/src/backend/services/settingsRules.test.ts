@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assertBelowOpenTicketLimit,
+  assertCanWriteUsers,
   assertCommentsOpen,
   DEFAULT_SETTINGS,
   hidesPriority,
@@ -17,7 +18,13 @@ describe("parseSettings", () => {
   it("reads saved values", () => {
     expect(
       parseSettings({ hide_priority_for_comum: "1", comments_locked: "1", max_open_tickets_per_user: "3" }),
-    ).toEqual({ hidePriorityForComum: true, priorityByStaffOnly: false, commentsLocked: true, maxOpenTicketsPerUser: 3 });
+    ).toEqual({
+      hidePriorityForComum: true,
+      priorityByStaffOnly: false,
+      blockSupportUserManagement: false,
+      commentsLocked: true,
+      maxOpenTicketsPerUser: 3,
+    });
   });
 
   it("treats 0 or invalid limits as no limit", () => {
@@ -34,6 +41,7 @@ describe("parseSettings", () => {
     expect(parseSettings(rows)).toEqual({
       hidePriorityForComum: true,
       priorityByStaffOnly: false,
+      blockSupportUserManagement: false,
       commentsLocked: false,
       maxOpenTicketsPerUser: null,
     });
@@ -94,5 +102,18 @@ describe("newTicketPriority", () => {
   it("prefers 'no priority' when both settings are on", () => {
     const both = { ...DEFAULT_SETTINGS, hidePriorityForComum: true, priorityByStaffOnly: true };
     expect(newTicketPriority(comum, both, "alta", "media")).toBeNull();
+  });
+});
+
+describe("assertCanWriteUsers", () => {
+  const blocked = { ...DEFAULT_SETTINGS, blockSupportUserManagement: true };
+
+  it("blocks support from creating or editing users when enabled", () => {
+    expect(() => assertCanWriteUsers({ id: 7, role: "support" }, blocked)).toThrow(/administradores/);
+  });
+
+  it("never blocks admins, and allows support when disabled", () => {
+    expect(() => assertCanWriteUsers({ id: 1, role: "admin" }, blocked)).not.toThrow();
+    expect(() => assertCanWriteUsers({ id: 7, role: "support" }, DEFAULT_SETTINGS)).not.toThrow();
   });
 });

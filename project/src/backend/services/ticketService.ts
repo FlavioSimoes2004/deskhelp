@@ -1,4 +1,4 @@
-import { categoryExists } from "../models/categoryModel.js";
+import { findCategoryById } from "../models/categoryModel.js";
 import * as tickets from "../models/ticketModel.js";
 import type { AuthUser, Ticket, TicketPriority } from "../models/types.js";
 import { findMachineById } from "../models/machineModel.js";
@@ -30,11 +30,12 @@ async function getVisibleTicket(user: AuthUser, id: number): Promise<Ticket> {
   return ticket;
 }
 
+/** Categoria que pode ser escolhida: existe e está ativa. */
 async function assertCategory(categoryId: number) {
-  if (!(await categoryExists(categoryId))) {
-    throw new HttpError(400, "VALIDATION_ERROR", "Categoria inválida", [
-      { field: "categoryId", message: "Categoria inválida" },
-    ]);
+  const category = await findCategoryById(categoryId);
+  if (!category || !category.active) {
+    const message = category ? "Esta categoria está desativada" : "Categoria inválida";
+    throw new HttpError(400, "VALIDATION_ERROR", message, [{ field: "categoryId", message }]);
   }
 }
 
@@ -97,7 +98,8 @@ export async function createTicket(
 export async function updateTicket(user: AuthUser, id: number, requested: Partial<TicketEditableFields>) {
   const current = await getVisibleTicket(user, id);
   const patch = user.role === "support" ? applySupportRules(user, current, requested) : requested;
-  if (patch.categoryId !== undefined) await assertCategory(patch.categoryId);
+  // Manter a categoria atual vale mesmo que ela tenha sido desativada; trocar, só por uma ativa.
+  if (patch.categoryId !== undefined && patch.categoryId !== current.categoryId) await assertCategory(patch.categoryId);
   if (patch.assigneeId != null) {
     const assignee = await findUserById(patch.assigneeId);
     if (!assignee || !isStaff(assignee.role) || !assignee.active) {

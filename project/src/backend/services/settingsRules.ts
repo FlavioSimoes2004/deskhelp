@@ -6,6 +6,8 @@ export interface AppSettings {
   hidePriorityForComum: boolean;
   /** Usuários "comum" abrem chamados sem prioridade; admin/suporte definem depois. */
   priorityByStaffOnly: boolean;
+  /** Suporte não cria nem edita usuários (só admin). */
+  blockSupportUserManagement: boolean;
   /** Ninguém consegue enviar comentários (nem notas internas). */
   commentsLocked: boolean;
   /** Máximo de chamados "aberto"/"em andamento" por usuário; null = sem limite. */
@@ -15,6 +17,7 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   hidePriorityForComum: false,
   priorityByStaffOnly: false,
+  blockSupportUserManagement: false,
   commentsLocked: false,
   maxOpenTicketsPerUser: null,
 };
@@ -23,6 +26,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 export const SETTING_KEYS: Record<keyof AppSettings, string> = {
   hidePriorityForComum: "hide_priority_for_comum",
   priorityByStaffOnly: "priority_by_staff_only",
+  blockSupportUserManagement: "block_support_user_management",
   commentsLocked: "comments_locked",
   maxOpenTicketsPerUser: "max_open_tickets_per_user",
 };
@@ -37,6 +41,7 @@ export function parseSettings(rows: Record<string, string>): AppSettings {
   return {
     hidePriorityForComum: bool("hidePriorityForComum"),
     priorityByStaffOnly: bool("priorityByStaffOnly"),
+    blockSupportUserManagement: bool("blockSupportUserManagement"),
     commentsLocked: bool("commentsLocked"),
     maxOpenTicketsPerUser: Number.isInteger(limit) && limit > 0 ? limit : null,
   };
@@ -61,6 +66,13 @@ export function newTicketPriority<P>(user: AuthUser, settings: AppSettings, chos
 
 export const hidesPriority = (user: AuthUser, settings: AppSettings) =>
   settings.hidePriorityForComum && user.role === "comum";
+
+/** Com a configuração ligada, só admin cria e edita usuários. */
+export function assertCanWriteUsers(user: AuthUser, settings: AppSettings): void {
+  if (user.role === "support" && settings.blockSupportUserManagement) {
+    throw new HttpError(403, "FORBIDDEN", "O cadastro e a edição de usuários estão restritos a administradores");
+  }
+}
 
 export function assertCommentsOpen(settings: AppSettings): void {
   if (settings.commentsLocked) {

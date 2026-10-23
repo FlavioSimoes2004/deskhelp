@@ -23,12 +23,18 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS session_id CHAR(36) NULL AFTER active
 -- Bancos criados antes do perfil 'support' recebem a nova opção.
 ALTER TABLE users MODIFY role ENUM('admin', 'comum', 'support') NOT NULL DEFAULT 'comum';
 
+-- active = 1: a categoria aparece para escolher ao abrir/alterar um chamado; 0: some da escolha
+-- (chamados que já a usam continuam com ela).
 CREATE TABLE IF NOT EXISTS categories (
-  id   INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  name VARCHAR(80) NOT NULL,
+  id     INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name   VARCHAR(80) NOT NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (id),
   UNIQUE KEY uq_categories_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Bancos criados antes da coluna categories.active.
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS active TINYINT(1) NOT NULL DEFAULT 1 AFTER name;
 
 -- Nome da categoria sempre em maiúsculas, ao cadastrar e ao alterar (inclusive por SQL direto).
 CREATE TRIGGER IF NOT EXISTS trg_categories_upper_insert BEFORE INSERT ON categories
@@ -243,7 +249,8 @@ CREATE TABLE IF NOT EXISTS ticket_history (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Configurações gerais da aplicação (alteradas por admins na página Configurações).
--- Chaves: hide_priority_for_comum, priority_by_staff_only, comments_locked, max_open_tickets_per_user.
+-- Chaves: hide_priority_for_comum, priority_by_staff_only, comments_locked, max_open_tickets_per_user,
+-- block_support_user_management.
 CREATE TABLE IF NOT EXISTS app_settings (
   setting_key VARCHAR(60) NOT NULL,
   value       VARCHAR(255) NOT NULL,
