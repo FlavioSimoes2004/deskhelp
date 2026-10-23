@@ -11,7 +11,7 @@ import { ThemePicker } from "./ThemePicker";
 const navClass = ({ isActive }: { isActive: boolean }) => `nav-link${isActive ? " active" : ""}`;
 
 export function Layout() {
-  const { user, isSuper, isStaff, canAdministrate, logout } = useAuth();
+  const { user, isSuper, isStaff, canAdministrate, canViewAllTickets, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const location = useLocation();
 
@@ -45,7 +45,7 @@ export function Layout() {
             Início
           </NavLink>
           <NavLink to="/chamados" end className={navClass}>
-            {isStaff ? "Chamados" : "Meus chamados"}
+            {canViewAllTickets ? "Chamados" : "Meus chamados"}
           </NavLink>
           <NavLink to="/chamados/novo" className={navClass}>
             Abrir chamado

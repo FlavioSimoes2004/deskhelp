@@ -84,7 +84,7 @@ function describeChange(
 
 export function TicketDetailPage() {
   const id = Number(useParams().id);
-  const { user, isSuper, isStaff, isRequesterOnly } = useAuth();
+  const { user, isSuper, isStaff, isRequesterOnly, canViewAllTickets } = useAuth();
   const justCreated = Boolean((useLocation().state as { created?: boolean } | null)?.created);
 
   const ticket = useAsync(() => ticketService.get(id), [id]);
@@ -92,7 +92,11 @@ export function TicketDetailPage() {
   // Mensagens novas, mudanças de status e do histórico aparecem sem recarregar a página.
   useLiveRefresh(ticket.refresh);
   const categories = useAsync(() => ticketService.categories(), []);
-  const staff = useAsync(() => (isStaff ? userService.staff() : Promise.resolve([])), [isStaff]);
+  // Nomes dos responsáveis (histórico e atendimento); o admin também vê todos os chamados.
+  const staff = useAsync(
+    () => (canViewAllTickets ? userService.staff() : Promise.resolve([])),
+    [canViewAllTickets],
+  );
   const machines = useAsync(() => (isStaff ? machineService.list() : Promise.resolve([])), [isStaff]);
 
   const loadedId = ticket.data?.id;

@@ -108,7 +108,8 @@ apiRouter.patch("/notifications/:id", byId, validate(updateNotificationSchema), 
 
 // Suporte e super suporte (o suporte tem regras próprias no ticketService)
 apiRouter.patch("/tickets/:id", staffOnly, byId, validate(updateTicketSchema), ticketCtrl.update);
-apiRouter.get("/users/staff", staffOnly, userCtrl.staff);
+// Responsáveis possíveis: para a equipe e para o admin (que vê todos os chamados e filtra por responsável).
+apiRouter.get("/users/staff", requireRole("support", "super_support", "admin"), userCtrl.staff);
 
 // Usuários e máquinas: suporte e super suporte (o suporte não gerencia admins nem super suportes)
 apiRouter.get("/users", staffOnly, validate(userQuerySchema, "query"), userCtrl.list);

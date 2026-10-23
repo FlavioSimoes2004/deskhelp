@@ -16,7 +16,7 @@ function greeting() {
 }
 
 export function HomePage() {
-  const { user, isStaff } = useAuth();
+  const { user, isStaff, canViewAllTickets } = useAuth();
   // Configuração: usuário comum pode não ver a prioridade.
   const settings = useAppSettings();
   const showPriority = isStaff || !settings?.hidePriorityForComum;
@@ -43,7 +43,7 @@ export function HomePage() {
             {greeting()}, {firstName}
           </h1>
           <p>
-            {isStaff
+            {canViewAllTickets
               ? "Esta é a situação de todos os chamados da equipe."
               : "Acompanhe aqui os chamados que você abriu."}
           </p>
@@ -55,7 +55,7 @@ export function HomePage() {
 
       <section className="panel" aria-labelledby="dist-title">
         <div className="panel-head">
-          <h2 id="dist-title">{isStaff ? "Todos os chamados por status" : "Seus chamados por status"}</h2>
+          <h2 id="dist-title">{canViewAllTickets ? "Todos os chamados por status" : "Seus chamados por status"}</h2>
         </div>
         <ErrorAlert error={overview.error} onRetry={overview.reload} />
         {overview.data ? <StatusStrip counts={overview.data.byStatus} linkPrefix="/chamados?" /> : !overview.error && <Loading />}
@@ -89,7 +89,7 @@ export function HomePage() {
         {recent.loading ? (
           <Loading />
         ) : recent.data?.data.length ? (
-          <TicketTable tickets={recent.data.data} showRequester={isStaff} showPriority={showPriority} />
+          <TicketTable tickets={recent.data.data} showRequester={canViewAllTickets} showPriority={showPriority} />
         ) : (
           <EmptyState
             title="Nenhum chamado ainda"

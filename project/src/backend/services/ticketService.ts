@@ -8,7 +8,7 @@ import type { UploadedFile } from "../middlewares/upload.js";
 import { removeStored, resolveStored, saveFile } from "../utils/fileStorage.js";
 import { forbidden, HttpError, notFound } from "../utils/httpError.js";
 import { assignmentRecipient, commentRecipients } from "./notificationRules.js";
-import { isRequesterOnly } from "./roleRules.js";
+import { canViewAllTickets, isRequesterOnly } from "./roleRules.js";
 import { getSettings } from "./settingsService.js";
 import {
   assertBelowOpenTicketLimit,
@@ -69,7 +69,7 @@ export async function listTickets(user: AuthUser, query: TicketQuery) {
       { field: "from", message: "A data inicial deve ser anterior à final" },
     ]);
   }
-  const scoped = isStaff(user.role) ? filters : { ...filters, requesterId: user.id };
+  const scoped = canViewAllTickets(user.role) ? filters : { ...filters, requesterId: user.id };
   const { items, total } = await tickets.listTickets(scoped, page, pageSize);
   return { data: items.map((t) => present(t, hide)), pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) } };
 }
@@ -264,11 +264,13 @@ export async function getAttachmentFile(user: AuthUser, attachmentId: number) {
 
 /** Data do chamado aberto/em andamento mais antigo que o usuário pode ver (padrão do filtro "De"). */
 export function getOldestOpenDate(user: AuthUser) {
-  return tickets.oldestOpenTicketDate(isStaff(user.role) ? undefined : user.id);
+  return tickets.oldestOpenTicketDate(canViewAllTickets(user.role) ? undefined : user.id);
 }
 
-/** Resumo para a página inicial: a equipe vê o geral e o que está com ela; comum e admin, os próprios. */
+/** Resumo para a página inicial: a equipe vê o geral e o que está com ela; admin, o geral; comum, os próprios. */
 export async function getOverview(user: AuthUser) {
+  // Admin vê o geral, mas não atende (não tem "com você agora").
+  if (user.role === "admin") return { byStatus: await tickets.countByStatus({}) };
   if (isStaff(user.role)) {
     const [all, assignedToMe] = await Promise.all([
       tickets.countByStatus({}),

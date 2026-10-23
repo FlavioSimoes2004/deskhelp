@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canAdministrate, isProtectedRole, isRequesterOnly, isStaff, isSuper } from "./roleRules.js";
+import { canAdministrate, canViewAllTickets, isProtectedRole, isRequesterOnly, isStaff, isSuper } from "./roleRules.js";
 
 describe("role capabilities", () => {
   it("gives super support everything", () => {
@@ -26,5 +26,12 @@ describe("role capabilities", () => {
   it("protects admin and super support accounts from support", () => {
     expect(isProtectedRole("admin") && isProtectedRole("super_support")).toBe(true);
     expect(isProtectedRole("support") || isProtectedRole("comum")).toBe(false);
+  });
+});
+
+describe("canViewAllTickets", () => {
+  it("lets staff and admins see every ticket, but not common users", () => {
+    expect(["support", "super_support", "admin"].every((r) => canViewAllTickets(r as "admin"))).toBe(true);
+    expect(canViewAllTickets("comum")).toBe(false);
   });
 });

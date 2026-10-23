@@ -13,7 +13,7 @@ import { isoDay, PRIORITY_LABEL, PRIORITY_ORDER, STATUS_LABEL, STATUS_ORDER } fr
 const PAGE_SIZE = 20;
 
 export function TicketsPage() {
-  const { isStaff } = useAuth();
+  const { isStaff, canViewAllTickets } = useAuth();
   // Configuração: usuário comum não vê a prioridade, então também não filtra por ela.
   const settings = useAppSettings();
   const showPriority = isStaff || !settings?.hidePriorityForComum;
@@ -47,7 +47,10 @@ export function TicketsPage() {
   }, [searchDraft]);
 
   const categories = useAsync(() => ticketService.categories(), []);
-  const staff = useAsync(() => (isStaff ? userService.staff() : Promise.resolve([])), [isStaff]);
+  const staff = useAsync(
+    () => (canViewAllTickets ? userService.staff() : Promise.resolve([])),
+    [canViewAllTickets],
+  );
   const list = useAsync(
     () =>
       waitingDefault
@@ -89,9 +92,9 @@ export function TicketsPage() {
     <div className="page">
       <div className="page-head">
         <div>
-          <h1>{isStaff ? "Chamados" : "Meus chamados"}</h1>
+          <h1>{canViewAllTickets ? "Chamados" : "Meus chamados"}</h1>
           <p>
-            {isStaff ? "Todos os chamados abertos na empresa." : "Os chamados que você abriu e o andamento de cada um."}
+            {canViewAllTickets ? "Todos os chamados abertos na empresa." : "Os chamados que você abriu e o andamento de cada um."}
           </p>
         </div>
         <Link className="btn btn-primary" to="/chamados/novo">
@@ -190,7 +193,7 @@ export function TicketsPage() {
             onChange={(e) => update({ to: e.target.value })}
           />
         </div>
-        {isStaff && (
+        {canViewAllTickets && (
           <div className="field">
             <label htmlFor="f-assignee">Responsável</label>
             <select
@@ -220,7 +223,7 @@ export function TicketsPage() {
         <Loading />
       ) : list.data?.data.length ? (
         <>
-          <TicketTable tickets={list.data.data} showRequester={isStaff} showPriority={showPriority} />
+          <TicketTable tickets={list.data.data} showRequester={canViewAllTickets} showPriority={showPriority} />
           {pagination && (
             <div className="pager">
               <span>

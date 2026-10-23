@@ -12,7 +12,7 @@ Sistema de chamados (help desk): usuários abrem chamados e a equipe de suporte 
 | Perfil | Pode |
 | --- | --- |
 | **Comum** | Abrir chamados, ver e comentar apenas os próprios chamados, avaliar o atendimento, usar a agenda, editar o próprio perfil e senha |
-| **Administrador** (`admin`) | As mesmas restrições do comum (só os próprios chamados, sem atendimento, sem Usuários e Máquinas) + as páginas de **Administração**: relatórios e Configurações |
+| **Administrador** (`admin`) | **Vê todos os chamados** (só leitura: não atende, não altera e só comenta nos que abriu; não vê notas internas). De resto, as restrições do comum (sem Usuários e Máquinas) + as páginas de **Administração**: relatórios e Configurações |
 | **Suporte** | Tudo do comum + ver todos os chamados, assumir um chamado sem responsável (status vai para "em andamento" se estava aberto), alterar prioridade, categoria e máquina, notas internas. Não altera status nem troca um responsável já definido. Gerencia usuários comuns e de suporte (sem criar, promover ou alterar administradores e super supports) e máquinas |
 | **Super support** (`super_support`) | Acesso total: tudo do suporte sem as restrições dele (alterar status e responsável, assumir qualquer chamado, gerenciar qualquer usuário), Administração e o grupo **Super support** (Categorias e Documentação da API) |
 

@@ -1,12 +1,12 @@
 import type { AuthUser, TicketPriority, TicketStatus } from "../models/types.js";
 import { forbidden, HttpError } from "../utils/httpError.js";
-import { isStaff, isSuper } from "./roleRules.js";
+import { canViewAllTickets, isStaff, isSuper } from "./roleRules.js";
 
 export { isStaff } from "./roleRules.js";
 
-/** Suporte e super suporte veem todos os chamados; comum e admin, apenas os que abriram. */
+/** Suporte, super suporte e admin veem todos os chamados; comum, apenas os que abriu. */
 export function canViewTicket(user: AuthUser, ticket: { requesterId: number }): boolean {
-  return isStaff(user.role) || ticket.requesterId === user.id;
+  return canViewAllTickets(user.role) || ticket.requesterId === user.id;
 }
 
 /** Somente quem abriu o chamado e o responsável por ele podem comentar. */

@@ -29,8 +29,10 @@ export interface AuthState {
   isStaff: boolean;
   /** Admin ou super support: páginas de Administração. */
   canAdministrate: boolean;
-  /** Comum ou admin: só os próprios chamados, com as regras do usuário comum. */
+  /** Comum ou admin: sem atendimento, com as regras do usuário comum. */
   isRequesterOnly: boolean;
+  /** Suporte, super support ou admin: veem todos os chamados (o admin só lê). */
+  canViewAllTickets: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: { name: string; email: string; password: string }) => Promise<void>;
   /** Sem motivo: o usuário saiu. "idle": inatividade (também encerra no servidor). */
@@ -103,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isStaff: user?.role === "support" || user?.role === "super_support",
       canAdministrate: user?.role === "admin" || user?.role === "super_support",
       isRequesterOnly: user?.role === "comum" || user?.role === "admin",
+      canViewAllTickets: user?.role === "support" || user?.role === "super_support" || user?.role === "admin",
       login: async (email, password) => {
         const result = await authService.login(email, password);
         tokenStore.set(result.token);

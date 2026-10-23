@@ -277,7 +277,7 @@ paths:
     get:
       tags: [Chamados]
       summary: Listar chamados
-      description: Usuários `comum` recebem apenas os chamados que abriram. Ordenado do mais recente para o mais antigo.
+      description: Usuários `comum` recebem apenas os chamados que abriram; suporte, super support e admin, todos. Ordenado do mais recente para o mais antigo.
       operationId: listTickets
       parameters:
         - { name: status, in: query, schema: { $ref: "#/components/schemas/TicketStatus" } }
@@ -1008,7 +1008,7 @@ paths:
     get:
       tags: [Usuários]
       summary: Listar suporte e super support
-      description: Disponível para suporte e super support. Usado para escolher e exibir responsáveis por chamados.
+      description: Disponível para suporte, super support e admin. Usado para escolher e exibir responsáveis por chamados.
       operationId: listStaff
       responses:
         "200":
@@ -1431,8 +1431,8 @@ components:
       type: string
       enum: [admin, comum, support, super_support]
       description: |
-        super_support: acesso total. support: atendimento (com restrições). admin: como comum + Administração
-        (relatórios e configurações). comum: só os próprios chamados.
+        super_support: acesso total. support: atendimento (com restrições). admin: vê todos os chamados
+        (sem atender) + Administração (relatórios e configurações). comum: só os próprios chamados.
     TicketStatus:
       type: string
       enum: [aberto, em_andamento, aguardando, resolvido, fechado]

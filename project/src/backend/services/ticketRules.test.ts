@@ -248,9 +248,13 @@ describe("assertCanRate", () => {
 describe("admin role (restricted like a common user)", () => {
   const adminUser = { id: 4, role: "admin" as const };
 
-  it("only sees their own tickets", () => {
+  it("sees every ticket (read-only)", () => {
     expect(canViewTicket(adminUser, { requesterId: 4 })).toBe(true);
-    expect(canViewTicket(adminUser, { requesterId: 99 })).toBe(false);
+    expect(canViewTicket(adminUser, { requesterId: 99 })).toBe(true);
+  });
+
+  it("still only comments on tickets they opened", () => {
+    expect(canComment(adminUser, { requesterId: 99, assigneeId: 7 })).toBe(false);
   });
 
   it("cannot write internal notes, comment on closed tickets or record solutions", () => {
