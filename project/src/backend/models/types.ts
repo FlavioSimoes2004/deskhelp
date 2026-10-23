@@ -4,7 +4,7 @@ export type Role = (typeof ROLES)[number];
 export const TICKET_STATUSES = ["aberto", "em_andamento", "aguardando", "resolvido", "fechado"] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
-export const NOTIFICATION_TYPES = ["assigned", "comment", "agenda"] as const;
+export const NOTIFICATION_TYPES = ["assigned", "comment", "agenda", "solution", "reopened"] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export const TICKET_PRIORITIES = ["baixa", "media", "alta", "critica"] as const;
@@ -48,6 +48,8 @@ export interface Ticket {
   machineMacAddress: string | null;
   machineDescription: string | null;
   solution: string | null;
+  /** Quando quem abriu confirmou a solução; null = não confirmada (ou sem solução). */
+  solutionConfirmedAt: Date | null;
   /** Avaliação do atendimento (1 a 5) e comentário de quem abriu o chamado. */
   rating: number | null;
   ratingComment: string | null;

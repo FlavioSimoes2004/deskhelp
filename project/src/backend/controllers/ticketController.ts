@@ -52,6 +52,14 @@ export async function setSolution(req: Request, res: Response) {
   res.json({ data: await tickets.setSolution(currentUser(req), res.locals.params.id, res.locals.body.solution) });
 }
 
+export async function confirmSolution(req: Request, res: Response) {
+  res.json({ data: await tickets.confirmSolution(currentUser(req), res.locals.params.id) });
+}
+
+export async function reopen(req: Request, res: Response) {
+  res.json({ data: await tickets.reopenTicket(currentUser(req), res.locals.params.id) });
+}
+
 export async function resolve(req: Request, res: Response) {
   res.json({ data: await tickets.resolveOwnTicket(currentUser(req), res.locals.params.id) });
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertBelowOpenTicketLimit,
   assertCanWriteUsers,
+  assertRatingsOpen,
   assertCommentsOpen,
   DEFAULT_SETTINGS,
   hidesPriority,
@@ -22,6 +23,8 @@ describe("parseSettings", () => {
       hidePriorityForComum: true,
       priorityByStaffOnly: false,
       blockSupportUserManagement: false,
+      ratingsLocked: false,
+      reopenWindowHours: null,
       commentsLocked: true,
       maxOpenTicketsPerUser: 3,
     });
@@ -42,6 +45,8 @@ describe("parseSettings", () => {
       hidePriorityForComum: true,
       priorityByStaffOnly: false,
       blockSupportUserManagement: false,
+      ratingsLocked: false,
+      reopenWindowHours: null,
       commentsLocked: false,
       maxOpenTicketsPerUser: null,
     });
@@ -116,5 +121,17 @@ describe("assertCanWriteUsers", () => {
   it("never blocks super support, and allows support when disabled", () => {
     expect(() => assertCanWriteUsers({ id: 1, role: "super_support" }, blocked)).not.toThrow();
     expect(() => assertCanWriteUsers({ id: 7, role: "support" }, DEFAULT_SETTINGS)).not.toThrow();
+  });
+});
+
+describe("ratings and reopen settings", () => {
+  it("reads the reopen window in hours, treating 0 as no limit", () => {
+    expect(parseSettings({ reopen_window_hours: "48" }).reopenWindowHours).toBe(48);
+    expect(parseSettings({ reopen_window_hours: "0" }).reopenWindowHours).toBeNull();
+  });
+
+  it("blocks new ratings when locked", () => {
+    expect(() => assertRatingsOpen({ ...DEFAULT_SETTINGS, ratingsLocked: true })).toThrow(/avaliação/);
+    expect(() => assertRatingsOpen(DEFAULT_SETTINGS)).not.toThrow();
   });
 });

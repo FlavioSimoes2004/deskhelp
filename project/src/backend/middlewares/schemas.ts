@@ -99,6 +99,15 @@ export const settingsSchema = z
     hidePriorityForComum: z.boolean().optional(),
     priorityByStaffOnly: z.boolean().optional(),
     blockSupportUserManagement: z.boolean().optional(),
+    ratingsLocked: z.boolean().optional(),
+    // null = sem prazo para reabrir.
+    reopenWindowHours: z
+      .number()
+      .int("Use um número inteiro de horas")
+      .min(1, "O prazo precisa ser de pelo menos 1 hora")
+      .max(8760, "O prazo pode ser de no máximo 8760 horas (1 ano)")
+      .nullable()
+      .optional(),
     commentsLocked: z.boolean().optional(),
     // null = sem limite.
     maxOpenTicketsPerUser: z
@@ -126,6 +135,8 @@ export const ticketQuerySchema = z.object({
   status: z.enum(TICKET_STATUSES).optional(),
   // "none" = chamados sem prioridade definida.
   priority: z.enum([...TICKET_PRIORITIES, "none"]).optional(),
+  // with/without = com ou sem solução; pending = solução aguardando confirmação.
+  solution: z.enum(["with", "without", "pending"]).optional(),
   categoryId: id.optional(),
   assigneeId: id.optional(),
   search: z.string().trim().max(100).optional(),

@@ -10,10 +10,18 @@ import { forbidden, HttpError, notFound } from "../utils/httpError.js";
 import { assignmentRecipient, commentRecipients } from "./notificationRules.js";
 import { isRequesterOnly } from "./roleRules.js";
 import { getSettings } from "./settingsService.js";
-import { assertBelowOpenTicketLimit, assertCommentsOpen, hidesPriority, newTicketPriority } from "./settingsRules.js";
+import {
+  assertBelowOpenTicketLimit,
+  assertCommentsOpen,
+  assertRatingsOpen,
+  hidesPriority,
+  newTicketPriority,
+} from "./settingsRules.js";
 import {
   applySupportRules,
   assertCanAddComment,
+  assertCanConfirmSolution,
+  assertCanReopen,
   assertCanRate,
   assertCanSetSolution,
   assertMachineWhenResolved,
@@ -126,17 +134,62 @@ export async function updateTicket(user: AuthUser, id: number, requested: Partia
 }
 
 /** Registra (ou remove, com null) a solução do chamado; a mudança entra no histórico. */
+/**
+ * Responsável (ou super suporte) registra, altera ou remove a solução, em qualquer status.
+ * Toda mudança volta a pedir a confirmação de quem abriu, que é avisado.
+ */
 export async function setSolution(user: AuthUser, id: number, solution: string | null) {
   const current = await getVisibleTicket(user, id);
-  assertCanSetSolution(user, current);
+  assertCanSetSolution(user, current, solution);
   const changes = diffTicket(current, { solution });
-  if (changes.length > 0) await tickets.updateTicket(id, user.id, { solution }, changes);
+  if (changes.length > 0) {
+    const notify =
+      solution !== null && current.requesterId !== user.id
+        ? [{ userId: current.requesterId, type: "solution" as const, ticketId: id, actorId: user.id }]
+        : [];
+    await tickets.updateTicket(id, user.id, { solution, solutionConfirmedAt: null }, changes, notify);
+  }
+  return getTicketDetail(user, id);
+}
+
+/** Quem abriu confirma a solução: o chamado fica "resolvido" (se ainda não estava resolvido/fechado). */
+export async function confirmSolution(user: AuthUser, id: number) {
+  const current = await getVisibleTicket(user, id);
+  assertCanConfirmSolution(user, current);
+  const now = new Date();
+  const finished = current.status === "resolvido" || current.status === "fechado";
+  const patch = finished ? {} : { status: "resolvido" as const };
+  if (!finished) assertMachineWhenResolved(current, patch);
+  const timestamps = finished ? {} : statusTimestamps(current, "resolvido", now);
+  await tickets.updateTicket(id, user.id, { ...patch, ...timestamps, solutionConfirmedAt: now }, diffTicket(current, patch));
+  return getTicketDetail(user, id);
+}
+
+/** Quem abriu reabre o chamado resolvido (volta para "em andamento"), dentro do prazo configurado. */
+export async function reopenTicket(user: AuthUser, id: number) {
+  const current = await getVisibleTicket(user, id);
+  assertCanReopen(user, current, (await getSettings()).reopenWindowHours, new Date());
+  const patch = { status: "em_andamento" as const };
+  const timestamps = statusTimestamps(current, patch.status, new Date());
+  // A solução continua registrada, mas deixa de estar confirmada; o responsável é avisado.
+  const notify =
+    current.assigneeId !== null && current.assigneeId !== user.id
+      ? [{ userId: current.assigneeId, type: "reopened" as const, ticketId: id, actorId: user.id }]
+      : [];
+  await tickets.updateTicket(
+    id,
+    user.id,
+    { ...patch, ...timestamps, solutionConfirmedAt: null },
+    diffTicket(current, patch),
+    notify,
+  );
   return getTicketDetail(user, id);
 }
 
 /** Quem abriu avalia o atendimento (1 a 5), com o chamado resolvido ou fechado, uma vez. */
 export async function rateTicket(user: AuthUser, id: number, rating: number, comment: string | null) {
   const ticket = await getVisibleTicket(user, id);
+  assertRatingsOpen(await getSettings());
   assertCanRate(user, ticket);
   if (!(await tickets.setRating(id, rating, comment))) {
     throw new HttpError(409, "ALREADY_RATED", "Este atendimento já foi avaliado");

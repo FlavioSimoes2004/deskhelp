@@ -39,6 +39,8 @@ export interface Ticket {
   machineMacAddress: string | null;
   machineDescription: string | null;
   solution: string | null;
+  /** Quando quem abriu confirmou a solução; null = aguardando confirmação (ou sem solução). */
+  solutionConfirmedAt: string | null;
   /** Avaliação do atendimento (1 a 5) e comentário de quem abriu. */
   rating: number | null;
   ratingComment: string | null;
@@ -153,7 +155,7 @@ export interface MachineHistoryEntry {
   createdAt: string;
 }
 
-export type NotificationType = "assigned" | "comment" | "agenda";
+export type NotificationType = "assigned" | "comment" | "agenda" | "solution" | "reopened";
 
 export interface Notification {
   id: number;
@@ -241,8 +243,12 @@ export interface AppSettings {
   hidePriorityForComum: boolean;
   /** Usuários "comum" abrem chamados sem prioridade; admin/suporte definem depois. */
   priorityByStaffOnly: boolean;
-  /** Suporte não cria nem edita usuários (só admin). */
+  /** Suporte não cria nem edita usuários (só super support). */
   blockSupportUserManagement: boolean;
+  /** Ninguém avalia o atendimento. */
+  ratingsLocked: boolean;
+  /** Horas, após a conclusão, em que quem abriu pode reabrir; null = sem prazo. */
+  reopenWindowHours: number | null;
   /** Conversa bloqueada: ninguém envia comentários. */
   commentsLocked: boolean;
   /** Máximo de chamados "aberto"/"em andamento" por usuário; null = sem limite. */

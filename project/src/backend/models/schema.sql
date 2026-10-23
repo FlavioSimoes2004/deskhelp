@@ -58,8 +58,10 @@ CREATE TABLE IF NOT EXISTS tickets (
   -- Máquina a que o chamado se refere (vinculada por admin/suporte; obrigatória para "resolvido").
   -- A chave estrangeira para machines é criada por migrate.ts, pois machines vem depois.
   machine_id   INT UNSIGNED NULL,
-  -- Solução do chamado: registrada pelo responsável ou por um admin, com o chamado "resolvido".
+  -- Solução: registrada pelo responsável (ou super support) em qualquer status; quem abriu
+  -- confirma (solution_confirmed_at) e o chamado fica "resolvido".
   solution     TEXT NULL,
+  solution_confirmed_at DATETIME NULL,
   -- Avaliação do atendimento pelo solicitante (1 a 5), com o chamado resolvido ou fechado.
   rating         TINYINT UNSIGNED NULL,
   rating_comment VARCHAR(500) NULL,
@@ -139,12 +141,14 @@ ALTER TABLE agenda_items ADD COLUMN IF NOT EXISTS ticket_id INT UNSIGNED NULL AF
 
 -- Notificações de cada usuário. type: 'assigned' (um admin atribuiu o chamado a ele),
 -- 'comment' (alguém comentou em um chamado que ele abriu ou do qual é responsável) ou
--- 'agenda' (chegou a hora de um item da agenda dele; sem chamado nem autor).
+-- 'agenda' (chegou a hora de um item da agenda dele; sem chamado nem autor), 'solution'
+-- (o responsável registrou a solução; quem abriu deve confirmar) ou 'reopened' (quem abriu
+-- reabriu o chamado; vai para o responsável).
 -- actor_id é quem gerou a notificação; read_at fica NULL enquanto não for lida.
 CREATE TABLE IF NOT EXISTS notifications (
   id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id    INT UNSIGNED NOT NULL,
-  type       ENUM('assigned', 'comment', 'agenda') NOT NULL,
+  type       ENUM('assigned', 'comment', 'agenda', 'solution', 'reopened') NOT NULL,
   ticket_id  INT UNSIGNED NULL,
   actor_id   INT UNSIGNED NULL,
   comment_id INT UNSIGNED NULL,
@@ -163,7 +167,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 -- Bancos criados antes das notificações da agenda (a chave de agenda_id é criada por migrate.ts).
 ALTER TABLE notifications
-  MODIFY type ENUM('assigned', 'comment', 'agenda') NOT NULL,
+  MODIFY type ENUM('assigned', 'comment', 'agenda', 'solution', 'reopened') NOT NULL,
   MODIFY ticket_id INT UNSIGNED NULL,
   MODIFY actor_id INT UNSIGNED NULL,
   ADD COLUMN IF NOT EXISTS agenda_id INT UNSIGNED NULL AFTER comment_id;
@@ -199,6 +203,9 @@ ALTER TABLE tickets
   ADD COLUMN IF NOT EXISTS rating TINYINT UNSIGNED NULL AFTER solution,
   ADD COLUMN IF NOT EXISTS rating_comment VARCHAR(500) NULL AFTER rating,
   ADD COLUMN IF NOT EXISTS rated_at DATETIME NULL AFTER rating_comment;
+
+-- Bancos criados antes da confirmação da solução.
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS solution_confirmed_at DATETIME NULL AFTER solution;
 
 -- Bancos criados antes da coluna tickets.solution.
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS solution TEXT NULL AFTER machine_id;
@@ -251,7 +258,7 @@ CREATE TABLE IF NOT EXISTS ticket_history (
 
 -- Configurações gerais da aplicação (alteradas por admins na página Configurações).
 -- Chaves: hide_priority_for_comum, priority_by_staff_only, comments_locked, max_open_tickets_per_user,
--- block_support_user_management.
+-- block_support_user_management, ratings_locked, reopen_window_hours.
 CREATE TABLE IF NOT EXISTS app_settings (
   setting_key VARCHAR(60) NOT NULL,
   value       VARCHAR(255) NOT NULL,

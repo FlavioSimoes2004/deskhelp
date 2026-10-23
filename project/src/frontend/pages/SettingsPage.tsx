@@ -12,6 +12,9 @@ export function SettingsPage() {
     hidePriorityForComum: false,
     priorityByStaffOnly: false,
     blockSupportUserManagement: false,
+    ratingsLocked: false,
+    reopenLimited: false,
+    reopenHours: "48",
     commentsLocked: false,
     limitEnabled: false,
     limit: "3",
@@ -28,6 +31,9 @@ export function SettingsPage() {
       hidePriorityForComum: s.hidePriorityForComum,
       priorityByStaffOnly: s.priorityByStaffOnly,
       blockSupportUserManagement: s.blockSupportUserManagement,
+      ratingsLocked: s.ratingsLocked,
+      reopenLimited: s.reopenWindowHours !== null,
+      reopenHours: String(s.reopenWindowHours ?? 48),
       commentsLocked: s.commentsLocked,
       limitEnabled: s.maxOpenTicketsPerUser !== null,
       limit: String(s.maxOpenTicketsPerUser ?? 3),
@@ -45,6 +51,8 @@ export function SettingsPage() {
           hidePriorityForComum: form.hidePriorityForComum,
           priorityByStaffOnly: form.priorityByStaffOnly,
           blockSupportUserManagement: form.blockSupportUserManagement,
+          ratingsLocked: form.ratingsLocked,
+          reopenWindowHours: form.reopenLimited ? Number(form.reopenHours) : null,
           commentsLocked: form.commentsLocked,
           maxOpenTicketsPerUser: form.limitEnabled ? Number(form.limit) : null,
         }),
@@ -149,6 +157,50 @@ export function SettingsPage() {
           </fieldset>
 
           <fieldset className="fieldset">
+            <legend>Conclusão do chamado</legend>
+            <label className="setting-toggle">
+              <input
+                type="checkbox"
+                checked={form.ratingsLocked}
+                onChange={(e) => setForm({ ...form, ratingsLocked: e.target.checked })}
+              />
+              <span>
+                <strong>Bloquear a avaliação do atendimento</strong>
+                <small>Ninguém consegue avaliar chamados. As avaliações já feitas continuam visíveis e nos relatórios.</small>
+              </span>
+            </label>
+            <label className="setting-toggle">
+              <input
+                type="checkbox"
+                checked={form.reopenLimited}
+                onChange={(e) => setForm({ ...form, reopenLimited: e.target.checked })}
+              />
+              <span>
+                <strong>Limitar o prazo para reabrir chamados</strong>
+                <small>
+                  Quem abriu pode reabrir um chamado resolvido (volta para “Em andamento”). Sem limite, pode reabrir a
+                  qualquer momento; com limite, só até o prazo abaixo, contado da conclusão.
+                </small>
+              </span>
+            </label>
+            {form.reopenLimited && (
+              <Field label="Prazo para reabrir (horas)" error={error?.fieldError("reopenWindowHours")}>
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  max={8760}
+                  step={1}
+                  inputMode="numeric"
+                  value={form.reopenHours}
+                  onChange={(e) => setForm({ ...form, reopenHours: e.target.value })}
+                  style={{ maxWidth: 160 }}
+                />
+              </Field>
+            )}
+          </fieldset>
+
+          <fieldset className="fieldset">
             <legend>Chamados por usuário</legend>
             <label className="setting-toggle">
               <input
@@ -182,7 +234,11 @@ export function SettingsPage() {
           </fieldset>
 
           <div className="form-actions">
-            <button className="btn btn-primary" type="submit" disabled={saving || (form.limitEnabled && !form.limit)}>
+            <button
+              className="btn btn-primary"
+              type="submit"
+              disabled={saving || (form.limitEnabled && !form.limit) || (form.reopenLimited && !form.reopenHours)}
+            >
               {saving ? "Salvando…" : "Salvar configurações"}
             </button>
           </div>

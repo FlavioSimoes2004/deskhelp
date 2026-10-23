@@ -20,6 +20,7 @@ export function TicketsPage() {
   const [params, setParams] = useSearchParams();
   const status = (params.get("status") ?? "") as TicketStatus | "";
   const priority = (params.get("priority") ?? "") as TicketPriority | "none" | "";
+  const solution = (params.get("solution") ?? "") as "with" | "without" | "pending" | "";
   const categoryId = params.get("categoryId") ?? "";
   const assigneeId = params.get("assigneeId") ?? "";
   const search = params.get("search") ?? "";
@@ -54,6 +55,7 @@ export function TicketsPage() {
         : ticketService.list({
             status,
             priority,
+            solution,
             categoryId: categoryId ? Number(categoryId) : "",
             assigneeId: assigneeId ? Number(assigneeId) : "",
             search,
@@ -62,7 +64,7 @@ export function TicketsPage() {
             page,
             pageSize: PAGE_SIZE,
           }),
-    [status, priority, categoryId, assigneeId, search, from, to, page, waitingDefault],
+    [status, priority, solution, categoryId, assigneeId, search, from, to, page, waitingDefault],
   );
   // Chamados novos e mudanças de status aparecem sem recarregar a página.
   useLiveRefresh(list.refresh, !waitingDefault);
@@ -78,7 +80,9 @@ export function TicketsPage() {
   }
 
   // O período padrão não conta como filtro; só o escolhido pelo usuário.
-  const hasFilters = Boolean(status || priority || categoryId || assigneeId || search || fromParam !== null || params.has("to"));
+  const hasFilters = Boolean(
+    status || priority || solution || categoryId || assigneeId || search || fromParam !== null || params.has("to"),
+  );
   const pagination = list.data?.pagination;
 
   return (
@@ -137,6 +141,15 @@ export function TicketsPage() {
             </select>
           </div>
         )}
+        <div className="field">
+          <label htmlFor="f-solution">Solução</label>
+          <select id="f-solution" className="select" value={solution} onChange={(e) => update({ solution: e.target.value })}>
+            <option value="">Todas</option>
+            <option value="with">Com solução</option>
+            <option value="without">Sem solução</option>
+            <option value="pending">Aguardando confirmação</option>
+          </select>
+        </div>
         <div className="field">
           <label htmlFor="f-category">Categoria</label>
           <select

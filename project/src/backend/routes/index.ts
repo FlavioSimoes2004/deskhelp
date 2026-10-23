@@ -83,8 +83,11 @@ apiRouter.post("/tickets", validate(createTicketSchema), ticketCtrl.create);
 apiRouter.get("/tickets/:id", byId, ticketCtrl.get);
 apiRouter.post("/tickets/:id/comments", byId, parseMultipart, validate(commentSchema), ticketCtrl.addComment);
 apiRouter.post("/tickets/:id/resolve", requireRole("comum", "admin"), byId, ticketCtrl.resolve);
-// Solução: responsável ou admin, com o chamado resolvido (regras no ticketService)
+// Solução: o responsável registra em qualquer status; quem abriu confirma (e o chamado fica resolvido)
 apiRouter.put("/tickets/:id/solution", byId, validate(solutionSchema), ticketCtrl.setSolution);
+apiRouter.post("/tickets/:id/solution/confirm", byId, ticketCtrl.confirmSolution);
+// Quem abriu reabre um chamado resolvido, dentro do prazo configurado
+apiRouter.post("/tickets/:id/reopen", byId, ticketCtrl.reopen);
 // Avaliação do atendimento: quem abriu, com o chamado resolvido ou fechado (regras no ticketService)
 apiRouter.post("/tickets/:id/rating", byId, validate(ratingSchema), ticketCtrl.rate);
 apiRouter.get("/attachments/:id", byId, ticketCtrl.downloadAttachment);

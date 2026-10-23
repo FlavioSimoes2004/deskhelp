@@ -9,6 +9,10 @@ export interface AppSettings {
   priorityByStaffOnly: boolean;
   /** Suporte não cria nem edita usuários (só super suporte). */
   blockSupportUserManagement: boolean;
+  /** Ninguém consegue avaliar o atendimento. */
+  ratingsLocked: boolean;
+  /** Horas, após a conclusão, em que quem abriu pode reabrir o chamado; null = sem prazo. */
+  reopenWindowHours: number | null;
   /** Ninguém consegue enviar comentários (nem notas internas). */
   commentsLocked: boolean;
   /** Máximo de chamados "aberto"/"em andamento" por usuário; null = sem limite. */
@@ -19,6 +23,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   hidePriorityForComum: false,
   priorityByStaffOnly: false,
   blockSupportUserManagement: false,
+  ratingsLocked: false,
+  reopenWindowHours: null,
   commentsLocked: false,
   maxOpenTicketsPerUser: null,
 };
@@ -28,6 +34,8 @@ export const SETTING_KEYS: Record<keyof AppSettings, string> = {
   hidePriorityForComum: "hide_priority_for_comum",
   priorityByStaffOnly: "priority_by_staff_only",
   blockSupportUserManagement: "block_support_user_management",
+  ratingsLocked: "ratings_locked",
+  reopenWindowHours: "reopen_window_hours",
   commentsLocked: "comments_locked",
   maxOpenTicketsPerUser: "max_open_tickets_per_user",
 };
@@ -39,10 +47,13 @@ export function parseSettings(rows: Record<string, string>): AppSettings {
     return value === undefined ? (DEFAULT_SETTINGS[key] as boolean) : value === "1";
   };
   const limit = Number(rows[SETTING_KEYS.maxOpenTicketsPerUser]);
+  const reopen = Number(rows[SETTING_KEYS.reopenWindowHours]);
   return {
     hidePriorityForComum: bool("hidePriorityForComum"),
     priorityByStaffOnly: bool("priorityByStaffOnly"),
     blockSupportUserManagement: bool("blockSupportUserManagement"),
+    ratingsLocked: bool("ratingsLocked"),
+    reopenWindowHours: Number.isInteger(reopen) && reopen > 0 ? reopen : null,
     commentsLocked: bool("commentsLocked"),
     maxOpenTicketsPerUser: Number.isInteger(limit) && limit > 0 ? limit : null,
   };
@@ -72,6 +83,12 @@ export const hidesPriority = (user: AuthUser, settings: AppSettings) =>
 export function assertCanWriteUsers(user: AuthUser, settings: AppSettings): void {
   if (user.role === "support" && settings.blockSupportUserManagement) {
     throw new HttpError(403, "FORBIDDEN", "O cadastro e a edição de usuários estão restritos ao super suporte");
+  }
+}
+
+export function assertRatingsOpen(settings: AppSettings): void {
+  if (settings.ratingsLocked) {
+    throw new HttpError(409, "RATINGS_LOCKED", "A avaliação do atendimento está desativada pela administração");
   }
 }
 

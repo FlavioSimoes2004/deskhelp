@@ -434,6 +434,12 @@ a {
   padding: 20px;
 }
 
+/* Painel que pede uma ação do usuário (ex.: confirmar a solução). */
+.panel-highlight {
+  border-color: var(--petrol);
+  box-shadow: inset 4px 0 0 var(--petrol);
+}
+
 .panel + .panel {
   margin-top: 16px;
 }

@@ -102,18 +102,60 @@ export interface TicketEditableFields {
 }
 
 /**
- * Quem registra a solução: o responsável pelo chamado ou um super suporte, e só com o
- * chamado "resolvido".
+ * Quem registra a solução: o responsável pelo chamado (ou um super suporte), em qualquer
+ * status. Como a confirmação de quem abriu deixa o chamado "resolvido", e "resolvido" exige
+ * máquina, a máquina precisa estar vinculada antes (quem confirma não consegue vinculá-la).
  */
 export function assertCanSetSolution(
   user: AuthUser,
-  ticket: { status: TicketStatus; assigneeId: number | null },
+  ticket: { assigneeId: number | null; machineId: number | null },
+  solution: string | null,
 ): void {
   if (!isSuper(user.role) && ticket.assigneeId !== user.id) {
-    throw forbidden("Somente o responsável pelo chamado ou um administrador pode registrar a solução");
+    throw forbidden("Somente o responsável pelo chamado ou um super support pode registrar a solução");
   }
+  if (solution !== null && ticket.machineId === null) {
+    const message = "Vincule a máquina ao chamado antes de registrar a solução";
+    throw new HttpError(409, "MACHINE_REQUIRED", message, [{ field: "machineId", message }]);
+  }
+}
+
+/** Quem abriu confirma a solução registrada (ainda não confirmada). */
+export function assertCanConfirmSolution(
+  user: AuthUser,
+  ticket: { requesterId: number; solution: string | null; solutionConfirmedAt: Date | null },
+): void {
+  if (ticket.requesterId !== user.id) throw forbidden("Somente quem abriu o chamado pode confirmar a solução");
+  if (ticket.solution === null) throw new HttpError(409, "NO_SOLUTION", "Este chamado ainda não tem solução registrada");
+  if (ticket.solutionConfirmedAt !== null) {
+    throw new HttpError(409, "SOLUTION_ALREADY_CONFIRMED", "A solução deste chamado já foi confirmada");
+  }
+}
+
+/** Até quando quem abriu pode reabrir um chamado resolvido; null = sem prazo. */
+export function reopenDeadline(resolvedAt: Date | null, windowHours: number | null): Date | null {
+  if (windowHours === null || resolvedAt === null) return null;
+  return new Date(resolvedAt.getTime() + windowHours * 3_600_000);
+}
+
+/** Quem abriu reabre (volta para "em andamento") um chamado resolvido, dentro do prazo configurado. */
+export function assertCanReopen(
+  user: AuthUser,
+  ticket: { requesterId: number; status: TicketStatus; resolvedAt: Date | null },
+  windowHours: number | null,
+  now: Date,
+): void {
+  if (ticket.requesterId !== user.id) throw forbidden("Somente quem abriu o chamado pode reabri-lo");
   if (ticket.status !== "resolvido") {
-    throw new HttpError(409, "TICKET_NOT_RESOLVED", "A solução só pode ser registrada com o chamado resolvido");
+    throw new HttpError(409, "TICKET_NOT_RESOLVED", "Só é possível reabrir um chamado resolvido");
+  }
+  const deadline = reopenDeadline(ticket.resolvedAt, windowHours);
+  if (deadline && now.getTime() > deadline.getTime()) {
+    throw new HttpError(
+      409,
+      "REOPEN_EXPIRED",
+      `O prazo para reabrir este chamado terminou (${windowHours} h após a conclusão). Abra um novo chamado.`,
+    );
   }
 }
 

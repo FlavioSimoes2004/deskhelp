@@ -38,6 +38,7 @@ interface TicketRow extends RowDataPacket {
   machine_mac_address: string | null;
   machine_description: string | null;
   solution: string | null;
+  solution_confirmed_at: Date | null;
   rating: number | null;
   rating_comment: string | null;
   rated_at: Date | null;
@@ -64,6 +65,7 @@ const toTicket = (row: TicketRow): Ticket => ({
   machineMacAddress: row.machine_mac_address,
   machineDescription: row.machine_description,
   solution: row.solution,
+  solutionConfirmedAt: row.solution_confirmed_at,
   rating: row.rating,
   ratingComment: row.rating_comment,
   ratedAt: row.rated_at,
@@ -77,6 +79,8 @@ export interface TicketFilters {
   status?: TicketStatus;
   /** "none" = chamados sem prioridade definida. */
   priority?: TicketPriority | "none";
+  /** with = com solução; without = sem solução; pending = com solução aguardando confirmação. */
+  solution?: "with" | "without" | "pending";
   categoryId?: number;
   assigneeId?: number;
   requesterId?: number;
@@ -112,6 +116,9 @@ function buildWhere(filters: TicketFilters) {
     params.search = `%${filters.search}%`;
     params.searchId = asId;
   }
+  if (filters.solution === "with") where.push("t.solution IS NOT NULL");
+  if (filters.solution === "without") where.push("t.solution IS NULL");
+  if (filters.solution === "pending") where.push("t.solution IS NOT NULL AND t.solution_confirmed_at IS NULL");
   if (filters.from) {
     where.push("t.created_at >= :from");
     params.from = filters.from;
@@ -169,7 +176,11 @@ const COLUMN: Record<keyof TicketEditableFields, string> = {
 export async function updateTicket(
   id: number,
   userId: number,
-  patch: Partial<TicketEditableFields> & { resolvedAt?: Date | null; closedAt?: Date | null },
+  patch: Partial<TicketEditableFields> & {
+    resolvedAt?: Date | null;
+    closedAt?: Date | null;
+    solutionConfirmedAt?: Date | null;
+  },
   changes: TicketChange[],
   notifications: NewNotification[] = [],
 ): Promise<void> {
@@ -187,6 +198,10 @@ export async function updateTicket(
   if (patch.closedAt !== undefined) {
     sets.push("closed_at = :closedAt");
     params.closedAt = patch.closedAt;
+  }
+  if (patch.solutionConfirmedAt !== undefined) {
+    sets.push("solution_confirmed_at = :solutionConfirmedAt");
+    params.solutionConfirmedAt = patch.solutionConfirmedAt;
   }
   if (sets.length === 0) return;
 

@@ -11,7 +11,13 @@ import { formatDateTime, ticketNumber, timeAgo } from "../utils/format";
 
 const PAGE_SIZE = 20;
 
-const TYPE_LABEL: Record<NotificationType, string> = { assigned: "Atribuição", comment: "Comentário", agenda: "Agenda" };
+const TYPE_LABEL: Record<NotificationType, string> = {
+  assigned: "Atribuição",
+  comment: "Comentário",
+  agenda: "Agenda",
+  solution: "Solução",
+  reopened: "Reaberto",
+};
 
 function describe(n: Notification) {
   if (n.type === "agenda") {
@@ -19,7 +25,16 @@ function describe(n: Notification) {
     return `Lembrete da agenda: “${n.agendaTitle ?? "item removido"}”${when}`;
   }
   const ticket = `#${ticketNumber(n.ticketId ?? 0)} “${n.ticketTitle ?? ""}”`;
-  return n.type === "assigned" ? `atribuiu a você o chamado ${ticket}` : `comentou no chamado ${ticket}`;
+  switch (n.type) {
+    case "assigned":
+      return `atribuiu a você o chamado ${ticket}`;
+    case "solution":
+      return `registrou a solução do chamado ${ticket}. Confirme se o problema foi resolvido.`;
+    case "reopened":
+      return `reabriu o chamado ${ticket}`;
+    default:
+      return `comentou no chamado ${ticket}`;
+  }
 }
 
 export function NotificationsPage() {
@@ -108,6 +123,8 @@ export function NotificationsPage() {
             <option value="assigned">Atribuição</option>
             <option value="comment">Comentário</option>
             <option value="agenda">Agenda</option>
+            <option value="solution">Solução</option>
+            <option value="reopened">Reaberto</option>
           </select>
         </div>
         {hasFilters && (

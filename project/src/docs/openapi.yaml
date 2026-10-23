@@ -291,6 +291,10 @@ paths:
           in: query
           description: Busca no título e na descrição, ou pelo número (ex. `#42`)
           schema: { type: string, maxLength: 100 }
+        - name: solution
+          in: query
+          description: "`with` = com solução; `without` = sem solução; `pending` = solução aguardando confirmação"
+          schema: { type: string, enum: [with, without, pending] }
         - { name: from, in: query, description: Abertos a partir desta data (inclusivo), schema: { type: string, format: date } }
         - { name: to, in: query, description: Abertos até esta data (inclusivo), schema: { type: string, format: date } }
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
@@ -514,9 +518,10 @@ paths:
       tags: [Chamados]
       summary: Registrar a solução do chamado
       description: |
-        Somente o responsável pelo chamado ou um admin (os demais recebem 403), e só com o chamado
-        `resolvido` (senão 409 `TICKET_NOT_RESOLVED`). Envie `null` ou texto vazio para remover.
-        A mudança é registrada no histórico (`field: solution`).
+        Somente o responsável pelo chamado ou um super support (os demais recebem 403), **em qualquer
+        status**. Exige máquina vinculada (409 `MACHINE_REQUIRED`), pois a confirmação deixa o chamado
+        `resolvido`. Toda mudança volta a pedir a confirmação de quem abriu, que recebe a notificação
+        `solution`. Envie `null` ou texto vazio para remover. Registrada no histórico (`field: solution`).
       operationId: setTicketSolution
       requestBody:
         required: true
@@ -543,6 +548,56 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /tickets/{id}/solution/confirm:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Chamados]
+      summary: Confirmar a solução
+      description: |
+        Somente quem abriu o chamado. O chamado passa para `resolvido` (se ainda não estava resolvido ou
+        fechado) e `solutionConfirmedAt` é preenchido. 409 se não houver solução ou se já foi confirmada.
+      operationId: confirmTicketSolution
+      responses:
+        "200":
+          description: Chamado com a solução confirmada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/TicketDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /tickets/{id}/reopen:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Chamados]
+      summary: Reabrir chamado resolvido
+      description: |
+        Somente quem abriu, com o chamado `resolvido`. O status volta para `em_andamento`, a data de
+        resolução e a confirmação da solução são limpas e o responsável recebe a notificação `reopened`.
+        Com a configuração `reopenWindowHours`, só até esse número de horas após a conclusão
+        (409 `REOPEN_EXPIRED`).
+      operationId: reopenTicket
+      responses:
+        "200":
+          description: Chamado reaberto
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/TicketDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /tickets/{id}/rating:
     parameters:
       - $ref: "#/components/parameters/Id"
@@ -551,7 +606,8 @@ paths:
       summary: Avaliar o atendimento
       description: |
         Somente quem abriu o chamado (403 para os demais), com o chamado `resolvido` ou `fechado`
-        (409 `TICKET_NOT_RESOLVED`), uma vez (409 `ALREADY_RATED`).
+        (409 `TICKET_NOT_RESOLVED`), uma vez (409 `ALREADY_RATED`). Com a configuração
+        `ratingsLocked`, ninguém avalia (409 `RATINGS_LOCKED`).
       operationId: rateTicket
       requestBody:
         required: true
@@ -651,6 +707,8 @@ paths:
                 hidePriorityForComum: { type: boolean }
                 priorityByStaffOnly: { type: boolean }
                 blockSupportUserManagement: { type: boolean }
+                ratingsLocked: { type: boolean }
+                reopenWindowHours: { type: [integer, "null"], minimum: 1, maximum: 8760, description: null = sem prazo }
                 commentsLocked: { type: boolean }
                 maxOpenTicketsPerUser: { type: [integer, "null"], minimum: 1, maximum: 1000, description: null = sem limite }
             example: { commentsLocked: false, maxOpenTicketsPerUser: 3 }
@@ -808,7 +866,7 @@ paths:
       operationId: listNotifications
       parameters:
         - { name: status, in: query, schema: { type: string, enum: [unread, read] } }
-        - { name: type, in: query, schema: { type: string, enum: [assigned, comment, agenda] } }
+        - { name: type, in: query, schema: { type: string, enum: [assigned, comment, agenda, solution, reopened] } }
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
         - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
       responses:
@@ -1430,7 +1488,8 @@ components:
         machineName: { type: [string, "null"] }
         machineMacAddress: { type: [string, "null"] }
         machineDescription: { type: [string, "null"] }
-        solution: { type: [string, "null"], description: Solução registrada pelo responsável ou por um admin }
+        solution: { type: [string, "null"], description: Solução registrada pelo responsável ou por um super support }
+        solutionConfirmedAt: { type: [string, "null"], format: date-time, description: Quando quem abriu confirmou a solução }
         rating: { type: [integer, "null"], minimum: 1, maximum: 5, description: Avaliação do atendimento por quem abriu }
         ratingComment: { type: [string, "null"] }
         ratedAt: { type: [string, "null"], format: date-time }
@@ -1531,7 +1590,7 @@ components:
       type: object
       properties:
         id: { type: integer }
-        type: { type: string, enum: [assigned, comment, agenda] }
+        type: { type: string, enum: [assigned, comment, agenda, solution, reopened] }
         ticketId: { type: [integer, "null"], description: null em notificações da agenda }
         ticketTitle: { type: [string, "null"] }
         actorId: { type: [integer, "null"], description: Quem gerou a notificação (null na agenda) }
@@ -1584,6 +1643,8 @@ components:
         hidePriorityForComum: { type: boolean, description: Esconde a prioridade de usuários comuns }
         priorityByStaffOnly: { type: boolean, description: Usuários comuns abrem chamados sem prioridade }
         blockSupportUserManagement: { type: boolean, description: Suporte não cria nem edita usuários }
+        ratingsLocked: { type: boolean, description: Ninguém avalia o atendimento }
+        reopenWindowHours: { type: [integer, "null"], description: Horas após a conclusão em que quem abriu pode reabrir }
         commentsLocked: { type: boolean, description: Bloqueia novos comentários para todos }
         maxOpenTicketsPerUser: { type: [integer, "null"], description: Máximo de chamados aberto/em andamento por usuário }
     AgendaItem:

@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   applySupportRules,
   assertCanAddComment,
+  assertCanConfirmSolution,
   assertCanRate,
+  assertCanReopen,
   assertCanSetSolution,
   assertMachineWhenResolved,
   canComment,
   canViewTicket,
   diffTicket,
+  reopenDeadline,
   statusTimestamps,
 } from "./ticketRules.js";
 
@@ -182,22 +185,21 @@ describe("applySupportRules and machines", () => {
 });
 
 describe("assertCanSetSolution", () => {
-  const resolved = { status: "resolvido" as const, assigneeId: 7 };
+  const ticket = { assigneeId: 7, machineId: 3 };
 
-  it("lets the assignee and super support record the solution of a resolved ticket", () => {
-    expect(() => assertCanSetSolution(support, resolved)).not.toThrow();
-    expect(() => assertCanSetSolution(superSupport, resolved)).not.toThrow();
-    expect(() => assertCanSetSolution(superSupport, { ...resolved, assigneeId: null })).not.toThrow();
+  it("lets the assignee and super support record the solution in any status", () => {
+    expect(() => assertCanSetSolution(support, ticket, "Troquei o cabo")).not.toThrow();
+    expect(() => assertCanSetSolution(superSupport, { ...ticket, assigneeId: null }, "Ok")).not.toThrow();
   });
 
   it("denies anyone else, including the requester", () => {
-    expect(() => assertCanSetSolution(comum, resolved)).toThrow(/responsável/);
-    expect(() => assertCanSetSolution({ id: 8, role: "support" }, resolved)).toThrow(/responsável/);
+    expect(() => assertCanSetSolution(comum, ticket, "Ok")).toThrow(/responsável/);
+    expect(() => assertCanSetSolution({ id: 8, role: "support" }, ticket, "Ok")).toThrow(/responsável/);
   });
 
-  it("requires the ticket to be resolved", () => {
-    expect(() => assertCanSetSolution(support, { ...resolved, status: "em_andamento" })).toThrow(/resolvido/);
-    expect(() => assertCanSetSolution(superSupport, { ...resolved, status: "fechado" })).toThrow(/resolvido/);
+  it("requires a linked machine (confirming makes the ticket resolved), except to remove it", () => {
+    expect(() => assertCanSetSolution(support, { ...ticket, machineId: null }, "Ok")).toThrow(/máquina/);
+    expect(() => assertCanSetSolution(support, { ...ticket, machineId: null }, null)).not.toThrow();
   });
 
   it("records the solution in the history", () => {
@@ -255,10 +257,45 @@ describe("admin role (restricted like a common user)", () => {
     const ticket = { requesterId: 4, assigneeId: 7, status: "em_andamento" as const };
     expect(() => assertCanAddComment(adminUser, ticket, true)).toThrow(/notas internas/);
     expect(() => assertCanAddComment(adminUser, { ...ticket, status: "fechado" }, false)).toThrow(/fechado/);
-    expect(() => assertCanSetSolution(adminUser, { status: "resolvido", assigneeId: 7 })).toThrow(/responsável/);
+    expect(() => assertCanSetSolution(adminUser, { assigneeId: 7, machineId: 3 }, "Ok")).toThrow(/responsável/);
   });
 
   it("can rate their own resolved ticket, like a common user", () => {
     expect(() => assertCanRate(adminUser, { requesterId: 4, status: "resolvido", rating: null })).not.toThrow();
+  });
+});
+
+describe("assertCanConfirmSolution", () => {
+  const pending = { requesterId: 2, solution: "Troquei o cabo", solutionConfirmedAt: null };
+
+  it("lets the requester confirm a pending solution", () => {
+    expect(() => assertCanConfirmSolution(comum, pending)).not.toThrow();
+  });
+
+  it("denies others, missing solutions and second confirmations", () => {
+    expect(() => assertCanConfirmSolution(support, pending)).toThrow(/Somente quem abriu/);
+    expect(() => assertCanConfirmSolution(comum, { ...pending, solution: null })).toThrow(/ainda não tem/);
+    expect(() => assertCanConfirmSolution(comum, { ...pending, solutionConfirmedAt: now })).toThrow(/já foi confirmada/);
+  });
+});
+
+describe("reopening", () => {
+  const resolvedAt = new Date("2026-10-23T10:00:00Z");
+  const resolved = { requesterId: 2, status: "resolvido" as const, resolvedAt };
+
+  it("computes the deadline from the resolution date", () => {
+    expect(reopenDeadline(resolvedAt, 24)).toEqual(new Date("2026-10-24T10:00:00Z"));
+    expect(reopenDeadline(resolvedAt, null)).toBeNull();
+  });
+
+  it("lets the requester reopen within the window, or anytime without a window", () => {
+    expect(() => assertCanReopen(comum, resolved, 24, new Date("2026-10-24T09:59:00Z"))).not.toThrow();
+    expect(() => assertCanReopen(comum, resolved, null, new Date("2027-01-01T00:00:00Z"))).not.toThrow();
+  });
+
+  it("blocks after the window, for other users and for tickets that are not resolved", () => {
+    expect(() => assertCanReopen(comum, resolved, 24, new Date("2026-10-24T10:01:00Z"))).toThrow(/prazo/);
+    expect(() => assertCanReopen(support, resolved, null, resolvedAt)).toThrow(/Somente quem abriu/);
+    expect(() => assertCanReopen(comum, { ...resolved, status: "fechado" }, null, resolvedAt)).toThrow(/resolvido/);
   });
 });

@@ -43,6 +43,8 @@ export interface TicketFilters {
   status?: TicketStatus | "";
   /** "none" = chamados sem prioridade definida. */
   priority?: TicketPriority | "none" | "";
+  /** with/without = com ou sem solução; pending = solução aguardando confirmação. */
+  solution?: "with" | "without" | "pending" | "";
   categoryId?: number | "";
   assigneeId?: number | "";
   search?: string;
@@ -88,7 +90,12 @@ export const ticketService = {
     for (const file of files) form.append("attachments", file);
     return api.postForm<{ data: TicketDetail }>(`/tickets/${id}/comments`, form).then((r) => r.data);
   },
-  /** Responsável ou admin, com o chamado resolvido; null/vazio remove a solução. */
+  /** Quem abriu confirma a solução (o chamado fica resolvido). */
+  confirmSolution: (id: number) =>
+    api.post<{ data: TicketDetail }>(`/tickets/${id}/solution/confirm`).then((r) => r.data),
+  /** Quem abriu reabre um chamado resolvido (volta para em andamento). */
+  reopen: (id: number) => api.post<{ data: TicketDetail }>(`/tickets/${id}/reopen`).then((r) => r.data),
+  /** Responsável ou super support, em qualquer status; null/vazio remove a solução. */
   setSolution: (id: number, solution: string | null) =>
     api.put<{ data: TicketDetail }>(`/tickets/${id}/solution`, { solution }).then((r) => r.data),
   /** Quem abriu avalia o atendimento (1 a 5), com o chamado resolvido ou fechado. */

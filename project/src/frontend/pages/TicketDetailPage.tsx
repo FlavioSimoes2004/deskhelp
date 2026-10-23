@@ -166,11 +166,12 @@ export function TicketDetailPage() {
           <SolutionPanel
             ticket={t}
             canEdit={isSuper || (user !== null && t.assigneeId === user.id)}
+            canConfirm={user !== null && t.requesterId === user.id}
             onSaved={(updated) => ticket.setData(updated)}
           />
           <RatingPanel
             ticket={t}
-            canRate={user !== null && t.requesterId === user.id}
+            canRate={user !== null && t.requesterId === user.id && !settings?.ratingsLocked}
             onRated={(updated) => ticket.setData(updated)}
           />
           <Conversation
@@ -201,6 +202,13 @@ export function TicketDetailPage() {
               ticketId={t.id}
               hasMachine={t.machineId !== null}
               onResolved={(updated) => ticket.setData(updated)}
+            />
+          )}
+          {user && t.requesterId === user.id && t.status === "resolvido" && (
+            <ReopenPanel
+              ticket={t}
+              windowHours={settings?.reopenWindowHours ?? null}
+              onReopened={(updated) => ticket.setData(updated)}
             />
           )}
           <TicketAgendaPanel ticketId={t.id} />
@@ -675,25 +683,29 @@ function ResolvePanel({
 }
 
 /**
- * Solução do chamado: visível a todos que veem o chamado; o responsável ou um admin
- * registra/edita com o chamado resolvido (a API aplica as mesmas regras).
+ * Solução do chamado. O responsável (ou super support) registra em qualquer status; quem
+ * abriu confirma e o chamado fica resolvido. Mudar a solução pede nova confirmação.
+ * Visível a todos que veem o chamado (a API aplica as mesmas regras).
  */
 function SolutionPanel({
   ticket,
   canEdit,
+  canConfirm,
   onSaved,
 }: {
   ticket: TicketDetail;
   canEdit: boolean;
+  /** É quem abriu o chamado (pode confirmar a solução). */
+  canConfirm: boolean;
   onSaved: (ticket: TicketDetail) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(ticket.solution ?? "");
   const [error, setError] = useState<ApiError | null>(null);
   const [saving, setSaving] = useState(false);
-  const isResolved = ticket.status === "resolvido";
+  const pending = ticket.solution !== null && ticket.solutionConfirmedAt === null;
 
-  // Fora do modo de edição, acompanha o valor salvo (ex.: depois de recarregar o chamado).
+  // Fora do modo de edição, acompanha o valor salvo (ex.: atualização automática).
   useEffect(() => {
     if (!editing) setText(ticket.solution ?? "");
   }, [ticket.solution, editing]);
@@ -701,12 +713,11 @@ function SolutionPanel({
   // Sem solução e sem permissão de registrar: o painel não aparece.
   if (!ticket.solution && !canEdit) return null;
 
-  async function onSave(e: FormEvent) {
-    e.preventDefault();
+  async function run(action: () => Promise<TicketDetail>) {
     setSaving(true);
     setError(null);
     try {
-      onSaved(await ticketService.setSolution(ticket.id, text.trim() || null));
+      onSaved(await action());
       setEditing(false);
     } catch (err) {
       setError(err as ApiError);
@@ -715,20 +726,30 @@ function SolutionPanel({
     }
   }
 
+  function onSave(e: FormEvent) {
+    e.preventDefault();
+    void run(() => ticketService.setSolution(ticket.id, text.trim() || null));
+  }
+
   return (
-    <section className="panel" aria-labelledby="solution-title">
+    <section className={pending && canConfirm ? "panel panel-highlight" : "panel"} aria-labelledby="solution-title">
       <div className="panel-head">
         <h2 id="solution-title">Solução</h2>
-        {canEdit && isResolved && !editing && (
+        {canEdit && !editing && (
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(true)}>
             {ticket.solution ? "Editar solução" : "Registrar solução"}
           </button>
         )}
       </div>
+      {!editing && <ErrorAlert error={error} />}
       {editing ? (
         <form className="form" onSubmit={onSave}>
           <ErrorAlert error={error} />
-          <Field label="Como o problema foi resolvido" hint="Deixe em branco e salve para remover a solução.">
+          <Field
+            label="Como o problema foi resolvido"
+            hint={`Ao salvar, ${ticket.requesterName} é avisado para confirmar; confirmada, o chamado fica resolvido. Deixe em branco para remover.`}
+            error={error?.fieldError("machineId")}
+          >
             <textarea
               className="textarea"
               rows={5}
@@ -755,12 +776,38 @@ function SolutionPanel({
           </div>
         </form>
       ) : ticket.solution ? (
-        <p className="description">{ticket.solution}</p>
+        <>
+          <p className="description">{ticket.solution}</p>
+          {ticket.solutionConfirmedAt ? (
+            <p className="muted" style={{ margin: "8px 0 0" }}>
+              ✓ Confirmada por {ticket.requesterName} em {formatDateTime(ticket.solutionConfirmedAt)}.
+            </p>
+          ) : canConfirm ? (
+            <div className="form" style={{ marginTop: 12 }}>
+              <p style={{ margin: 0 }}>
+                <strong>Esta solução resolveu o seu problema?</strong> Ao confirmar, o chamado fica resolvido. Se não
+                resolveu, explique na conversa abaixo.
+              </p>
+              <div className="form-actions" style={{ justifyContent: "flex-start" }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={saving}
+                  onClick={() => run(() => ticketService.confirmSolution(ticket.id))}
+                >
+                  {saving ? "Confirmando…" : "Confirmar solução"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="muted" style={{ margin: "8px 0 0" }}>
+              Aguardando a confirmação de {ticket.requesterName}.
+            </p>
+          )}
+        </>
       ) : (
         <p className="muted" style={{ margin: 0 }}>
-          {isResolved
-            ? "Nenhuma solução registrada ainda."
-            : "A solução poderá ser registrada quando o chamado estiver resolvido."}
+          Nenhuma solução registrada ainda.
         </p>
       )}
     </section>
@@ -874,6 +921,68 @@ function RatingPanel({
           </div>
         </form>
       )}
+    </section>
+  );
+}
+
+/**
+ * Quem abriu reabre o chamado resolvido (volta para "em andamento"), dentro do prazo
+ * configurado após a conclusão. A API aplica a mesma regra.
+ */
+function ReopenPanel({
+  ticket,
+  windowHours,
+  onReopened,
+}: {
+  ticket: TicketDetail;
+  windowHours: number | null;
+  onReopened: (ticket: TicketDetail) => void;
+}) {
+  const [error, setError] = useState<ApiError | null>(null);
+  const [saving, setSaving] = useState(false);
+  const deadline =
+    windowHours !== null && ticket.resolvedAt
+      ? new Date(new Date(ticket.resolvedAt).getTime() + windowHours * 3_600_000)
+      : null;
+  const expired = deadline !== null && Date.now() > deadline.getTime();
+
+  async function onReopen() {
+    if (!window.confirm("Reabrir este chamado? Ele volta para “Em andamento”.")) return;
+    setSaving(true);
+    setError(null);
+    try {
+      onReopened(await ticketService.reopen(ticket.id));
+    } catch (err) {
+      setError(err as ApiError);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="panel" aria-labelledby="reopen-title">
+      <div className="panel-head">
+        <h2 id="reopen-title">O problema voltou?</h2>
+      </div>
+      <div className="form">
+        <ErrorAlert error={error} />
+        {expired ? (
+          <p className="muted" style={{ margin: 0 }}>
+            O prazo para reabrir terminou em {formatDateTime(deadline!.toISOString())}. Abra um novo chamado.
+          </p>
+        ) : (
+          <>
+            {deadline && (
+              <p className="muted" style={{ margin: 0 }}>
+                Você pode reabrir até {formatDateTime(deadline.toISOString())}.
+              </p>
+            )}
+            <button type="button" className="btn btn-ghost" onClick={onReopen} disabled={saving}>
+              {saving ? "Reabrindo…" : "Reabrir chamado"}
+            </button>
+          </>
+        )}
+      </div>
     </section>
   );
 }
