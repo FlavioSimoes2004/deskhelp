@@ -7,7 +7,7 @@ const SAMPLE = [
   { id: 126, status: "resolvido", title: "Impressora do 2º andar sem toner", meta: "Impressoras" },
 ] as const;
 
-/** Moldura das telas de login e cadastro: painel escuro com chamados de exemplo + formulário. */
+/** Moldura das telas de login e cadastro: painel com chamados de exemplo + formulário. */
 export function AuthFrame({ children }: { children: ReactNode }) {
   return (
     <div className="auth">
