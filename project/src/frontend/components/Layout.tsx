@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { useAuth } from "../hooks/useAuth";
 import { initials, ROLE_LABEL } from "../utils/format";
 import { AgendaReminder } from "./AgendaReminder";
+import { AppearanceToggle } from "./AppearanceToggle";
 import { IdleWatcher } from "./IdleWatcher";
 import { LogoMark } from "./Logo";
 import { NotificationBell } from "./NotificationBell";
@@ -108,6 +109,7 @@ export function Layout() {
           <NavLink to="/perfil" className={navClass} style={{ gridColumn: "1 / -1" }}>
             Meu perfil
           </NavLink>
+          <AppearanceToggle />
           <ThemePicker />
           <button type="button" className="btn btn-rail btn-sm" onClick={() => logout()}>
             Sair

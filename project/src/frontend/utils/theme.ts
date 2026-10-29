@@ -21,6 +21,24 @@ export const ACCENT_PRESETS = [
   { name: "Grafite", color: "#8e8e93" },
 ] as const;
 
+/** Aparência: clara ou escura. */
+export type ColorScheme = "light" | "dark";
+
+/**
+ * No modo escuro a Apple usa versões mais claras das cores do sistema (ex.: systemBlue
+ * #007AFF vira #0A84FF). Cores personalizadas são usadas como foram escolhidas.
+ */
+const DARK_VARIANT: Record<string, string> = {
+  "#007aff": "#0a84ff",
+  "#af52de": "#bf5af2",
+  "#ff2d55": "#ff375f",
+  "#ff3b30": "#ff453a",
+  "#ff9500": "#ff9f0a",
+  "#ffcc00": "#ffd60a",
+  "#34c759": "#30d158",
+  "#8e8e93": "#98989d",
+};
+
 type Rgb = [number, number, number];
 
 const WHITE: Rgb = [255, 255, 255];
@@ -28,6 +46,8 @@ const BLACK: Rgb = [0, 0, 0];
 // Texto escuro usado sobre cores claras (amarelo, verde...). Mantido levemente azulado: com um
 // preto mais puro, a comparação de contraste passaria a escolher texto escuro no systemBlue.
 const INK: Rgb = [27, 36, 51];
+// Fundos do modo escuro: cartão (#1C1C1E), onde ficam links e etiquetas.
+const DARK_SURFACE: Rgb = [28, 28, 30];
 
 export function hexToRgb(hex: string): Rgb | null {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
@@ -70,7 +90,21 @@ export type AccentTokens = Record<
   string
 >;
 
-export function accentTokens(hex: string): AccentTokens | null {
+/** Variações da cor para a aparência; no escuro, links e etiquetas clareiam (contraste com o fundo escuro). */
+export function accentTokens(hex: string, scheme: ColorScheme = "light"): AccentTokens | null {
+  if (scheme === "dark") {
+    const base = hexToRgb(DARK_VARIANT[hex.toLowerCase()] ?? hex);
+    if (!base) return null;
+    const soft = mix(base, DARK_SURFACE, 0.78);
+    return {
+      "--petrol": rgbToHex(base),
+      "--petrol-hover": rgbToHex(mix(base, WHITE, 0.14)),
+      "--petrol-text": rgbToHex(untilContrast(base, WHITE, DARK_SURFACE, 4.5)),
+      "--petrol-strong": rgbToHex(untilContrast(mix(base, WHITE, 0.25), WHITE, soft, 4.5)),
+      "--petrol-soft": rgbToHex(soft),
+      "--on-petrol": contrast(base, WHITE) >= contrast(base, INK) ? "#ffffff" : rgbToHex(INK),
+    };
+  }
   const base = hexToRgb(hex);
   if (!base) return null;
   const soft = mix(base, WHITE, 0.88);
@@ -86,12 +120,13 @@ export function accentTokens(hex: string): AccentTokens | null {
 
 const STORAGE_KEY = "deskhelp.accent";
 
-/** Aplica a cor no documento; a cor padrão volta aos valores definidos no CSS. */
+/** Aparência atual do documento (definida por applyColorScheme). */
+const currentScheme = (): ColorScheme => (document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+
+/** Aplica a cor no documento, com as variações da aparência atual. */
 export function applyAccent(hex: string) {
   const root = document.documentElement.style;
-  const tokens = accentTokens(hex);
-  for (const name of Object.keys(accentTokens(DEFAULT_ACCENT)!)) root.removeProperty(name);
-  if (!tokens || hex.toLowerCase() === DEFAULT_ACCENT) return;
+  const tokens = accentTokens(hex, currentScheme()) ?? accentTokens(DEFAULT_ACCENT, currentScheme())!;
   for (const [name, value] of Object.entries(tokens)) root.setProperty(name, value);
 }
 
@@ -110,4 +145,44 @@ export function saveAccent(hex: string) {
   } catch {
     /* sem armazenamento: a cor vale até recarregar a página */
   }
+}
+
+const SCHEME_KEY = "deskhelp.colorScheme";
+
+/** Aparência escolhida pelo usuário; sem escolha, a do sistema operacional. */
+export function loadColorScheme(): ColorScheme {
+  try {
+    const saved = localStorage.getItem(SCHEME_KEY);
+    if (saved === "light" || saved === "dark") return saved;
+  } catch {
+    /* sem armazenamento: segue o sistema */
+  }
+  return systemColorScheme();
+}
+
+export const systemColorScheme = (): ColorScheme =>
+  window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+
+/** O usuário já escolheu uma aparência (deixa de seguir o sistema). */
+export function hasSavedColorScheme(): boolean {
+  try {
+    return localStorage.getItem(SCHEME_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+export function saveColorScheme(scheme: ColorScheme) {
+  try {
+    localStorage.setItem(SCHEME_KEY, scheme);
+  } catch {
+    /* sem armazenamento: vale até recarregar a página */
+  }
+}
+
+/** Aplica a aparência (CSS em [data-theme]) e recalcula a cor de destaque para ela. */
+export function applyColorScheme(scheme: ColorScheme) {
+  document.documentElement.dataset.theme = scheme;
+  document.documentElement.style.colorScheme = scheme;
+  applyAccent(loadAccent());
 }

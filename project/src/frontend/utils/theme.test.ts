@@ -32,3 +32,21 @@ describe("accentTokens", () => {
   });
 
 });
+
+describe("accentTokens in dark mode", () => {
+  const dark = (hex: string) => accentTokens(hex, "dark")!;
+
+  it("uses Apple's dark variants for the system colors", () => {
+    expect(dark("#007aff")["--petrol"]).toBe("#0a84ff");
+    expect(dark("#34c759")["--petrol"]).toBe("#30d158");
+  });
+
+  it("keeps links and tags readable on the dark cards", () => {
+    for (const color of ["#0e5e6f", "#000080", "#3a0000", ...ACCENT_PRESETS.map((p) => p.color)]) {
+      const t = dark(color);
+      expect(contrast(rgb(t["--petrol-text"]), [28, 28, 30])).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(rgb(t["--petrol-strong"]), rgb(t["--petrol-soft"]))).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(rgb(t["--on-petrol"]), rgb(t["--petrol"]))).toBeGreaterThanOrEqual(3);
+    }
+  });
+});
