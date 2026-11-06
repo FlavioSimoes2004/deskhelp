@@ -4,7 +4,7 @@ export type Role = (typeof ROLES)[number];
 export const TICKET_STATUSES = ["aberto", "em_andamento", "aguardando", "resolvido", "fechado"] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
-export const NOTIFICATION_TYPES = ["assigned", "comment", "agenda", "solution", "reopened"] as const;
+export const NOTIFICATION_TYPES = ["assigned", "comment", "agenda", "solution", "reopened", "overdue"] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export const TICKET_PRIORITIES = ["baixa", "media", "alta", "critica"] as const;

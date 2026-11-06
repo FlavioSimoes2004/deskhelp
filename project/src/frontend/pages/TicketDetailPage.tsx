@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useLocation, useParams } from "react-router";
-import { PriorityOrNone, StatusBadge } from "../components/Badges";
+import { PriorityOrNone, SlaBadge, StatusBadge } from "../components/Badges";
 import { EmptyState, ErrorAlert, Loading } from "../components/Feedback";
 import { Field } from "../components/Field";
 import { ImagePreview, isImageAttachment } from "../components/ImagePreview";
@@ -232,6 +232,14 @@ export function TicketDetailPage() {
               </dd>
               <dt>Aberto em</dt>
               <dd>{formatDateTime(t.createdAt)}</dd>
+              {t.slaState && t.slaDueAt && (
+                <>
+                  <dt>Prazo</dt>
+                  <dd>
+                    {formatDateTime(t.slaDueAt)} <SlaBadge state={t.slaState} dueAt={null} />
+                  </dd>
+                </>
+              )}
               <dt>Última atividade</dt>
               <dd>{formatDateTime(t.updatedAt)}</dd>
               {t.resolvedAt && (

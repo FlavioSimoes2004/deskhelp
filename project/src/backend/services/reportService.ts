@@ -4,6 +4,8 @@ import { toCsv } from "../utils/csv.js";
 import { aggregateMachineReport } from "./machineReport.js";
 import { aggregatePeopleReport } from "./peopleReport.js";
 import { HttpError } from "../utils/httpError.js";
+import { getSettings } from "./settingsService.js";
+import { hasAnySla, slaHoursByPriority, slaOnTimePercent } from "./slaRules.js";
 
 /** Data local AAAA-MM-DD (o banco grava no fuso local). */
 const day = (d: Date) =>
@@ -23,15 +25,28 @@ function resolvePeriod(query: ReportQuery): reports.Period {
 
 export async function getSummary(query: ReportQuery) {
   const period = resolvePeriod(query);
-  const [totals, byStatus, byPriority, byCategory, byAssignee, perDay] = await Promise.all([
+  const settings = await getSettings();
+  const [totals, byStatus, byPriority, byCategory, byAssignee, perDay, sla] = await Promise.all([
     reports.resolutionStats(period),
     reports.ticketsByStatus(period),
     reports.ticketsByPriority(period),
     reports.ticketsByCategory(period),
     reports.ticketsByAssignee(period),
     reports.ticketsPerDay(period),
+    // Sem nenhum prazo configurado, o indicador não se aplica.
+    hasAnySla(settings) ? reports.slaStats(period, slaHoursByPriority(settings)) : null,
   ]);
-  return { period, totals, byStatus, byPriority, byCategory, byAssignee, perDay };
+  return {
+    period,
+    totals,
+    /** Prazo (SLA): null quando nenhum prazo está configurado. */
+    sla: sla && { ...sla, onTimePercent: slaOnTimePercent(sla) },
+    byStatus,
+    byPriority,
+    byCategory,
+    byAssignee,
+    perDay,
+  };
 }
 
 /** Chamados abertos no período, por máquina vinculada, separados por status e categoria. */

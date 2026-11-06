@@ -18,6 +18,9 @@ export interface Category {
   active: boolean;
 }
 
+/** on_time/overdue: em aberto, no prazo ou atrasado; met/missed: concluído no prazo ou depois. */
+export type SlaState = "on_time" | "overdue" | "met" | "missed";
+
 export interface Ticket {
   id: number;
   title: string;
@@ -49,6 +52,9 @@ export interface Ticket {
   updatedAt: string;
   resolvedAt: string | null;
   closedAt: string | null;
+  /** Prazo (SLA) pela prioridade; null sem prazo configurado (ou com a prioridade escondida). */
+  slaDueAt: string | null;
+  slaState: SlaState | null;
 }
 
 export interface TicketComment {
@@ -111,6 +117,8 @@ export interface ReportSummary {
   byCategory: CountItem[];
   byAssignee: CountItem[];
   perDay: { day: string; total: number }[];
+  /** Prazo (SLA) dos chamados com resultado; null quando nenhum prazo está configurado. */
+  sla: { met: number; missed: number; overdue: number; onTimePercent: number | null } | null;
 }
 
 export type StorageType = "ssd" | "hd";
@@ -158,7 +166,7 @@ export interface MachineHistoryEntry {
   createdAt: string;
 }
 
-export type NotificationType = "assigned" | "comment" | "agenda" | "solution" | "reopened";
+export type NotificationType = "assigned" | "comment" | "agenda" | "solution" | "reopened" | "overdue";
 
 export interface Notification {
   id: number;
@@ -258,4 +266,9 @@ export interface AppSettings {
   commentsLocked: boolean;
   /** Máximo de chamados "aberto"/"em andamento" por usuário; null = sem limite. */
   maxOpenTicketsPerUser: number | null;
+  /** Prazo (SLA), em horas desde a abertura, de cada prioridade; null = sem prazo. */
+  slaHoursCritica: number | null;
+  slaHoursAlta: number | null;
+  slaHoursMedia: number | null;
+  slaHoursBaixa: number | null;
 }

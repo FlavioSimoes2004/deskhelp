@@ -4,6 +4,20 @@ import { Field } from "../components/Field";
 import { useAsync } from "../hooks/useAsync";
 import { ApiError } from "../services/api";
 import { settingsService } from "../services/deskhelp";
+import type { AppSettings } from "../services/types";
+
+/** Campos de prazo (SLA) por prioridade, da mais urgente à menos. */
+const SLA_FIELDS = [
+  { key: "slaHoursCritica", label: "Crítica" },
+  { key: "slaHoursAlta", label: "Alta" },
+  { key: "slaHoursMedia", label: "Média" },
+  { key: "slaHoursBaixa", label: "Baixa" },
+] as const satisfies readonly { key: keyof AppSettings; label: string }[];
+
+type SlaKey = (typeof SLA_FIELDS)[number]["key"];
+/** Em branco = sem prazo. */
+const toSlaForm = (s: AppSettings) =>
+  Object.fromEntries(SLA_FIELDS.map(({ key }) => [key, s[key] === null ? "" : String(s[key])])) as Record<SlaKey, string>;
 
 /** Configurações gerais da aplicação (admin e super support). Valem na hora, para todos. */
 export function SettingsPage() {
@@ -19,6 +33,7 @@ export function SettingsPage() {
     commentsLocked: false,
     limitEnabled: false,
     limit: "3",
+    sla: { slaHoursCritica: "", slaHoursAlta: "", slaHoursMedia: "", slaHoursBaixa: "" } as Record<SlaKey, string>,
   });
   const [error, setError] = useState<ApiError | null>(null);
   const [saving, setSaving] = useState(false);
@@ -39,6 +54,7 @@ export function SettingsPage() {
       commentsLocked: s.commentsLocked,
       limitEnabled: s.maxOpenTicketsPerUser !== null,
       limit: String(s.maxOpenTicketsPerUser ?? 3),
+      sla: toSlaForm(s),
     });
   }, [settings.data]);
 
@@ -58,6 +74,9 @@ export function SettingsPage() {
           reopenWindowHours: form.reopenLimited ? Number(form.reopenHours) : null,
           commentsLocked: form.commentsLocked,
           maxOpenTicketsPerUser: form.limitEnabled ? Number(form.limit) : null,
+          ...(Object.fromEntries(
+            SLA_FIELDS.map(({ key }) => [key, form.sla[key].trim() ? Number(form.sla[key]) : null]),
+          ) as Record<SlaKey, number | null>),
         }),
       );
       setSaved(true);
@@ -255,6 +274,32 @@ export function SettingsPage() {
                 />
               </Field>
             )}
+          </fieldset>
+
+          <fieldset className="fieldset">
+            <legend>Prazos de atendimento (SLA)</legend>
+            <p className="muted" style={{ margin: 0 }}>
+              Horas, contadas da abertura, para concluir um chamado de cada prioridade. Em branco, a prioridade fica sem
+              prazo. Chamados atrasados ganham a etiqueta “Atrasado” na lista; o responsável (ou, sem responsável, os
+              super supports) é avisado no sino uma vez; e o Relatório de Chamados mostra quanto foi concluído no prazo.
+            </p>
+            <div className="sla-grid">
+              {SLA_FIELDS.map(({ key, label }) => (
+                <Field key={key} label={`${label} (horas)`} error={error?.fieldError(key)}>
+                  <input
+                    className="input"
+                    type="number"
+                    min={1}
+                    max={8760}
+                    step={1}
+                    inputMode="numeric"
+                    placeholder="Sem prazo"
+                    value={form.sla[key]}
+                    onChange={(e) => setForm({ ...form, sla: { ...form.sla, [key]: e.target.value } })}
+                  />
+                </Field>
+              ))}
+            </div>
           </fieldset>
 
           <div className="form-actions">

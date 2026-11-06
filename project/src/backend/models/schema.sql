@@ -70,6 +70,8 @@ CREATE TABLE IF NOT EXISTS tickets (
   updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   resolved_at  DATETIME NULL,
   closed_at    DATETIME NULL,
+  -- Quando o aviso de prazo (SLA) estourado foi enviado; NULL = ainda não avisado.
+  sla_notified_at DATETIME NULL,
   PRIMARY KEY (id),
   KEY idx_tickets_status_created (status, created_at),
   KEY idx_tickets_requester (requester_id, created_at),
@@ -144,12 +146,13 @@ ALTER TABLE agenda_items ADD COLUMN IF NOT EXISTS ticket_id INT UNSIGNED NULL AF
 -- 'comment' (alguém comentou em um chamado que ele abriu ou do qual é responsável) ou
 -- 'agenda' (chegou a hora de um item da agenda dele; sem chamado nem autor), 'solution'
 -- (o responsável registrou a solução; quem abriu deve confirmar) ou 'reopened' (quem abriu
--- reabriu o chamado; vai para o responsável).
+-- reabriu o chamado; vai para o responsável) ou 'overdue' (o prazo do chamado estourou; vai
+-- para o responsável ou, sem responsável, para os super supports; sem autor).
 -- actor_id é quem gerou a notificação; read_at fica NULL enquanto não for lida.
 CREATE TABLE IF NOT EXISTS notifications (
   id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id    INT UNSIGNED NOT NULL,
-  type       ENUM('assigned', 'comment', 'agenda', 'solution', 'reopened') NOT NULL,
+  type       ENUM('assigned', 'comment', 'agenda', 'solution', 'reopened', 'overdue') NOT NULL,
   ticket_id  INT UNSIGNED NULL,
   actor_id   INT UNSIGNED NULL,
   comment_id INT UNSIGNED NULL,
@@ -168,7 +171,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 -- Bancos criados antes das notificações da agenda (a chave de agenda_id é criada por migrate.ts).
 ALTER TABLE notifications
-  MODIFY type ENUM('assigned', 'comment', 'agenda', 'solution', 'reopened') NOT NULL,
+  MODIFY type ENUM('assigned', 'comment', 'agenda', 'solution', 'reopened', 'overdue') NOT NULL,
   MODIFY ticket_id INT UNSIGNED NULL,
   MODIFY actor_id INT UNSIGNED NULL,
   ADD COLUMN IF NOT EXISTS agenda_id INT UNSIGNED NULL AFTER comment_id;
@@ -210,6 +213,9 @@ ALTER TABLE tickets
 
 -- Bancos criados antes da confirmação da solução.
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS solution_confirmed_at DATETIME NULL AFTER solution;
+
+-- Bancos criados antes dos prazos (SLA) por prioridade.
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS sla_notified_at DATETIME NULL AFTER closed_at;
 
 -- Bancos criados antes da coluna tickets.solution.
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS solution TEXT NULL AFTER machine_id;

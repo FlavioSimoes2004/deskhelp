@@ -22,6 +22,11 @@ export interface AppSettings {
   commentsLocked: boolean;
   /** Máximo de chamados "aberto"/"em andamento" por usuário; null = sem limite. */
   maxOpenTicketsPerUser: number | null;
+  /** Prazo (SLA), em horas a partir da abertura, de cada prioridade; null = sem prazo. */
+  slaHoursCritica: number | null;
+  slaHoursAlta: number | null;
+  slaHoursMedia: number | null;
+  slaHoursBaixa: number | null;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -33,6 +38,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   reopenWindowHours: null,
   commentsLocked: false,
   maxOpenTicketsPerUser: null,
+  slaHoursCritica: null,
+  slaHoursAlta: null,
+  slaHoursMedia: null,
+  slaHoursBaixa: null,
 };
 
 /** Nome de cada configuração na tabela app_settings. */
@@ -45,6 +54,10 @@ export const SETTING_KEYS: Record<keyof AppSettings, string> = {
   reopenWindowHours: "reopen_window_hours",
   commentsLocked: "comments_locked",
   maxOpenTicketsPerUser: "max_open_tickets_per_user",
+  slaHoursCritica: "sla_hours_critica",
+  slaHoursAlta: "sla_hours_alta",
+  slaHoursMedia: "sla_hours_media",
+  slaHoursBaixa: "sla_hours_baixa",
 };
 
 /** Lê as linhas da tabela (chave -> texto); o que faltar ou for inválido usa o padrão. */
@@ -52,6 +65,10 @@ export function parseSettings(rows: Record<string, string>): AppSettings {
   const bool = (key: keyof AppSettings) => {
     const value = rows[SETTING_KEYS[key]];
     return value === undefined ? (DEFAULT_SETTINGS[key] as boolean) : value === "1";
+  };
+  const positive = (key: keyof AppSettings) => {
+    const value = Number(rows[SETTING_KEYS[key]]);
+    return Number.isInteger(value) && value > 0 ? value : null;
   };
   const limit = Number(rows[SETTING_KEYS.maxOpenTicketsPerUser]);
   const reopen = Number(rows[SETTING_KEYS.reopenWindowHours]);
@@ -69,6 +86,10 @@ export function parseSettings(rows: Record<string, string>): AppSettings {
     reopenWindowHours: Number.isInteger(reopen) && reopen > 0 ? reopen : null,
     commentsLocked: bool("commentsLocked"),
     maxOpenTicketsPerUser: Number.isInteger(limit) && limit > 0 ? limit : null,
+    slaHoursCritica: positive("slaHoursCritica"),
+    slaHoursAlta: positive("slaHoursAlta"),
+    slaHoursMedia: positive("slaHoursMedia"),
+    slaHoursBaixa: positive("slaHoursBaixa"),
   };
 }
 

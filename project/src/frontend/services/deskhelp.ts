@@ -47,6 +47,9 @@ export interface TicketFilters {
   solution?: "with" | "without" | "pending" | "";
   categoryId?: number | "";
   assigneeId?: number | "";
+  machineId?: number | "";
+  /** overdue = em aberto com o prazo (SLA) estourado. */
+  sla?: "overdue" | "";
   search?: string;
   /** Período pela data de abertura (AAAA-MM-DD, inclusivo). */
   from?: string;

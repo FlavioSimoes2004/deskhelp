@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
-import type { TicketPriority, TicketStatus } from "../services/types";
-import { PRIORITY_LABEL, PRIORITY_ORDER, STATUS_LABEL } from "../utils/format";
+import type { SlaState, TicketPriority, TicketStatus } from "../services/types";
+import { formatDateTime, PRIORITY_LABEL, PRIORITY_ORDER, STATUS_LABEL } from "../utils/format";
 
 export function StatusBadge({ status }: { status: TicketStatus }) {
   return (
@@ -28,4 +28,27 @@ export function PriorityTag({ priority }: { priority: TicketPriority }) {
 /** Prioridade do chamado ou "Sem prioridade" quando ainda não foi definida. */
 export function PriorityOrNone({ priority }: { priority: TicketPriority | null }) {
   return priority ? <PriorityTag priority={priority} /> : <span className="muted">Sem prioridade</span>;
+}
+
+const SLA_LABEL: Record<SlaState, string> = {
+  on_time: "No prazo",
+  overdue: "Atrasado",
+  met: "Cumprido no prazo",
+  missed: "Fora do prazo",
+};
+
+const SLA_CLASS: Record<SlaState, string> = {
+  on_time: "tag tag-muted",
+  overdue: "tag tag-danger",
+  met: "tag tag-ok",
+  missed: "tag tag-alert",
+};
+
+/** Situação do prazo (SLA) do chamado; o título mostra a data limite. */
+export function SlaBadge({ state, dueAt }: { state: SlaState; dueAt: string | null }) {
+  return (
+    <span className={SLA_CLASS[state]} title={dueAt ? `Prazo: ${formatDateTime(dueAt)}` : undefined}>
+      {SLA_LABEL[state]}
+    </span>
+  );
 }

@@ -29,6 +29,10 @@ describe("parseSettings", () => {
       reopenWindowHours: null,
       commentsLocked: true,
       maxOpenTicketsPerUser: 3,
+      slaHoursCritica: null,
+      slaHoursAlta: null,
+      slaHoursMedia: null,
+      slaHoursBaixa: null,
     });
   });
 
@@ -52,6 +56,10 @@ describe("parseSettings", () => {
       reopenWindowHours: null,
       commentsLocked: false,
       maxOpenTicketsPerUser: null,
+      slaHoursCritica: null,
+      slaHoursAlta: null,
+      slaHoursMedia: null,
+      slaHoursBaixa: null,
     });
   });
 });

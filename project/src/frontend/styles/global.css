@@ -1455,6 +1455,12 @@ table.table {
   letter-spacing: -0.02em;
 }
 
+.kpis .kpi-note {
+  display: block;
+  font-size: var(--step--1);
+  color: var(--danger);
+}
+
 /* ---------- Detalhe do chamado ---------- */
 .detail {
   display: grid;
@@ -1896,6 +1902,30 @@ table.table {
 .tag-muted {
   background: var(--fill);
   color: var(--ink-3);
+}
+
+/* Prazos (SLA) por prioridade, na página Configurações. */
+.sla-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.tag-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.tag-ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+/* Etiqueta "Atrasado" abaixo do status, na lista de chamados. */
+.sla-flag {
+  display: block;
+  margin-top: 4px;
+  width: fit-content;
 }
 
 /* ---------- Tela de login ---------- */

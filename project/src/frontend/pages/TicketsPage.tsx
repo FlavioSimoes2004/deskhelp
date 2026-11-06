@@ -17,12 +17,17 @@ export function TicketsPage() {
   // Configuração: usuário comum não vê a prioridade, então também não filtra por ela.
   const settings = useAppSettings();
   const showPriority = isStaff || !settings?.hidePriorityForComum;
+  // Filtro de prazo: só com algum prazo (SLA) configurado e a prioridade visível.
+  const showSla =
+    showPriority &&
+    Boolean(settings && [settings.slaHoursCritica, settings.slaHoursAlta, settings.slaHoursMedia, settings.slaHoursBaixa].some((h) => h !== null));
   const [params, setParams] = useSearchParams();
   const status = (params.get("status") ?? "") as TicketStatus | "";
   const priority = (params.get("priority") ?? "") as TicketPriority | "none" | "";
   const solution = (params.get("solution") ?? "") as "with" | "without" | "pending" | "";
   const categoryId = params.get("categoryId") ?? "";
   const assigneeId = params.get("assigneeId") ?? "";
+  const sla = (params.get("sla") ?? "") as "overdue" | "";
   const search = params.get("search") ?? "";
   const page = Number(params.get("page") ?? 1);
 
@@ -61,13 +66,14 @@ export function TicketsPage() {
             solution,
             categoryId: categoryId ? Number(categoryId) : "",
             assigneeId: assigneeId ? Number(assigneeId) : "",
+            sla,
             search,
             from,
             to,
             page,
             pageSize: PAGE_SIZE,
           }),
-    [status, priority, solution, categoryId, assigneeId, search, from, to, page, waitingDefault],
+    [status, priority, solution, categoryId, assigneeId, sla, search, from, to, page, waitingDefault],
   );
   // Chamados novos e mudanças de status aparecem sem recarregar a página.
   useLiveRefresh(list.refresh, !waitingDefault);
@@ -84,7 +90,7 @@ export function TicketsPage() {
 
   // O período padrão não conta como filtro; só o escolhido pelo usuário.
   const hasFilters = Boolean(
-    status || priority || solution || categoryId || assigneeId || search || fromParam !== null || params.has("to"),
+    status || priority || solution || categoryId || assigneeId || sla || search || fromParam !== null || params.has("to"),
   );
   const pagination = list.data?.pagination;
 
@@ -153,6 +159,15 @@ export function TicketsPage() {
             <option value="pending">Aguardando confirmação</option>
           </select>
         </div>
+        {(showSla || sla) && (
+          <div className="field">
+            <label htmlFor="f-sla">Prazo</label>
+            <select id="f-sla" className="select" value={sla} onChange={(e) => update({ sla: e.target.value })}>
+              <option value="">Todos</option>
+              <option value="overdue">Atrasados</option>
+            </select>
+          </div>
+        )}
         <div className="field">
           <label htmlFor="f-category">Categoria</label>
           <select
@@ -219,7 +234,8 @@ export function TicketsPage() {
       </div>
 
       <ErrorAlert error={list.error} onRetry={list.reload} />
-      {waitingDefault || (list.loading && !list.data) ? (
+      {/* Sem dados e sem erro = ainda buscando (inclui a troca da espera pela busca real). */}
+      {waitingDefault || (!list.data && !list.error) ? (
         <Loading />
       ) : list.data?.data.length ? (
         <>

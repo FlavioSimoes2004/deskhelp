@@ -23,6 +23,8 @@ Regras importantes:
 - Suporte e super support vinculam a máquina do chamado; um chamado só pode ficar "resolvido" com máquina vinculada.
 - A solução do chamado é registrada pelo responsável (ou um super support) em qualquer status, com máquina vinculada. Quem abriu é avisado e confirma; confirmada, o chamado fica "resolvido". Mudar a solução pede nova confirmação.
 - Quem abriu pode reabrir um chamado "resolvido" (volta para "em andamento"); o prazo, em horas após a conclusão, é definido em Configurações.
+- Prazo (SLA) por prioridade, em horas desde a abertura, definido em Configurações (em branco = sem prazo). Chamado em aberto depois do prazo aparece como "Atrasado" na lista (filtro "Prazo: atrasados") e o detalhe mostra a data limite. O servidor confere os prazos a cada 30 s e avisa no sino, uma vez por chamado, o responsável ou, sem responsável, os super supports. O Relatório de Chamados mostra o % "Dentro do prazo".
+- Na página Máquinas, o botão "Chamados" de cada máquina mostra a configuração cadastrada e os chamados vinculados a ela.
 - Suporte e super support podem deixar notas internas no chamado, que quem abriu não vê.
 - Quem abriu avalia o atendimento (1 a 5) uma vez, com o chamado resolvido ou fechado.
 - Abrir um chamado marca as notificações dele como lidas.
@@ -53,7 +55,7 @@ Regras importantes:
 | `/relatorios/maquinas` | Chamados por máquina no período, por status e por categoria | admin e super support |
 | `/relatorios/solicitantes` | Chamados por quem abriu, no período: status, categoria e resolução | admin e super support |
 | `/categorias` | Lista, cadastro e ativação/desativação de categorias (nomes sempre em maiúsculas; desativadas somem da escolha nos chamados) | super support |
-| `/configuracoes` | Configurações gerais: esconder prioridade de usuários comuns, só o suporte definir a prioridade, proibir o suporte de cadastrar/editar usuários, bloquear avaliações, prazo para reabrir, máximo de anexos ao abrir chamado, bloquear conversa, limitar chamados abertos por usuário | admin e super support |
+| `/configuracoes` | Configurações gerais: esconder prioridade de usuários comuns, só o suporte definir a prioridade, proibir o suporte de cadastrar/editar usuários, bloquear avaliações, prazo para reabrir, máximo de anexos ao abrir chamado, bloquear conversa, limitar chamados abertos por usuário, prazos (SLA) por prioridade | admin e super support |
 | `/relatorios/responsaveis` | Chamados por responsável, no período: status, categoria e resolução | admin e super support |
 
 ## Instalação (Fedora)

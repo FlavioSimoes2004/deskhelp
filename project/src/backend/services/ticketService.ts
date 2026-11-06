@@ -10,6 +10,7 @@ import { forbidden, HttpError, notFound } from "../utils/httpError.js";
 import { assignmentRecipient, commentRecipients } from "./notificationRules.js";
 import { canViewAllTickets, isRequesterOnly } from "./roleRules.js";
 import { getSettings } from "./settingsService.js";
+import { slaHoursByPriority, slaInfo } from "./slaRules.js";
 import {
   assertBelowOpenTicketLimit,
   assertCommentsOpen,
@@ -17,6 +18,7 @@ import {
   assertTicketAttachmentsAllowed,
   hidesPriority,
   newTicketPriority,
+  type AppSettings,
 } from "./settingsRules.js";
 import {
   applySupportRules,
@@ -54,17 +56,26 @@ const DEFAULT_PRIORITY: TicketPriority = "media";
 
 /**
  * Chamado como o usuário pode vê-lo: sem prioridade quando a configuração esconde a
- * prioridade de usuários "comum".
+ * prioridade de usuários "comum", e com o prazo (SLA), que também some nesse caso (o prazo
+ * revelaria a prioridade).
  */
-function present<T extends { priority: TicketPriority | null }>(ticket: T, hidePriority: boolean): T {
-  return hidePriority ? { ...ticket, priority: null } : ticket;
+function present<T extends Ticket>(ticket: T, hidePriority: boolean, settings: AppSettings) {
+  const sla = hidePriority ? null : slaInfo(ticket, settings, new Date());
+  return {
+    ...(hidePriority ? { ...ticket, priority: null } : ticket),
+    slaDueAt: sla?.dueAt ?? null,
+    slaState: sla?.state ?? null,
+  };
 }
 
 export async function listTickets(user: AuthUser, query: TicketQuery) {
-  const hide = hidesPriority(user, await getSettings());
+  const settings = await getSettings();
+  const hide = hidesPriority(user, settings);
   const { page, pageSize, ...requested } = query;
-  // Prioridade escondida: o filtro por prioridade também não vale (revelaria a prioridade).
-  const filters = hide ? { ...requested, priority: undefined } : requested;
+  // Prioridade escondida: os filtros por prioridade e por prazo também não valem (revelariam a prioridade).
+  const filters = hide
+    ? { ...requested, priority: undefined, sla: undefined }
+    : { ...requested, slaHours: slaHoursByPriority(settings) };
   if (filters.from && filters.to && filters.from > filters.to) {
     throw new HttpError(400, "VALIDATION_ERROR", "A data inicial deve ser anterior à final", [
       { field: "from", message: "A data inicial deve ser anterior à final" },
@@ -72,7 +83,7 @@ export async function listTickets(user: AuthUser, query: TicketQuery) {
   }
   const scoped = canViewAllTickets(user.role) ? filters : { ...filters, requesterId: user.id };
   const { items, total } = await tickets.listTickets(scoped, page, pageSize);
-  return { data: items.map((t) => present(t, hide)), pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) } };
+  return { data: items.map((t) => present(t, hide, settings)), pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) } };
 }
 
 export async function getTicketDetail(user: AuthUser, id: number) {
@@ -85,7 +96,7 @@ export async function getTicketDetail(user: AuthUser, id: number) {
   ]);
   const hide = hidesPriority(user, settings);
   return {
-    ...present(ticket, hide),
+    ...present(ticket, hide, settings),
     /** Anexos enviados ao abrir o chamado. */
     attachments,
     comments,
@@ -121,7 +132,7 @@ export async function createTicket(
     await Promise.all(saved.map((f) => removeStored(f.filePath).catch(() => undefined)));
     throw error;
   }
-  return present(await getVisibleTicket(user, id), hide);
+  return present(await getVisibleTicket(user, id), hide, settings);
 }
 
 export async function updateTicket(user: AuthUser, id: number, requested: Partial<TicketEditableFields>) {

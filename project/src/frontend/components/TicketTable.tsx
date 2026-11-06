@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Ticket } from "../services/types";
 import { ticketNumber, timeAgo, formatDateTime } from "../utils/format";
-import { PriorityOrNone, StatusBadge } from "./Badges";
+import { PriorityOrNone, SlaBadge, StatusBadge } from "./Badges";
 
 /**
  * showPriority = false quando a configuração esconde a prioridade de quem está vendo.
@@ -52,6 +52,11 @@ export function TicketTable({
               </td>
               <td>
                 <StatusBadge status={t.status} />
+                {t.slaState === "overdue" && (
+                  <span className="sla-flag">
+                    <SlaBadge state="overdue" dueAt={t.slaDueAt} />
+                  </span>
+                )}
               </td>
               {showPriority && (
                 <td>

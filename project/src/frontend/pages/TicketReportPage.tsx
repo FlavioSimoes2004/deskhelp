@@ -93,6 +93,22 @@ export function TicketReportPage() {
                 <span>Tempo médio até resolver</span>
                 <strong>{data.totals.avgResolutionHours === null ? "—" : `${data.totals.avgResolutionHours.toLocaleString("pt-BR")} h`}</strong>
               </div>
+              {/* Só com algum prazo (SLA) configurado em Configurações. */}
+              {data.sla && (
+                <div
+                  title={`Entre os chamados com prazo já decidido: ${data.sla.met} cumpridos, ${data.sla.missed} concluídos fora do prazo e ${data.sla.overdue} em aberto atrasados.`}
+                >
+                  <span>Dentro do prazo</span>
+                  <strong>
+                    {data.sla.onTimePercent === null ? "—" : `${data.sla.onTimePercent.toLocaleString("pt-BR")}%`}
+                  </strong>
+                  {data.sla.overdue > 0 && (
+                    <small className="kpi-note">
+                      {data.sla.overdue} {data.sla.overdue === 1 ? "atrasado" : "atrasados"} em aberto
+                    </small>
+                  )}
+                </div>
+              )}
             </div>
           </section>
 

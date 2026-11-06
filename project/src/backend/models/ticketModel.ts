@@ -84,11 +84,32 @@ export interface TicketFilters {
   categoryId?: number;
   assigneeId?: number;
   requesterId?: number;
+  machineId?: number;
+  /** overdue = em aberto com o prazo estourado (precisa de slaHours). */
+  sla?: "overdue";
+  /** Prazo em horas de cada prioridade, usado pelo filtro "sla". */
+  slaHours?: SlaHours;
   search?: string;
   /** Data de abertura a partir de (AAAA-MM-DD, inclusivo). */
   from?: string;
   /** Data de abertura até (AAAA-MM-DD, inclusivo: vale o dia todo). */
   to?: string;
+}
+
+export type SlaHours = Record<TicketPriority, number | null>;
+
+/**
+ * Data limite (SLA) do chamado "t" em SQL: abertura + horas da prioridade; NULL sem prioridade
+ * ou sem prazo para ela. Os parâmetros entram em params.
+ */
+export function slaDueSql(hours: SlaHours | undefined, params: SqlParams): string {
+  params.slaCritica = hours?.critica ?? null;
+  params.slaAlta = hours?.alta ?? null;
+  params.slaMedia = hours?.media ?? null;
+  params.slaBaixa = hours?.baixa ?? null;
+  return `DATE_ADD(t.created_at, INTERVAL (CASE t.priority
+    WHEN 'critica' THEN :slaCritica WHEN 'alta' THEN :slaAlta
+    WHEN 'media' THEN :slaMedia WHEN 'baixa' THEN :slaBaixa END) HOUR)`;
 }
 
 function buildWhere(filters: TicketFilters) {
@@ -100,6 +121,7 @@ function buildWhere(filters: TicketFilters) {
     ["categoryId", "t.category_id"],
     ["assigneeId", "t.assignee_id"],
     ["requesterId", "t.requester_id"],
+    ["machineId", "t.machine_id"],
   ];
   for (const [key, column] of exact) {
     if (filters[key] === undefined) continue;
@@ -119,6 +141,10 @@ function buildWhere(filters: TicketFilters) {
   if (filters.solution === "with") where.push("t.solution IS NOT NULL");
   if (filters.solution === "without") where.push("t.solution IS NULL");
   if (filters.solution === "pending") where.push("t.solution IS NOT NULL AND t.solution_confirmed_at IS NULL");
+  if (filters.sla === "overdue") {
+    // Sem prazo configurado para a prioridade, a data limite é NULL e o chamado fica de fora.
+    where.push(`t.status NOT IN ('resolvido', 'fechado') AND ${slaDueSql(filters.slaHours, params)} < NOW()`);
+  }
   if (filters.from) {
     where.push("t.created_at >= :from");
     params.from = filters.from;
@@ -139,6 +165,53 @@ export async function listTickets(filters: TicketFilters, page: number, pageSize
   );
   const [count] = await pool.query<RowDataPacket[]>(`SELECT COUNT(*) AS total FROM tickets t ${sql}`, params);
   return { items: rows.map(toTicket), total: Number(count[0]?.total ?? 0) };
+}
+
+/**
+ * Avisa uma única vez cada chamado em aberto com o prazo estourado (marca sla_notified_at).
+ * recipientsOf decide quem recebe, a partir do responsável e dos super supports ativos.
+ * Devolve quantos chamados foram avisados.
+ */
+export async function deliverOverdueNotifications(
+  hours: SlaHours,
+  recipientsOf: (assigneeId: number | null, superSupportIds: number[]) => number[],
+): Promise<number> {
+  const conn: PoolConnection = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const params: SqlParams = {};
+    // FOR UPDATE: duas execuções simultâneas não avisam o mesmo chamado duas vezes.
+    const [due] = await conn.query<RowDataPacket[]>(
+      `SELECT t.id, t.assignee_id FROM tickets t
+       WHERE t.sla_notified_at IS NULL AND t.status NOT IN ('resolvido', 'fechado')
+         AND ${slaDueSql(hours, params)} < NOW()
+       FOR UPDATE`,
+      params,
+    );
+    if (due.length === 0) {
+      await conn.commit();
+      return 0;
+    }
+    const [supers] = await conn.query<RowDataPacket[]>(
+      "SELECT id FROM users WHERE role = 'super_support' AND active = 1",
+    );
+    const superIds = supers.map((u) => Number(u.id));
+    const items: NewNotification[] = [];
+    for (const t of due) {
+      for (const userId of recipientsOf(t.assignee_id, superIds)) {
+        items.push({ userId, type: "overdue", ticketId: t.id, actorId: null });
+      }
+    }
+    await insertNotifications(conn, items);
+    await conn.query("UPDATE tickets SET sla_notified_at = CURRENT_TIMESTAMP WHERE id IN (?)", [due.map((t) => t.id)]);
+    await conn.commit();
+    return due.length;
+  } catch (error) {
+    await conn.rollback();
+    throw error;
+  } finally {
+    conn.release();
+  }
 }
 
 export async function findTicketById(id: number): Promise<Ticket | null> {

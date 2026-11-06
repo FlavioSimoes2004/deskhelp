@@ -17,6 +17,7 @@ const TYPE_LABEL: Record<NotificationType, string> = {
   agenda: "Agenda",
   solution: "Solução",
   reopened: "Reaberto",
+  overdue: "Prazo",
 };
 
 function describe(n: Notification) {
@@ -32,6 +33,8 @@ function describe(n: Notification) {
       return `registrou a solução do chamado ${ticket}. Confirme se o problema foi resolvido.`;
     case "reopened":
       return `reabriu o chamado ${ticket}`;
+    case "overdue":
+      return `O prazo do chamado ${ticket} estourou.`;
     default:
       return `comentou no chamado ${ticket}`;
   }
@@ -95,8 +98,8 @@ export function NotificationsPage() {
         <div>
           <h1>Notificações</h1>
           <p>
-            Atribuições de chamados, comentários nos chamados que você abriu ou dos quais é responsável e
-            lembretes da sua agenda.
+            Atribuições de chamados, comentários nos chamados que você abriu ou dos quais é responsável,
+            prazos estourados e lembretes da sua agenda.
             {unread > 0 && ` Você tem ${unread} não ${unread === 1 ? "lida" : "lidas"}.`}
           </p>
         </div>
@@ -125,6 +128,7 @@ export function NotificationsPage() {
             <option value="agenda">Agenda</option>
             <option value="solution">Solução</option>
             <option value="reopened">Reaberto</option>
+            <option value="overdue">Prazo estourado</option>
           </select>
         </div>
         {hasFilters && (

@@ -1,5 +1,6 @@
 import type { RowDataPacket } from "mysql2";
-import { pool } from "../config/database.js";
+import { pool, type SqlParams } from "../config/database.js";
+import { slaDueSql, type SlaHours } from "./ticketModel.js";
 import type { TicketStatus } from "./types.js";
 
 export type Period = {
@@ -55,6 +56,29 @@ export async function resolutionStats(period: Period) {
     avgRating: row?.avg_rating == null ? null : Math.round(Number(row.avg_rating) * 10) / 10,
     rated: Number(row?.rated ?? 0),
   };
+}
+
+/**
+ * Prazo (SLA) dos chamados abertos no período que já têm resultado: cumpridos (concluídos até
+ * a data limite), estourados (concluídos depois) e atrasados (em aberto, já vencidos). Os em
+ * aberto ainda no prazo ficam de fora; chamados sem prazo também.
+ */
+export async function slaStats(period: Period, hours: SlaHours) {
+  const params: SqlParams = { ...period };
+  const due = slaDueSql(hours, params);
+  const done = "t.status IN ('resolvido', 'fechado')";
+  const doneAt = "COALESCE(t.resolved_at, t.closed_at)";
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT SUM(${done} AND ${doneAt} <= due) AS met,
+            SUM(${done} AND ${doneAt} > due) AS missed,
+            SUM(NOT ${done} AND NOW() > due) AS overdue
+     FROM (SELECT t.status, t.resolved_at, t.closed_at, ${due} AS due
+           FROM tickets t WHERE ${PERIOD}) t
+     WHERE due IS NOT NULL`,
+    params,
+  );
+  const row = rows[0];
+  return { met: Number(row?.met ?? 0), missed: Number(row?.missed ?? 0), overdue: Number(row?.overdue ?? 0) };
 }
 
 export async function ticketsForExport(period: Period) {

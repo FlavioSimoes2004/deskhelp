@@ -2,12 +2,12 @@ import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/prom
 import { pool, type SqlParams } from "../config/database.js";
 import type { Notification, NotificationType } from "./types.js";
 
-/** Notificações de chamado ("assigned"/"comment"); as da agenda são criadas em agendaModel. */
+/** Notificações de chamado; as da agenda são criadas em agendaModel. "overdue" não tem autor. */
 export interface NewNotification {
   userId: number;
   type: Exclude<NotificationType, "agenda">;
   ticketId: number;
-  actorId: number;
+  actorId: number | null;
   commentId?: number | null;
 }
 

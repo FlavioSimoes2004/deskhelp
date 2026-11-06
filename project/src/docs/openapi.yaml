@@ -52,6 +52,12 @@ tags:
       `blockSupportUserManagement`: `POST /users` e `PATCH /users/{id}` retornam 403 para o suporte. `commentsLocked`: `POST /tickets/{id}/comments` retorna
       409 `COMMENTS_LOCKED` para todos. `maxOpenTicketsPerUser`: `POST /tickets` retorna 409
       `OPEN_TICKET_LIMIT` quando quem abre já tem esse número de chamados `aberto`/`em_andamento`.
+      `slaHoursCritica`/`slaHoursAlta`/`slaHoursMedia`/`slaHoursBaixa`: prazo (SLA) em horas, contado
+      da abertura, de cada prioridade (`null` = sem prazo). Os chamados passam a trazer `slaDueAt` e
+      `slaState`; a cada 30 s o servidor cria uma notificação `overdue` (uma vez por chamado) para o
+      responsável do chamado atrasado ou, sem responsável, para os super supports; e o resumo dos
+      relatórios traz `sla`. O servidor guarda as configurações em memória (relidas a cada 30 s e
+      na hora em que são alteradas por esta API).
   - name: Agenda
     description: |
       Lembretes pessoais (cada usuário vê apenas os próprios). Na hora marcada, o servidor cria uma
@@ -287,6 +293,11 @@ paths:
           schema: { type: string, enum: [baixa, media, alta, critica, none] }
         - { name: categoryId, in: query, schema: { type: integer } }
         - { name: assigneeId, in: query, schema: { type: integer } }
+        - { name: machineId, in: query, description: Chamados vinculados a esta máquina, schema: { type: integer } }
+        - name: sla
+          in: query
+          description: "`overdue` = em aberto com o prazo (SLA) estourado. Ignorado quando a prioridade está escondida do usuário."
+          schema: { type: string, enum: [overdue] }
         - name: search
           in: query
           description: Busca no título e na descrição, ou pelo número (ex. `#42`)
@@ -729,6 +740,10 @@ paths:
                 reopenWindowHours: { type: [integer, "null"], minimum: 1, maximum: 8760, description: null = sem prazo }
                 commentsLocked: { type: boolean }
                 maxOpenTicketsPerUser: { type: [integer, "null"], minimum: 1, maximum: 1000, description: null = sem limite }
+                slaHoursCritica: { type: [integer, "null"], minimum: 1, maximum: 8760, description: null = sem prazo }
+                slaHoursAlta: { type: [integer, "null"], minimum: 1, maximum: 8760, description: null = sem prazo }
+                slaHoursMedia: { type: [integer, "null"], minimum: 1, maximum: 8760, description: null = sem prazo }
+                slaHoursBaixa: { type: [integer, "null"], minimum: 1, maximum: 8760, description: null = sem prazo }
             example: { commentsLocked: false, maxOpenTicketsPerUser: 3 }
       responses:
         "200":
@@ -884,7 +899,7 @@ paths:
       operationId: listNotifications
       parameters:
         - { name: status, in: query, schema: { type: string, enum: [unread, read] } }
-        - { name: type, in: query, schema: { type: string, enum: [assigned, comment, agenda, solution, reopened] } }
+        - { name: type, in: query, schema: { type: string, enum: [assigned, comment, agenda, solution, reopened, overdue] } }
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
         - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
       responses:
@@ -1515,6 +1530,11 @@ components:
         updatedAt: { type: string, format: date-time }
         resolvedAt: { type: [string, "null"], format: date-time }
         closedAt: { type: [string, "null"], format: date-time }
+        slaDueAt: { type: [string, "null"], format: date-time, description: Data limite (abertura + prazo da prioridade); null sem prazo ou com a prioridade escondida }
+        slaState:
+          type: [string, "null"]
+          enum: [on_time, overdue, met, missed, null]
+          description: "`on_time`/`overdue`: em aberto, no prazo ou atrasado; `met`/`missed`: concluído no prazo ou depois"
     Comment:
       type: object
       properties:
@@ -1612,7 +1632,7 @@ components:
       type: object
       properties:
         id: { type: integer }
-        type: { type: string, enum: [assigned, comment, agenda, solution, reopened] }
+        type: { type: string, enum: [assigned, comment, agenda, solution, reopened, overdue] }
         ticketId: { type: [integer, "null"], description: null em notificações da agenda }
         ticketTitle: { type: [string, "null"] }
         actorId: { type: [integer, "null"], description: Quem gerou a notificação (null na agenda) }
@@ -1670,6 +1690,10 @@ components:
         reopenWindowHours: { type: [integer, "null"], description: Horas após a conclusão em que quem abriu pode reabrir }
         commentsLocked: { type: boolean, description: Bloqueia novos comentários para todos }
         maxOpenTicketsPerUser: { type: [integer, "null"], description: Máximo de chamados aberto/em andamento por usuário }
+        slaHoursCritica: { type: [integer, "null"], description: Prazo (SLA) em horas da prioridade crítica }
+        slaHoursAlta: { type: [integer, "null"], description: Prazo (SLA) em horas da prioridade alta }
+        slaHoursMedia: { type: [integer, "null"], description: Prazo (SLA) em horas da prioridade média }
+        slaHoursBaixa: { type: [integer, "null"], description: Prazo (SLA) em horas da prioridade baixa }
     AgendaItem:
       type: object
       properties:
@@ -1713,6 +1737,16 @@ components:
             total: { type: integer }
             resolved: { type: integer }
             avgResolutionHours: { type: [number, "null"] }
+        sla:
+          type: [object, "null"]
+          description: >-
+            Prazo (SLA) dos chamados do período com resultado (os em aberto ainda no prazo ficam de fora);
+            null quando nenhum prazo está configurado.
+          properties:
+            met: { type: integer, description: Concluídos no prazo }
+            missed: { type: integer, description: Concluídos fora do prazo }
+            overdue: { type: integer, description: Em aberto e atrasados }
+            onTimePercent: { type: [number, "null"], description: "met / (met + missed + overdue), em %" }
         byStatus: { type: array, items: { $ref: "#/components/schemas/CountItem" } }
         byPriority: { type: array, items: { $ref: "#/components/schemas/CountItem" } }
         byCategory: { type: array, items: { $ref: "#/components/schemas/CountItem" } }

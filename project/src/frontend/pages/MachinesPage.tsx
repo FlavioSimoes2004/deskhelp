@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { EmptyState, ErrorAlert, Loading } from "../components/Feedback";
 import { Field } from "../components/Field";
+import { TicketTable } from "../components/TicketTable";
 import { useAsync } from "../hooks/useAsync";
 import { ApiError } from "../services/api";
-import { machineService, userService, type MachineFilters } from "../services/deskhelp";
+import { machineService, ticketService, userService, type MachineFilters } from "../services/deskhelp";
 import type { Machine, MachineHistoryEntry, StorageType, User } from "../services/types";
 import { formatDateTime, timeAgo } from "../utils/format";
 import { formatGb, machineLabel, machineSpecs, STORAGE_LABEL } from "../utils/machine";
@@ -40,6 +41,7 @@ export function MachinesPage() {
   const users = useAsync(() => userService.list(), []);
   const [editing, setEditing] = useState<Machine | "new" | null>(null);
   const [historyOf, setHistoryOf] = useState<Machine | null>(null);
+  const [ticketsOf, setTicketsOf] = useState<Machine | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   function onSaved(message: string) {
@@ -61,6 +63,7 @@ export function MachinesPage() {
           onClick={() => {
             setNotice(null);
             setHistoryOf(null);
+            setTicketsOf(null);
             setEditing("new");
           }}
         >
@@ -82,6 +85,10 @@ export function MachinesPage() {
           onCancel={() => setEditing(null)}
           onSaved={onSaved}
         />
+      )}
+
+      {ticketsOf && (
+        <MachineTickets key={ticketsOf.id} machine={ticketsOf} onClose={() => setTicketsOf(null)} />
       )}
 
       {historyOf && (
@@ -209,9 +216,22 @@ export function MachinesPage() {
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
+                        aria-pressed={ticketsOf?.id === m.id}
+                        onClick={() => {
+                          setEditing(null);
+                          setHistoryOf(null);
+                          setTicketsOf(ticketsOf?.id === m.id ? null : m);
+                        }}
+                      >
+                        Chamados
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
                         aria-pressed={historyOf?.id === m.id}
                         onClick={() => {
                           setEditing(null);
+                          setTicketsOf(null);
                           setHistoryOf(historyOf?.id === m.id ? null : m);
                         }}
                       >
@@ -223,6 +243,7 @@ export function MachinesPage() {
                         onClick={() => {
                           setNotice(null);
                           setHistoryOf(null);
+                          setTicketsOf(null);
                           setEditing(m);
                         }}
                       >
@@ -504,6 +525,73 @@ function MachineHistory({ machine, users, onClose }: { machine: Machine; users: 
         </ol>
       ) : (
         <p className="muted">Nenhuma alteração registrada.</p>
+      )}
+    </section>
+  );
+}
+
+const MACHINE_TICKETS_PAGE = 10;
+
+/** Chamados vinculados à máquina (mais recentes primeiro), com a configuração cadastrada. */
+function MachineTickets({ machine, onClose }: { machine: Machine; onClose: () => void }) {
+  const [page, setPage] = useState(1);
+  const tickets = useAsync(
+    () => ticketService.list({ machineId: machine.id, page, pageSize: MACHINE_TICKETS_PAGE }),
+    [machine.id, page],
+  );
+  const pagination = tickets.data?.pagination;
+
+  return (
+    <section className="panel" aria-labelledby="machine-tickets-title" style={{ marginBottom: 16 }}>
+      <div className="panel-head">
+        <h2 id="machine-tickets-title">Chamados de {machineLabel(machine)}</h2>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
+          Fechar
+        </button>
+      </div>
+      <dl className="meta-list" style={{ marginBottom: 16 }}>
+        <dt>Configuração</dt>
+        <dd>{machineSpecs(machine) ?? <span className="muted">Não informada</span>}</dd>
+        <dt>IP</dt>
+        <dd>{machine.ipAddress ?? <span className="muted">Sem IP</span>}</dd>
+        <dt>Usuário</dt>
+        <dd>{machine.userName ?? <span className="muted">Sem usuário</span>}</dd>
+        {machine.description && (
+          <>
+            <dt>Descrição</dt>
+            <dd>{machine.description}</dd>
+          </>
+        )}
+      </dl>
+      <ErrorAlert error={tickets.error} onRetry={tickets.reload} />
+      {tickets.loading && !tickets.data ? (
+        <Loading />
+      ) : tickets.data?.data.length ? (
+        <>
+          <TicketTable tickets={tickets.data.data} showRequester />
+          {pagination && pagination.totalPages > 1 && (
+            <div className="pager">
+              <span>
+                {pagination.total} chamados, página {pagination.page} de {pagination.totalPages}
+              </span>
+              <div>
+                <button type="button" className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+                  Anterior
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={page >= pagination.totalPages}
+                  onClick={() => setPage(page + 1)}
+                >
+                  Próxima
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="muted">Nenhum chamado vinculado a esta máquina.</p>
       )}
     </section>
   );

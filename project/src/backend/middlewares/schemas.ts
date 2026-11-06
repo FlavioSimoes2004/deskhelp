@@ -94,6 +94,15 @@ export const createCategorySchema = z.object({
 
 export const updateCategorySchema = z.object({ active: z.boolean() });
 
+// Prazo (SLA) de uma prioridade, em horas a partir da abertura; null = sem prazo.
+const slaHours = z
+  .number()
+  .int("Use um número inteiro de horas")
+  .min(1, "O prazo precisa ser de pelo menos 1 hora")
+  .max(8760, "O prazo pode ser de no máximo 8760 horas (1 ano)")
+  .nullable()
+  .optional();
+
 export const settingsSchema = z
   .object({
     hidePriorityForComum: z.boolean().optional(),
@@ -119,6 +128,10 @@ export const settingsSchema = z
       .max(1000)
       .nullable()
       .optional(),
+    slaHoursCritica: slaHours,
+    slaHoursAlta: slaHours,
+    slaHoursMedia: slaHours,
+    slaHoursBaixa: slaHours,
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), { message: "Nenhuma configuração para alterar" });
 
@@ -141,6 +154,9 @@ export const ticketQuerySchema = z.object({
   solution: z.enum(["with", "without", "pending"]).optional(),
   categoryId: id.optional(),
   assigneeId: id.optional(),
+  machineId: id.optional(),
+  // overdue = em aberto com o prazo (SLA) estourado.
+  sla: z.enum(["overdue"]).optional(),
   search: z.string().trim().max(100).optional(),
   // Período pela data de abertura (AAAA-MM-DD, inclusivo).
   from: isoDate.optional(),
