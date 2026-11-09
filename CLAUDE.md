@@ -4,6 +4,7 @@
 - Do only what the current prompt asks.
 - Change only what is strictly necessary.
 - Keep features and logic unrelated to the request exactly as they are.
+- After every change to the project, suggest a commit message following the commit-messages skill (Conventional Commits format).
 
 ## graphify
 
