@@ -15,7 +15,9 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_users_email (email),
-  KEY idx_users_role_active (role, active)
+  KEY idx_users_role_active (role, active),
+  -- Booleano: só 0 ou 1 (bancos anteriores recebem a regra por upgradeBooleans.ts).
+  CONSTRAINT chk_users_active CHECK (active IN (0, 1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Bancos criados antes do controle de sessão única.
@@ -31,7 +33,8 @@ CREATE TABLE IF NOT EXISTS categories (
   name   VARCHAR(80) NOT NULL,
   active TINYINT(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_categories_name (name)
+  UNIQUE KEY uq_categories_name (name),
+  CONSTRAINT chk_categories_active CHECK (active IN (0, 1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Bancos criados antes da coluna categories.active.
@@ -94,7 +97,8 @@ CREATE TABLE IF NOT EXISTS ticket_comments (
   PRIMARY KEY (id),
   KEY idx_comments_ticket (ticket_id, created_at),
   CONSTRAINT fk_comments_ticket FOREIGN KEY (ticket_id) REFERENCES tickets (id) ON DELETE CASCADE,
-  CONSTRAINT fk_comments_user FOREIGN KEY (user_id) REFERENCES users (id)
+  CONSTRAINT fk_comments_user FOREIGN KEY (user_id) REFERENCES users (id),
+  CONSTRAINT chk_comments_is_internal CHECK (is_internal IN (0, 1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Anexos dos comentários. O arquivo fica no servidor (pasta UPLOAD_DIR);

@@ -6,6 +6,7 @@ import { readFile } from "node:fs/promises";
 import mysql from "mysql2/promise";
 import { env } from "../config/env.js";
 import { hashPassword } from "../utils/password.js";
+import { upgradeBooleans } from "./upgradeBooleans.js";
 import { upgradeComments } from "./upgradeComments.js";
 import { upgradeNotifications } from "./upgradeNotifications.js";
 import { upgradeTickets } from "./upgradeTickets.js";
@@ -40,6 +41,7 @@ try {
   await upgradeComments(conn);
   await upgradeTickets(conn);
   await upgradeNotifications(conn);
+  await upgradeBooleans(conn);
   console.log("Tabelas criadas/atualizadas.");
 
   // Conta inicial: super support (o perfil com acesso total).
